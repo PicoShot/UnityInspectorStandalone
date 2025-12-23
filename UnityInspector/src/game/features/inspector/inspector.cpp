@@ -3,9 +3,10 @@
 
 void Inspector::Update(const float deltaTime)
 {
-	UR::ThreadAttach();
 	const auto& [Enabled, AutoUpdateObject, AutoRefresh] = Core::config->inspector;
 	if (!Enabled) return;
+
+	UR::ThreadAttach();
 
 	static float timer = 0.0f;
 	timer += deltaTime;
@@ -26,8 +27,9 @@ void Inspector::Update(const float deltaTime)
 
 void Inspector::Render()
 {
-	UR::ThreadAttach();
 	if (!Core::config->inspector.Enabled) return;
+
+	UR::ThreadAttach();
 
 	ImGui::SetNextWindowSize(ImVec2(350, 500), ImGuiCond_FirstUseEver);
 

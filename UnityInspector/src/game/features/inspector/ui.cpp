@@ -1348,7 +1348,12 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	if (bool isActive = true; Core::helper->SafeGetActiveSelf(tab.gameObject, isActive))
 	{
 		ImGui::SameLine();
-		ImGui::Text("| Active: %s", isActive ? "Yes" : "No");
+		if (ImGui::Checkbox("##Active", &isActive))
+		{
+			Core::helper->SafeSetActive(tab.gameObject, isActive);
+		}
+		ImGui::SameLine();
+		ImGui::Text("Active");
 	}
 
 	if (tab.gameObject && Core::helper->SafeIsAlive(tab.gameObject))

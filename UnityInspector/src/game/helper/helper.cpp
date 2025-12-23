@@ -47,6 +47,21 @@ bool Helper::SafeGetActiveSelf(UT::GameObject* obj, bool& outActive)
     }
 }
 
+bool Helper::SafeSetActive(UT::GameObject* obj, bool value)
+{
+    if (!obj) return false;
+
+    __try
+    {
+        obj->SetActive(value);
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
 bool Helper::SafeGetIsStatic(UT::GameObject* obj, bool& outStatic)
 {
     if (!obj) return false;

@@ -12,6 +12,7 @@ struct Helper
     static bool SafeIsAlive(UT::UnityObject* obj);
     static bool SafeGetTag(UT::GameObject* obj, UT::String*& outTag);
     static bool SafeGetActiveSelf(UT::GameObject* obj, bool& outActive);
+    static bool SafeSetActive(UT::GameObject* obj, bool value);
     static bool SafeGetIsStatic(UT::GameObject* obj, bool& outStatic);
 	static Vec3 TryGetPosition(Transform* go);
     static Camera* GetMainCamera();
