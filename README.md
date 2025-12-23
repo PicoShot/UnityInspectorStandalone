@@ -107,6 +107,6 @@ UnityInspector is a single-DLL runtime inspection tool that allows you to explor
 ## Credits
 
 - [ImGui](https://github.com/ocornut/imgui) by ocornut
-- [Kiero](https://github.com/rdbo) for the DirectX hooking framework
+- [Kiero](https://github.com/Rebzzel/kiero) for the DirectX hooking framework
 
 ---
