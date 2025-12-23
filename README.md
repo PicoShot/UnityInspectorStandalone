@@ -92,16 +92,13 @@ UnityInspector is a single-DLL runtime inspection tool that allows you to explor
 
 | Version | Mono | IL2CPP |
 |---------|------|--------|
-| 2017.x  | [?] | [?] |
-| 2018.x  | [?] | [?] |
-| 2019.x  | [?] | [?] |
-| 2020.x  | [?] | [?] |
+| 2015-2020.x  | [?] | [?] |
 | 2021.x  | [?] | [!] |
 | 2022.x  | [!] | [+] |
-| 2023.x  | [?] | [+] |
+| 2023.x  | [?] | [?] |
 | 6000.x  | [+] | [+] |
 
-- [?] Not Tested
+- [?] Not Tested  
 - [-] Not Supported
 - [!] Have Bugs
 - [+] Supported
