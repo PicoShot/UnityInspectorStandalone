@@ -97,8 +97,8 @@ UnityInspector is a single-DLL runtime inspection tool that allows you to explor
 | 2019.x  | [?] | [?] |
 | 2020.x  | [?] | [?] |
 | 2021.x  | [?] | [!] |
-| 2022.x  | [!] | [?] |
-| 2023.x  | [?] | [?] |
+| 2022.x  | [!] | [+] |
+| 2023.x  | [?] | [+] |
 | 6000.x  | [+] | [+] |
 
 - [?] Not Tested

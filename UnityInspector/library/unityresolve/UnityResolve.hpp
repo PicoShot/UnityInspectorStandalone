@@ -2625,11 +2625,15 @@ public:
 			auto GetLocalScale() const -> Vector3 {
 				static Method* method;
 
-				if (!method) method = Get("UnityEngine.CoreModule.dll")->Get("Transform")->Get<Method>("get_localScale_Injected");
-				Vector3 vec3{};
-				if (!m_CachedPtr) return vec3;
-				method->Invoke<void>(m_CachedPtr, &vec3);
-				return vec3;
+				if (!method) method = Get("UnityEngine.CoreModule.dll")->Get("Transform")->Get<Method>(mode_ == Mode::Mono ? "get_localScale_Injected" : "get_localScale");
+				if (mode_ == Mode::Mono && method)
+				{
+					Vector3 vec3{};
+					if (!m_CachedPtr) return vec3;
+					method->Invoke<void>(m_CachedPtr, &vec3);
+				}
+				if (method) return method->Invoke<Vector3>(this);
+				return {};
 			}
 
 			auto SetLocalScale(const Vector3& position) -> void {
