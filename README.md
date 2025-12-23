@@ -7,6 +7,7 @@ A powerful runtime inspector for Unity games with **Mono** and **IL2CPP** suppor
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Unity](https://img.shields.io/badge/Unity-Mono%20%7C%20IL2CPP-green.svg)](https://unity.com/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/)
+[![Status](https://img.shields.io/badge/status-Beta%20%7C%20Active%20Development-orange.svg)](https://github.com/)
 
 </div>
 
@@ -14,6 +15,7 @@ A powerful runtime inspector for Unity games with **Mono** and **IL2CPP** suppor
   <img src="Assets/screenshot.png" alt="Screenshot">
 </p>
 
+more screenshots at [Assets](Assets/)
 
 ---
 
@@ -73,8 +75,10 @@ UnityInspector is a single-DLL runtime inspection tool that allows you to explor
 ### Requirements
 
 - Windows 10 or later
-- Unity game (Mono or IL2CPP)
+- Unity game (Mono or IL2CPP) running on **DirectX 11**
 - DLL injector (any injector will work)
+
+> **Note:** Only DirectX 11 is supported. DX12 and Vulkan are **not** supported. Launch your game with `-force-d3d11` to ensure DX11 mode.
 
 ### Steps
 
