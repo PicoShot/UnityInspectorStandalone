@@ -2,8 +2,8 @@
 #include "hooks.h"
 //#include "game/core/core.h"
 
-UR::Method* Hooks::pSetFov = nullptr;
-UR::Method* Hooks::pGetFov = nullptr;
+//UR::Method* Hooks::pSetFov = nullptr;
+//UR::Method* Hooks::pGetFov = nullptr;
 
 void Hooks::Init()
 {
