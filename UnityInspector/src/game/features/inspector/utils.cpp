@@ -628,6 +628,7 @@ void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 		if (!tab.gameObject) return;
 		if (!tab.gameObject->IsAlive()) return;
 
+		// FIXME: Crash on refresh if object is destroyed 
 		for (const auto components = tab.gameObject->GetComponents<UT::Component*>(componentClass); auto& comp : components)
 		{
 

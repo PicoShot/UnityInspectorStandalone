@@ -275,8 +275,10 @@
     <ClCompile Include="src\game\core\core.cpp" />
     <ClCompile Include="src\game\features\inspector\esp.cpp" />
     <ClCompile Include="src\game\features\inspector\inspector.cpp" />
-    <ClCompile Include="src\game\features\inspector\ui.cpp" />
     <ClCompile Include="src\game\features\inspector\utils.cpp" />
+    <ClCompile Include="src\game\features\inspector\hierarchy_window.cpp" />
+    <ClCompile Include="src\game\features\inspector\inspector_window.cpp" />
+    <ClCompile Include="src\game\features\inspector\invoke_popup.cpp" />
     <ClCompile Include="src\game\features\Tests\Tests.cpp" />
     <ClCompile Include="src\game\helper\helper.cpp" />
     <ClCompile Include="src\game\hooks\hooks.cpp" />

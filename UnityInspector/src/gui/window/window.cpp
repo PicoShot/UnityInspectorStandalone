@@ -120,7 +120,7 @@ LRESULT Window::MyWndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam,
     if (g_ImGuiInitialized) {
         ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
 
-        if (ImGui::GetIO().WantCaptureMouse) {
+        if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureMouseUnlessPopupClose) {
             switch (uMsg) {
             case WM_LBUTTONDOWN:
             case WM_LBUTTONUP:
@@ -132,6 +132,13 @@ LRESULT Window::MyWndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam,
             case WM_XBUTTONUP:
             case WM_MOUSEWHEEL:
             case WM_MOUSEMOVE:
+            case WM_MOUSELEAVE:
+            case WM_MOUSEACTIVATE:
+            case WM_MOUSEHOVER:
+            case WM_MOUSELAST:
+            case WM_NCMOUSEHOVER:
+			case WM_NCMOUSELEAVE:
+            case WM_NCMOUSEMOVE:
                 return 2;
             }
         }

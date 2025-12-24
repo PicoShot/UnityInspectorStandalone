@@ -1,91 +1,6 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "inspector.h"
 
-void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
-{
-	if (!Core::helper->SafeIsAlive(node.gameObject)) return;
-
-	bool matchesSearch = true;
-	if (searchBuffer[0] != '\0')
-	{
-		matchesSearch = node.name.find(searchBuffer) != std::string::npos;
-
-		if (!matchesSearch)
-		{
-			for (auto& child : node.children)
-			{
-				std::function<bool(HierarchyNode&)> checkChildren = [&](HierarchyNode& n) -> bool {
-					if (n.name.find(searchBuffer) != std::string::npos) return true;
-					for (auto& c : n.children)
-					{
-						if (checkChildren(c)) return true;
-					}
-					return false;
-					};
-				if (checkChildren(child))
-				{
-					matchesSearch = true;
-					break;
-				}
-			}
-		}
-	}
-
-	if (!matchesSearch) return;
-
-	ImGui::PushID(node.gameObject);
-
-	const bool hasChildren = !node.children.empty();
-	const bool isSelected = (FindTabForObject(node.gameObject) >= 0);
-
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-	if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf;
-	if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
-
-	bool isActive = true;
-	if (!Core::helper->SafeGetActiveSelf(node.gameObject, isActive))
-	{
-		ImGui::PopID();
-		return;
-	}
-
-	if (!isActive)
-	{
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
-	}
-
-	const bool nodeOpen = ImGui::TreeNodeEx(node.name.c_str(), flags);
-
-	if (!isActive)
-	{
-		ImGui::PopStyleColor();
-	}
-
-	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
-	{
-		OpenObjectInNewTab(node.gameObject);
-	}
-
-	if (ImGui::BeginPopupContextItem())
-	{
-		if (ImGui::MenuItem("Inspect"))
-		{
-			OpenObjectInNewTab(node.gameObject);
-		}
-		ImGui::EndPopup();
-	}
-
-	if (nodeOpen)
-	{
-		for (auto& child : node.children)
-		{
-			RenderHierarchyNode(child, depth + 1);
-		}
-		ImGui::TreePop();
-	}
-
-	ImGui::PopID();
-}
 void Inspector::RenderEditableField(UT::Component* component, const ComponentFieldInfo& field) const
 {
 	if (!component || field.offset < 0) return;
@@ -691,7 +606,6 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 		ImGui::Unindent();
 	}
 }
-
 
 void Inspector::RenderMethodsSection(UT::Component* component, const std::vector<ComponentMethodInfo>& methods, InspectedObjectTab& tab, const size_t componentIndex)
 {
@@ -1364,7 +1278,7 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 			ImGui::Text("Tag: %s", tag->ToString().c_str());
 		}
 	}
-	
+
 	if (bool isStatic = false; Helper::SafeGetIsStatic(tab.gameObject, isStatic))
 	{
 		ImGui::SameLine();
@@ -1392,12 +1306,12 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	if (ImGui::BeginChild("Content", ImVec2(0, 0), false))
 	{
 		UT::Transform* transform = nullptr;
-	
+
 		if (tab.gameObject && Core::helper->SafeIsAlive(tab.gameObject))
 		{
 			Core::helper->SafeGetTransform(tab.gameObject, transform);
 		}
-	
+
 
 		if (transform)
 		{
@@ -1413,153 +1327,4 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 		RenderComponentsSection(tab);
 	}
 	ImGui::EndChild();
-}
-
-void Inspector::RenderMethodInvokePopup()
-{
-	if (!invokeState.showPopup) return;
-
-	ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-
-	std::string title = "Invoke: " + invokeState.method.name + "###MethodInvoke";
-	if (ImGui::Begin(title.c_str(), &invokeState.showPopup))
-	{
-		ImGui::Text("Method: %s", invokeState.method.name.c_str());
-		ImGui::Text("Return Type: %s", invokeState.method.returnTypeName.c_str());
-		if (invokeState.method.isStatic)
-		{
-			ImGui::SameLine();
-			ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "[Static]");
-		}
-
-		ImGui::Separator();
-
-		if (invokeState.method.parameters.empty())
-		{
-			ImGui::TextDisabled("No parameters");
-		}
-		else
-		{
-			ImGui::Text("Parameters:");
-			for (size_t i = 0; i < invokeState.method.parameters.size(); i++)
-			{
-				const auto& [name, typeName] = invokeState.method.parameters[i];
-				const auto paramType = invokeState.method.parameterEditableTypes[i];
-
-				ImGui::PushID(static_cast<int>(i));
-
-				std::string label = name + " (" + typeName + ")";
-				ImGui::Text("%s", label.c_str());
-				ImGui::SameLine();
-
-				char buf[256] = {};
-				if (i < invokeState.parameterValues.size() && !invokeState.parameterValues[i].empty())
-				{
-					strncpy_s(buf, invokeState.parameterValues[i].c_str(), sizeof(buf) - 1);
-				}
-
-				ImGui::SetNextItemWidth(-1);
-				switch (paramType)
-				{
-				case EditableType::Int:
-				case EditableType::Float:
-				case EditableType::Double:
-					if (ImGui::InputText("##param", buf, sizeof(buf), ImGuiInputTextFlags_CharsDecimal))
-					{
-						invokeState.parameterValues[i] = buf;
-					}
-					break;
-				case EditableType::Bool:
-				{
-					bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
-					if (ImGui::Checkbox("##param", &val))
-					{
-						invokeState.parameterValues[i] = val ? "true" : "false";
-					}
-					break;
-				}
-				default:
-					if (ImGui::InputText("##param", buf, sizeof(buf)))
-					{
-						invokeState.parameterValues[i] = buf;
-					}
-					break;
-				}
-
-				ImGui::PopID();
-			}
-		}
-
-		ImGui::Separator();
-
-		if (ImGui::Button("Invoke", ImVec2(100, 0)))
-		{
-			void* result = InvokeMethod(invokeState.targetComponent, invokeState.method, invokeState.parameterValues);
-
-			invokeState.hasResult = true;
-			if (result)
-			{
-				if (invokeState.method.returnTypeName == "void" || invokeState.method.returnTypeName == "System.Void")
-				{
-					invokeState.resultText = "(void)";
-				}
-				else
-				{
-					const EditableType retType = DetermineEditableType(invokeState.method.returnTypeName);
-					void* unboxed = UR::Invoke<void*, void*>(
-						Core::config->gameMode == UnityResolve::Mode::Mono ? "mono_object_unbox" : "il2cpp_object_unbox", result);
-
-					if (unboxed)
-					{
-						switch (retType)
-						{
-						case EditableType::Int:
-							invokeState.resultText = std::to_string(*static_cast<int*>(unboxed));
-							break;
-						case EditableType::Float:
-							invokeState.resultText = std::to_string(*static_cast<float*>(unboxed));
-							break;
-						case EditableType::Double:
-							invokeState.resultText = std::to_string(*static_cast<double*>(unboxed));
-							break;
-						case EditableType::Bool:
-							invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
-							break;
-						default:
-							invokeState.resultText = std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
-							break;
-						}
-					}
-					else
-					{
-						invokeState.resultText = std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
-					}
-				}
-			}
-			else
-			{
-				if (invokeState.method.returnTypeName == "void" || invokeState.method.returnTypeName == "System.Void")
-				{
-					invokeState.resultText = "(completed)";
-				}
-				else
-				{
-					invokeState.resultText = "(null or error)";
-				}
-			}
-		}
-
-		ImGui::SameLine();
-		if (ImGui::Button("Close", ImVec2(100, 0)))
-		{
-			invokeState.showPopup = false;
-		}
-
-		if (invokeState.hasResult)
-		{
-			ImGui::Separator();
-			ImGui::Text("Result: %s", invokeState.resultText.c_str());
-		}
-	}
-	ImGui::End();
 }
