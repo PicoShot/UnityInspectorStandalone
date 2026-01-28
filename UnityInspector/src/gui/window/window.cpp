@@ -83,6 +83,7 @@ void Window::OnPresent()
         io.IniFilename = nullptr;
         io.IniSavingRate = 0.f;
         io.LogFilename = nullptr;
+        io.MouseDrawCursor = true;
         SetMenuStyle();
 
         if (ImGui_ImplWin32_Init(dx_hook::Hk11::GetHwnd()) && ImGui_ImplDX11_Init(device, context))
@@ -142,23 +143,37 @@ LRESULT Window::MyWndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam,
                 return 2;
             }
         }
-
-        if (ImGui::GetIO().WantCaptureKeyboard) {
-            switch (uMsg) {
-            case WM_KEYDOWN:
-            case WM_KEYUP:
-            case WM_CHAR:
-                if (uMsg == WM_KEYDOWN && wParam == VK_INSERT) {
-                    Core::config->inspector.Enabled = !Core::config->inspector.Enabled;
-                }
-                return 2;
-            }
-        }
     }
 
-    if (uMsg == WM_KEYDOWN && wParam == VK_INSERT) {
-        Core::config->inspector.Enabled = !Core::config->inspector.Enabled;
-        return 2;
+    if (uMsg == WM_KEYDOWN) 
+    {
+        switch (wParam)
+        {
+		case VK_INSERT:
+        {
+            auto& menu = Core::config->inspector.Enabled;
+            menu = !menu;
+            ImGui::GetIO().MouseDrawCursor = menu;
+            ClipCursor(nullptr);
+            return 2;
+        }
+        case VK_F5:
+        {
+			// toggles cursor visibility
+			static bool cursor = false;
+			cursor = !cursor;
+            cursor ? ShowCursor(TRUE) : ShowCursor(FALSE);
+            return 2;
+        }
+        case VK_F6:
+        {
+			// unlocks cursor
+            ClipCursor(nullptr);
+            return 2;
+        }
+        default:
+            break;
+        }
     }
 
     return 1;
