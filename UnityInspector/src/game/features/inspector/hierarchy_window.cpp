@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "inspector.h"
 
-
 void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
 {
 	if (!Core::helper->SafeIsAlive(node.gameObject)) return;
@@ -22,7 +21,7 @@ void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
 						if (checkChildren(c)) return true;
 					}
 					return false;
-					};
+				};
 				if (checkChildren(child))
 				{
 					matchesSearch = true;
@@ -39,8 +38,11 @@ void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
 	const bool hasChildren = !node.children.empty();
 	const bool isSelected = (FindTabForObject(node.gameObject) >= 0);
 
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-	if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf;
+	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | 
+	                           ImGuiTreeNodeFlags_SpanAvailWidth |
+	                           ImGuiTreeNodeFlags_FramePadding;
+	
+	if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 	if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
 
 	bool isActive = true;
@@ -50,17 +52,14 @@ void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
 		return;
 	}
 
-	if (!isActive)
-	{
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
-	}
 
-	const bool nodeOpen = ImGui::TreeNodeEx(node.name.c_str(), flags);
+	const char* icon = hasChildren ? " " : "  ";
+	const char* activeIcon = isActive ? "" : " ";
+	
+	std::string label = activeIcon + std::string(icon) + node.name;
+	
+	const bool nodeOpen = ImGui::TreeNodeEx(label.c_str(), flags);
 
-	if (!isActive)
-	{
-		ImGui::PopStyleColor();
-	}
 
 	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
 	{
@@ -69,14 +68,19 @@ void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
 
 	if (ImGui::BeginPopupContextItem())
 	{
-		if (ImGui::MenuItem("Inspect"))
+		if (ImGui::MenuItem("Inspect", nullptr, false, true))
 		{
 			OpenObjectInNewTab(node.gameObject);
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem(isActive ? "Deactivate" : "Activate"))
+		{
+			Core::helper->SafeSetActive(node.gameObject, !isActive);
 		}
 		ImGui::EndPopup();
 	}
 
-	if (nodeOpen)
+	if (hasChildren && nodeOpen)
 	{
 		for (auto& child : node.children)
 		{

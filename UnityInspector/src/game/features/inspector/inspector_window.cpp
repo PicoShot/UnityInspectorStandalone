@@ -1,11 +1,98 @@
 #include "pch.h"
 #include "inspector.h"
 
+static bool DragFloatLabel(const char* label, float* value, float width = 40.0f, float speed = 0.1f)
+{
+	ImGui::PushItemWidth(width);
+	ImGui::Text("%s", label);
+	ImGui::SameLine();
+	bool changed = ImGui::DragFloat(("##" + std::string(label)).c_str(), value, speed);
+	ImGui::PopItemWidth();
+	return changed;
+}
+
+static bool DragVector3Compact(const char* id, float* values, float speed = 0.1f)
+{
+	bool changed = false;
+	const float availWidth = ImGui::GetContentRegionAvail().x;
+	const float inputWidth = (availWidth - 60.0f) / 3.0f;
+
+	ImGui::PushID(id);
+
+	ImGui::PushItemWidth(inputWidth);
+	changed |= ImGui::DragFloat("##X", &values[0], speed);
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, 4);
+	ImGui::Text("X");
+
+	ImGui::SameLine(0, 8);
+	ImGui::PushItemWidth(inputWidth);
+	changed |= ImGui::DragFloat("##Y", &values[1], speed);
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, 4);
+	ImGui::Text("Y");
+
+	ImGui::SameLine(0, 8);
+	ImGui::PushItemWidth(inputWidth);
+	changed |= ImGui::DragFloat("##Z", &values[2], speed);
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, 4);
+	ImGui::Text("Z");
+
+	ImGui::PopID();
+	return changed;
+}
+
+static bool DragVector4Compact(const char* id, float* values, float speed = 0.01f)
+{
+	bool changed = false;
+	const float availWidth = ImGui::GetContentRegionAvail().x;
+	const float inputWidth = (availWidth - 80.0f) / 4.0f;
+
+	ImGui::PushID(id);
+
+	ImGui::PushItemWidth(inputWidth);
+	changed |= ImGui::DragFloat("##X", &values[0], speed);
+	ImGui::PopItemWidth();
+	ImGui::SameLine(0, 2);
+	ImGui::Text("X");
+
+	ImGui::SameLine(0, 6);
+	ImGui::PushItemWidth(inputWidth);
+	changed |= ImGui::DragFloat("##Y", &values[1], speed);
+	ImGui::PopItemWidth();
+	ImGui::SameLine(0, 2);
+	ImGui::Text("Y");
+
+	ImGui::SameLine(0, 6);
+	ImGui::PushItemWidth(inputWidth);
+	changed |= ImGui::DragFloat("##Z", &values[2], speed);
+	ImGui::PopItemWidth();
+	ImGui::SameLine(0, 2);
+	ImGui::Text("Z");
+
+	ImGui::SameLine(0, 6);
+	ImGui::PushItemWidth(inputWidth);
+	changed |= ImGui::DragFloat("##W", &values[3], speed);
+	ImGui::PopItemWidth();
+	ImGui::SameLine(0, 2);
+	ImGui::Text("W");
+
+	ImGui::PopID();
+	return changed;
+}
+
 void Inspector::RenderEditableField(UT::Component* component, const ComponentFieldInfo& field) const
 {
 	if (!component || field.offset < 0) return;
 
 	ImGui::PushID(field.offset);
+
+	const float availWidth = ImGui::GetContentRegionAvail().x;
+	ImGui::SetNextItemWidth(availWidth);
 
 	if (field.isStatic)
 	{
@@ -16,11 +103,8 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			int val;
 			if (Helper::SafeGetStaticFieldInt(field.fieldHandle, val))
 			{
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragInt("##val", &val))
-				{
 					Helper::SafeSetStaticFieldInt(field.fieldHandle, val);
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -30,11 +114,8 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			float val;
 			if (Helper::SafeGetStaticFieldFloat(field.fieldHandle, val))
 			{
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragFloat("##val", &val, 0.1f))
-				{
 					Helper::SafeSetStaticFieldFloat(field.fieldHandle, val);
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -44,11 +125,8 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (double val; Helper::SafeGetStaticFieldDouble(field.fieldHandle, val))
 			{
 				float fVal = static_cast<float>(val);
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragFloat("##val", &fVal, 0.01f))
-				{
 					Helper::SafeSetStaticFieldDouble(field.fieldHandle, static_cast<double>(fVal));
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -59,9 +137,7 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (Helper::SafeGetStaticFieldBool(field.fieldHandle, val))
 			{
 				if (ImGui::Checkbox("##val", &val))
-				{
 					Helper::SafeSetStaticFieldBool(field.fieldHandle, val);
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -72,8 +148,7 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (Helper::SafeGetStaticFieldVector3(field.fieldHandle, val))
 			{
 				float arr[3] = { val.x, val.y, val.z };
-				ImGui::SetNextItemWidth(-1);
-				if (ImGui::DragFloat3("##val", arr, 0.1f))
+				if (DragVector3Compact("##val", arr, 0.1f))
 				{
 					val.x = arr[0]; val.y = arr[1]; val.z = arr[2];
 					Helper::SafeSetStaticFieldVector3(field.fieldHandle, val);
@@ -96,11 +171,8 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			int val;
 			if (Helper::SafeReadInt(component, field.offset, val))
 			{
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragInt("##val", &val))
-				{
 					Helper::SafeWriteInt(component, field.offset, val);
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -110,11 +182,8 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			float val;
 			if (Helper::SafeReadFloat(component, field.offset, val))
 			{
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragFloat("##val", &val, 0.1f))
-				{
 					Helper::SafeWriteFloat(component, field.offset, val);
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -125,11 +194,8 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (Helper::SafeReadDouble(component, field.offset, val))
 			{
 				float fVal = static_cast<float>(val);
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragFloat("##val", &fVal, 0.01f))
-				{
 					Helper::SafeWriteDouble(component, field.offset, static_cast<double>(fVal));
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -140,9 +206,7 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (Helper::SafeReadBool(component, field.offset, val))
 			{
 				if (ImGui::Checkbox("##val", &val))
-				{
 					Helper::SafeWriteBool(component, field.offset, val);
-				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -164,7 +228,6 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (Helper::SafeReadVector2(component, field.offset, val))
 			{
 				float arr[2] = { val.x, val.y };
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragFloat2("##val", arr, 0.1f))
 				{
 					val.x = arr[0]; val.y = arr[1];
@@ -179,8 +242,7 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (UT::Vector3 val; Helper::SafeReadVector3(component, field.offset, val))
 			{
 				float arr[3] = { val.x, val.y, val.z };
-				ImGui::SetNextItemWidth(-1);
-				if (ImGui::DragFloat3("##val", arr, 0.1f))
+				if (DragVector3Compact("##val", arr, 0.1f))
 				{
 					val.x = arr[0]; val.y = arr[1]; val.z = arr[2];
 					Helper::SafeWriteVector3(component, field.offset, val);
@@ -195,7 +257,6 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (Helper::SafeReadVector4(component, field.offset, val))
 			{
 				float arr[4] = { val.x, val.y, val.z, val.w };
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::DragFloat4("##val", arr, 0.1f))
 				{
 					val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
@@ -210,8 +271,7 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (UT::Quaternion val; Helper::SafeReadQuaternion(component, field.offset, val))
 			{
 				float arr[4] = { val.x, val.y, val.z, val.w };
-				ImGui::SetNextItemWidth(-1);
-				if (ImGui::DragFloat4("##val", arr, 0.01f))
+				if (DragVector4Compact("##val", arr, 0.01f))
 				{
 					val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
 					Helper::SafeWriteQuaternion(component, field.offset, val);
@@ -225,7 +285,6 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			if (UT::Color val; Helper::SafeReadColor(component, field.offset, val))
 			{
 				float arr[4] = { val.r, val.g, val.b, val.a };
-				ImGui::SetNextItemWidth(-1);
 				if (ImGui::ColorEdit4("##val", arr, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar))
 				{
 					val.r = arr[0]; val.g = arr[1]; val.b = arr[2]; val.a = arr[3];
@@ -250,6 +309,9 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 
 	ImGui::PushID(prop.name.c_str());
 
+	const float availWidth = ImGui::GetContentRegionAvail().x;
+	ImGui::SetNextItemWidth(availWidth);
+
 	if (!prop.canRead)
 	{
 		ImGui::TextDisabled("(write-only)");
@@ -264,15 +326,10 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		int val = 0;
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(int)))
 		{
-			ImGui::SetNextItemWidth(-1);
 			if (prop.canWrite && ImGui::DragInt("##val", &val))
-			{
 				Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
-			}
 			else if (!prop.canWrite)
-			{
 				ImGui::Text("%d", val);
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -282,15 +339,10 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		float val = 0;
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(float)))
 		{
-			ImGui::SetNextItemWidth(-1);
 			if (prop.canWrite && ImGui::DragFloat("##val", &val, 0.1f))
-			{
 				Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
-			}
 			else if (!prop.canWrite)
-			{
 				ImGui::Text("%.3f", val);
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -301,16 +353,13 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(double)))
 		{
 			float fVal = static_cast<float>(val);
-			ImGui::SetNextItemWidth(-1);
 			if (prop.canWrite && ImGui::DragFloat("##val", &fVal, 0.01f))
 			{
 				val = static_cast<double>(fVal);
 				Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
 			}
 			else if (!prop.canWrite)
-			{
 				ImGui::Text("%.6f", val);
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -323,14 +372,10 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 			if (prop.canWrite)
 			{
 				if (ImGui::Checkbox("##val", &val))
-				{
 					Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
-				}
 			}
 			else
-			{
 				ImGui::Text("%s", val ? "true" : "false");
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -341,16 +386,13 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(UT::Vector2)))
 		{
 			float arr[2] = { val.x, val.y };
-			ImGui::SetNextItemWidth(-1);
 			if (prop.canWrite && ImGui::DragFloat2("##val", arr, 0.1f))
 			{
 				val.x = arr[0]; val.y = arr[1];
 				Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
 			}
 			else if (!prop.canWrite)
-			{
 				ImGui::Text("(%.2f, %.2f)", val.x, val.y);
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -361,16 +403,13 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(UT::Vector3)))
 		{
 			float arr[3] = { val.x, val.y, val.z };
-			ImGui::SetNextItemWidth(-1);
-			if (prop.canWrite && ImGui::DragFloat3("##val", arr, 0.1f))
+			if (prop.canWrite && DragVector3Compact("##val", arr, 0.1f))
 			{
 				val.x = arr[0]; val.y = arr[1]; val.z = arr[2];
 				Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
 			}
 			else if (!prop.canWrite)
-			{
 				ImGui::Text("(%.2f, %.2f, %.2f)", val.x, val.y, val.z);
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -381,16 +420,13 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(UT::Vector4)))
 		{
 			float arr[4] = { val.x, val.y, val.z, val.w };
-			ImGui::SetNextItemWidth(-1);
 			if (prop.canWrite && ImGui::DragFloat4("##val", arr, 0.1f))
 			{
 				val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
 				Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
 			}
 			else if (!prop.canWrite)
-			{
 				ImGui::Text("(%.2f, %.2f, %.2f, %.2f)", val.x, val.y, val.z, val.w);
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -401,16 +437,13 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(UT::Quaternion)))
 		{
 			float arr[4] = { val.x, val.y, val.z, val.w };
-			ImGui::SetNextItemWidth(-1);
-			if (prop.canWrite && ImGui::DragFloat4("##val", arr, 0.01f))
+			if (prop.canWrite && DragVector4Compact("##val", arr, 0.01f))
 			{
 				val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
 				Helper::SafeInvokeSetter(component, prop.setterHandle, &val);
 			}
 			else if (!prop.canWrite)
-			{
 				ImGui::Text("(%.3f, %.3f, %.3f, %.3f)", val.x, val.y, val.z, val.w);
-			}
 		}
 		else { ImGui::TextDisabled("ERROR"); }
 		break;
@@ -421,7 +454,6 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 		if (Helper::SafeInvokeGetter(component, prop.getterHandle, &val, sizeof(UT::Color)))
 		{
 			float arr[4] = { val.r, val.g, val.b, val.a };
-			ImGui::SetNextItemWidth(-1);
 			if (prop.canWrite && ImGui::ColorEdit4("##val", arr, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar))
 			{
 				val.r = arr[0]; val.g = arr[1]; val.b = arr[2]; val.a = arr[3];
@@ -444,166 +476,92 @@ void Inspector::RenderEditableProperty(UT::Component* component, const Component
 	ImGui::PopID();
 }
 
-static bool DragFloatLabel(const char* label, float* value, float width = 40.0f, float speed = 0.1f)
-{
-	ImGui::PushItemWidth(width);
-	ImGui::Text("%s", label);
-	ImGui::SameLine();
-	bool changed = ImGui::DragFloat(("##" + std::string(label)).c_str(), value, speed);
-	ImGui::PopItemWidth();
-	return changed;
-}
-
-static bool DragVector3Compact(const char* id, float* values, float speed = 0.1f)
-{
-	bool changed = false;
-
-	ImGui::PushID(id);
-
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-	changed |= DragFloatLabel("X", &values[0], 45.0f, speed);
-	ImGui::PopStyleColor();
-
-	ImGui::SameLine(0, 8);
-
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.0f, 0.4f, 1.0f));
-	changed |= DragFloatLabel("Y", &values[1], 45.0f, speed);
-	ImGui::PopStyleColor();
-
-	ImGui::SameLine(0, 8);
-
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.6f, 1.0f, 1.0f));
-	changed |= DragFloatLabel("Z", &values[2], 45.0f, speed);
-	ImGui::PopStyleColor();
-
-	ImGui::PopID();
-	return changed;
-}
-
-static bool DragVector4Compact(const char* id, float* values, float speed = 0.01f)
-{
-	bool changed = false;
-
-	ImGui::PushID(id);
-
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-	changed |= DragFloatLabel("X", &values[0], 40.0f, speed);
-	ImGui::PopStyleColor();
-
-	ImGui::SameLine(0, 6);
-
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.0f, 0.4f, 1.0f));
-	changed |= DragFloatLabel("Y", &values[1], 40.0f, speed);
-	ImGui::PopStyleColor();
-
-	ImGui::SameLine(0, 6);
-
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.6f, 1.0f, 1.0f));
-	changed |= DragFloatLabel("Z", &values[2], 40.0f, speed);
-	ImGui::PopStyleColor();
-
-	ImGui::SameLine(0, 6);
-
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.4f, 1.0f));
-	changed |= DragFloatLabel("W", &values[3], 40.0f, speed);
-	ImGui::PopStyleColor();
-
-	ImGui::PopID();
-	return changed;
-}
-
 void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObjectTab& tab) const
 {
 	if (!transform) return;
 
-	if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+
+	bool open = ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen);
+
+	if (open)
 	{
-		ImGui::Indent();
+		ImGui::Indent(10.0f);
 
-		ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-		ImGui::Checkbox("World", &tab.showWorldTransform);
-		ImGui::SameLine(0, 12);
-		ImGui::Checkbox("Local", &tab.showLocalTransform);
-		ImGui::PopStyleColor();
+		if (ImGui::Button("World", ImVec2(60, 0))) tab.showWorldTransform = !tab.showWorldTransform;
 
-		ImGui::Separator();
-		ImGui::Spacing();
+		ImGui::SameLine();
+		if (ImGui::Button("Local", ImVec2(60, 0))) tab.showLocalTransform = !tab.showLocalTransform;
 
-		const float childWidth = ImGui::GetContentRegionAvail().x * 0.48f;
+		const float availWidth = ImGui::GetContentRegionAvail().x;
+		const bool showBoth = tab.showWorldTransform && tab.showLocalTransform;
+		const float childWidth = showBoth ? (availWidth - 10.0f) * 0.5f : availWidth;
 
 		if (tab.showWorldTransform)
 		{
-			ImGui::BeginChild("WorldTransform", ImVec2(childWidth, 180), true);
+			if (showBoth)
+			{
+				ImGui::BeginChild("WorldTransform", ImVec2(childWidth, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
+			}
 
-			ImGui::TextDisabled("World");
-			ImGui::Separator();
-
-			ImGui::Text("Position");
-			ImGui::Indent();
+			ImGui::TextDisabled("World Position");
 			const auto pos = transform->GetPosition();
 			float posArr[3] = { pos.x, pos.y, pos.z };
 			if (DragVector3Compact("WorldPos", posArr, 0.1f))
-			{
 				transform->SetPosition({ posArr[0], posArr[1], posArr[2] });
-			}
-			ImGui::Unindent();
 
-			ImGui::Text("Rotation");
-			ImGui::Indent();
+			ImGui::Spacing();
+			ImGui::TextDisabled("World Rotation");
 			const auto rot = transform->GetRotation();
 			float rotArr[4] = { rot.x, rot.y, rot.z, rot.w };
 			if (DragVector4Compact("WorldRot", rotArr, 0.01f))
-			{
 				transform->SetRotation({ rotArr[0], rotArr[1], rotArr[2], rotArr[3] });
-			}
-			ImGui::Unindent();
 
-			ImGui::EndChild();
+			if (showBoth)
+			{
+				ImGui::EndChild();
+			}
 		}
 
-		ImGui::SameLine();
+		if (showBoth)
+		{
+			ImGui::SameLine();
+		}
 
 		if (tab.showLocalTransform)
 		{
-			ImGui::BeginChild("LocalTransform", ImVec2(childWidth, 180), true);
+			if (showBoth)
+			{
+				ImGui::BeginChild("LocalTransform", ImVec2(childWidth, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
+			}
 
-			ImGui::TextDisabled("Local");
-			ImGui::Separator();
-
-			ImGui::Text("Position");
-			ImGui::Indent();
+			ImGui::TextDisabled("Local Position");
 			const auto localPos = transform->GetLocalPosition();
 			float localPosArr[3] = { localPos.x, localPos.y, localPos.z };
 			if (DragVector3Compact("LocalPos", localPosArr, 0.1f))
-			{
 				transform->SetLocalPosition({ localPosArr[0], localPosArr[1], localPosArr[2] });
-			}
-			ImGui::Unindent();
 
-			ImGui::Text("Rotation");
-			ImGui::Indent();
+			ImGui::Spacing();
+			ImGui::TextDisabled("Local Rotation");
 			const auto localRot = transform->GetLocalRotation();
 			float localRotArr[4] = { localRot.x, localRot.y, localRot.z, localRot.w };
 			if (DragVector4Compact("LocalRot", localRotArr, 0.01f))
-			{
 				transform->SetLocalRotation({ localRotArr[0], localRotArr[1], localRotArr[2], localRotArr[3] });
-			}
-			ImGui::Unindent();
 
-			ImGui::Text("Scale");
-			ImGui::Indent();
+			ImGui::Spacing();
+			ImGui::TextDisabled("Local Scale");
 			const auto scale = transform->GetLocalScale();
 			float scaleArr[3] = { scale.x, scale.y, scale.z };
 			if (DragVector3Compact("LocalScale", scaleArr, 0.1f))
-			{
 				transform->SetLocalScale({ scaleArr[0], scaleArr[1], scaleArr[2] });
-			}
-			ImGui::Unindent();
 
-			ImGui::EndChild();
+			if (showBoth)
+			{
+				ImGui::EndChild();
+			}
 		}
 
-		ImGui::Unindent();
+		ImGui::Unindent(10.0f);
+		ImGui::Spacing();
 	}
 }
 
@@ -616,22 +574,16 @@ void Inspector::RenderMethodsSection(UT::Component* component, const std::vector
 	}
 
 	if (componentIndex >= tab.methodSearchBuffers.size())
-	{
 		tab.methodSearchBuffers.resize(componentIndex + 1);
-	}
-	char* searchBuffer3 = tab.methodSearchBuffers[componentIndex].data();
+	char* searchBuffer = tab.methodSearchBuffers[componentIndex].data();
 
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-	ImGui::SetNextItemWidth(180);
-	ImGui::InputTextWithHint("##MethodSearch", "Search methods...", searchBuffer3, 256);
-	ImGui::PopStyleColor();
+	ImGui::SetNextItemWidth(150);
+	ImGui::InputTextWithHint("##MethodSearch", "Search...", searchBuffer, 256);
 
-	ImGui::SameLine(0, 8);
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+	ImGui::SameLine();
 	ImGui::Checkbox("Static", &tab.filterStaticOnly);
-	ImGui::SameLine(0, 12);
+	ImGui::SameLine();
 	ImGui::Checkbox("Instance", &tab.filterInstanceOnly);
-	ImGui::PopStyleColor();
 
 	ImGui::Spacing();
 	ImGui::Separator();
@@ -640,143 +592,105 @@ void Inspector::RenderMethodsSection(UT::Component* component, const std::vector
 	std::vector<const ComponentMethodInfo*> filteredMethods;
 	for (const auto& method : methods)
 	{
-		if (PassesMethodFilter(method, searchBuffer3, tab.filterStaticOnly, tab.filterInstanceOnly))
-		{
+		if (PassesMethodFilter(method, searchBuffer, tab.filterStaticOnly, tab.filterInstanceOnly))
 			filteredMethods.push_back(&method);
-		}
 	}
 
 	if (filteredMethods.empty())
 	{
-		ImGui::TextDisabled("No methods match the current filters");
+		ImGui::TextDisabled("No methods match filters");
 		return;
 	}
 
 	ImGui::TextDisabled("Showing %zu of %zu methods", filteredMethods.size(), methods.size());
 	ImGui::Spacing();
 
-	for (size_t i = 0; i < filteredMethods.size(); ++i)
+	if (ImGui::BeginTable("MethodsTable", 4, 
+		ImGuiTableFlags_Resizable | 
+		ImGuiTableFlags_BordersInnerV | 
+		ImGuiTableFlags_SizingFixedFit |
+		ImGuiTableFlags_RowBg))
 	{
-		const auto* method = filteredMethods[i];
-		ImGui::PushID(static_cast<int>(i));
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+		ImGui::TableSetupColumn("Return", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+		ImGui::TableSetupColumn("Params", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 50.0f);
 
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.08f, 0.08f, 0.08f, 1.0f));
-		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 6));
-
-		ImGui::BeginChild(method->name.c_str(), ImVec2(0, ImGui::GetFrameHeight() * 4.f), true);
-
-		if (method->isStatic)
+		for (const auto* method : filteredMethods)
 		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));
-			ImGui::Text("[S] %s", method->name.c_str());
-			ImGui::PopStyleColor();
-		}
-		else if (method->isVirtual)
-		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.5f, 0.9f, 1.0f));
-			ImGui::Text("[V] %s", method->name.c_str());
-			ImGui::PopStyleColor();
-		}
-		else
-		{
-			ImGui::Text("%s", method->name.c_str());
-		}
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
 
-		ImGui::SameLine(0, 12);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
-		ImGui::TextDisabled("-> %s", method->returnTypeName.c_str());
-		ImGui::PopStyleColor();
-
-		if (!method->parameters.empty())
-		{
-			ImGui::Spacing();
-			ImGui::TextDisabled("(%zu parameter%s)", method->parameters.size(),
-				method->parameters.size() == 1 ? "" : "s");
-		}
-		else
-		{
-			ImGui::SameLine(0, 12);
-			ImGui::TextDisabled("(no parameters)");
-		}
-
-		ImGui::SameLine(0, 12);
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - 50);
-
-		bool canInvoke = true;
-		for (const auto& paramType : method->parameterEditableTypes)
-		{
-			if (paramType == EditableType::None)
+			if (method->isStatic)
 			{
-				canInvoke = false;
-				break;
+				ImGui::Text("[S] %s", method->name.c_str());
 			}
-		}
-
-		if (canInvoke)
-		{
-			if (ImGui::SmallButton("Invoke"))
+			else if (method->isVirtual)
 			{
-				invokeState.showPopup = true;
-				invokeState.targetComponent = component;
-				invokeState.method = *method;
-				invokeState.parameterValues.clear();
-				invokeState.parameterValues.resize(method->parameters.size());
-				invokeState.resultText.clear();
-				invokeState.hasResult = false;
-			}
-		}
-		else
-		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
-			ImGui::TextDisabled("N/A");
-			ImGui::PopStyleColor();
-		}
-
-		ImGui::Spacing();
-		if (ImGui::TreeNodeEx("Details", ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_NoAutoOpenOnLog))
-		{
-			ImGui::Spacing();
-
-			if (method->parameters.empty())
-			{
-				ImGui::TextDisabled("No parameters");
+				ImGui::Text("[V] %s", method->name.c_str());
 			}
 			else
 			{
-				ImGui::TextDisabled("Parameters:");
-				ImGui::Indent();
-				for (size_t j = 0; j < method->parameters.size(); j++)
-				{
-					const auto& [paramName, paramType] = method->parameters[j];
-					const auto paramEditableType = method->parameterEditableTypes[j];
-
-					ImGui::Text("  %s", paramName.c_str());
-					ImGui::SameLine(0, 8);
-					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-					ImGui::TextDisabled("(%s)", paramType.c_str());
-					ImGui::PopStyleColor();
-
-					if (paramEditableType == EditableType::None)
-					{
-						ImGui::SameLine(0, 8);
-						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.4f, 0.4f, 1.0f));
-						ImGui::TextDisabled("[not editable]");
-						ImGui::PopStyleColor();
-					}
-				}
-				ImGui::Unindent();
+				ImGui::Text("%s", method->name.c_str());
 			}
 
-			ImGui::TreePop();
+			ImGui::TableSetColumnIndex(1);
+			std::string retType = method->returnTypeName;
+			if (retType.length() > 25) retType = retType.substr(0, 22) + "...";
+			ImGui::Text("-> %s", retType.c_str());
+
+			ImGui::TableSetColumnIndex(2);
+			if (!method->parameters.empty())
+			{
+				std::string params;
+				for (const auto& [paramName, paramType] : method->parameters)
+				{
+					if (!params.empty()) params += ", ";
+					params += paramType;
+				}
+				if (params.length() > 40) params = params.substr(0, 37) + "...";
+				ImGui::TextDisabled("(%s)", params.c_str());
+			}
+			else
+			{
+				ImGui::TextDisabled("()");
+			}
+
+			ImGui::TableSetColumnIndex(3);
+			ImGui::PushID(method);
+
+			bool canInvoke = true;
+			for (const auto& paramType : method->parameterEditableTypes)
+			{
+				if (paramType == EditableType::None)
+				{
+					canInvoke = false;
+					break;
+				}
+			}
+
+			if (canInvoke)
+			{
+				if (ImGui::SmallButton("Invoke"))
+				{
+					invokeState.showPopup = true;
+					invokeState.targetComponent = component;
+					invokeState.method = *method;
+					invokeState.parameterValues.clear();
+					invokeState.parameterValues.resize(method->parameters.size());
+					invokeState.resultText.clear();
+					invokeState.hasResult = false;
+				}
+			}
+			else
+			{
+				ImGui::TextDisabled("N/A");
+			}
+
+			ImGui::PopID();
 		}
 
-		ImGui::EndChild();
-		ImGui::PopStyleVar(2);
-		ImGui::PopStyleColor();
-
-		ImGui::Spacing();
-		ImGui::PopID();
+		ImGui::EndTable();
 	}
 }
 
@@ -789,88 +703,64 @@ void Inspector::RenderPropertiesSection(UT::Component* component, const std::vec
 	}
 
 	if (componentIndex >= tab.propertySearchBuffers.size())
-	{
 		tab.propertySearchBuffers.resize(componentIndex + 1);
-	}
-	char* searchBuffer1 = tab.propertySearchBuffers[componentIndex].data();
+	char* searchBuffer = tab.propertySearchBuffers[componentIndex].data();
 
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-	ImGui::SetNextItemWidth(180);
-	ImGui::InputTextWithHint("##PropertySearch", "Search properties...", searchBuffer1, 256);
-	ImGui::PopStyleColor();
+	ImGui::SetNextItemWidth(150);
+	ImGui::InputTextWithHint("##PropertySearch", "Search...", searchBuffer, 256);
 
-	ImGui::SameLine(0, 8);
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-	ImGui::Checkbox("Writable Only", &tab.filterEditableOnly);
-	ImGui::PopStyleColor();
+	ImGui::SameLine();
+	ImGui::Checkbox("Writable", &tab.filterEditableOnly);
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	int filteredCount = 0;
+	std::vector<const ComponentPropertyInfo*> filteredProps;
 	for (const auto& prop : properties)
 	{
-		if (!PassesPropertyFilter(prop, searchBuffer1, tab.filterEditableOnly))
-			continue;
-		filteredCount++;
+		if (PassesPropertyFilter(prop, searchBuffer, tab.filterEditableOnly))
+			filteredProps.push_back(&prop);
 	}
 
-	if (filteredCount == 0)
+	if (filteredProps.empty())
 	{
-		ImGui::TextDisabled("No properties match the current filters");
+		ImGui::TextDisabled("No properties match filters");
 		return;
 	}
 
-	ImGui::TextDisabled("Showing %d of %zu properties", filteredCount, properties.size());
+	ImGui::TextDisabled("Showing %zu of %zu properties", filteredProps.size(), properties.size());
 	ImGui::Spacing();
 
-	for (const auto& prop : properties)
+	if (ImGui::BeginTable("PropertiesTable", 3,
+		ImGuiTableFlags_Resizable |
+		ImGuiTableFlags_BordersInnerV |
+		ImGuiTableFlags_SizingFixedFit |
+		ImGuiTableFlags_RowBg))
 	{
-		if (!PassesPropertyFilter(prop, searchBuffer1, tab.filterEditableOnly))
-			continue;
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.08f, 0.08f, 0.08f, 1.0f));
-		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 6));
-
-		ImGui::BeginChild(prop.name.c_str(), ImVec2(0, ImGui::GetFrameHeight() * 3.f), true);
-
-		ImGui::Text("%s", prop.name.c_str());
-
-		ImGui::SameLine(0, 12);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-		ImGui::TextDisabled("%s", prop.typeName.c_str());
-		ImGui::PopStyleColor();
-
-		ImGui::SameLine(0, 12);
-		if (prop.canRead && prop.canWrite)
+		for (const auto* prop : filteredProps)
 		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 0.4f, 1.0f));
-			ImGui::TextDisabled("[RW]");
-			ImGui::PopStyleColor();
-		}
-		else if (prop.canRead)
-		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.6f, 0.4f, 1.0f));
-			ImGui::TextDisabled("[R]");
-			ImGui::PopStyleColor();
-		}
-		else if (prop.canWrite)
-		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.4f, 0.4f, 1.0f));
-			ImGui::TextDisabled("[W]");
-			ImGui::PopStyleColor();
+			ImGui::TableNextRow();
+
+			ImGui::TableSetColumnIndex(0);
+			ImGui::Text("%s", prop->name.c_str());
+
+			ImGui::TableSetColumnIndex(1);
+			std::string typeName = prop->typeName;
+			if (typeName.length() > 30) typeName = typeName.substr(0, 27) + "...";
+			ImGui::Text("%s %s", 
+				prop->canRead && prop->canWrite ? "[RW]" : (prop->canRead ? "[R]" : "[W]"),
+				typeName.c_str());
+
+			ImGui::TableSetColumnIndex(2);
+			RenderEditableProperty(component, *prop);
 		}
 
-		ImGui::Spacing();
-		RenderEditableProperty(component, prop);
-
-		ImGui::EndChild();
-		ImGui::PopStyleVar(2);
-		ImGui::PopStyleColor();
-
-		ImGui::Spacing();
+		ImGui::EndTable();
 	}
 }
 
@@ -883,100 +773,92 @@ void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<
 	}
 
 	if (componentIndex >= tab.fieldSearchBuffers.size())
-	{
 		tab.fieldSearchBuffers.resize(componentIndex + 1);
-	}
-	char* searchBuffer2 = tab.fieldSearchBuffers[componentIndex].data();
+	char* searchBuffer = tab.fieldSearchBuffers[componentIndex].data();
 
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-	ImGui::SetNextItemWidth(180);
-	ImGui::InputTextWithHint("##FieldSearch", "Search fields...", searchBuffer2, 256);
-	ImGui::PopStyleColor();
+	ImGui::SetNextItemWidth(120);
+	ImGui::InputTextWithHint("##FieldSearch", "Search...", searchBuffer, 256);
 
-	ImGui::SameLine(0, 8);
-
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+	ImGui::SameLine();
 	ImGui::Checkbox("Editable", &tab.filterEditableOnly);
-	ImGui::SameLine(0, 12);
+	ImGui::SameLine();
 	ImGui::Checkbox("Static", &tab.filterStaticOnly);
-	ImGui::SameLine(0, 12);
+	ImGui::SameLine();
 	ImGui::Checkbox("Instance", &tab.filterInstanceOnly);
-	ImGui::PopStyleColor();
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	int filteredCount = 0;
+	std::vector<const ComponentFieldInfo*> filteredFields;
 	for (const auto& field : fields)
 	{
-		if (PassesFieldFilter(field, searchBuffer2, tab.filterEditableOnly, tab.filterStaticOnly, tab.filterInstanceOnly))
-			filteredCount++;
+		if (PassesFieldFilter(field, searchBuffer, tab.filterEditableOnly, tab.filterStaticOnly, tab.filterInstanceOnly))
+			filteredFields.push_back(&field);
 	}
 
-	if (filteredCount == 0)
+	if (filteredFields.empty())
 	{
-		ImGui::TextDisabled("No fields match the current filters");
+		ImGui::TextDisabled("No fields match filters");
 		return;
 	}
 
-	ImGui::TextDisabled("Showing %d of %zu fields", filteredCount, fields.size());
+	ImGui::TextDisabled("Showing %zu of %zu fields", filteredFields.size(), fields.size());
 	ImGui::Spacing();
 
-	for (const auto& field : fields)
+	if (ImGui::BeginTable("FieldsTable", 5,
+		ImGuiTableFlags_Resizable |
+		ImGuiTableFlags_BordersInnerV |
+		ImGuiTableFlags_SizingFixedFit |
+		ImGuiTableFlags_RowBg))
 	{
-		if (!PassesFieldFilter(field, searchBuffer2, tab.filterEditableOnly, tab.filterStaticOnly, tab.filterInstanceOnly))
-			continue;
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+		ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 40.0f);
 
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.08f, 0.08f, 0.08f, 1.0f));
-		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 6));
-
-		ImGui::BeginChild(field.name.c_str(), ImVec2(0, ImGui::GetFrameHeight() * 3.f), true);
-
-		if (field.isStatic)
+		for (const auto* field : filteredFields)
 		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));
-			ImGui::Text("[S] %s", field.name.c_str());
-			ImGui::PopStyleColor();
+			ImGui::TableNextRow();
+
+			ImGui::TableSetColumnIndex(0);
+			if (field->isStatic)
+			{
+				ImGui::TextUnformatted(field->name.c_str());
+			}
+			else
+			{
+				ImGui::TextUnformatted(field->name.c_str());
+			}
+
+			ImGui::TableSetColumnIndex(1);
+			std::string typeName = field->typeName;
+			if (typeName.length() > 35) typeName = typeName.substr(0, 32) + "...";
+			ImGui::TextUnformatted(typeName.c_str());
+
+			ImGui::TableSetColumnIndex(2);
+			if (!field->isStatic)
+				ImGui::TextDisabled("0x%X", field->offset);
+			else
+				ImGui::TextDisabled("[S]");
+
+			ImGui::TableSetColumnIndex(3);
+			RenderEditableField(component, *field);
+
+			ImGui::TableSetColumnIndex(4);
+			if (field->isStatic)
+				ImGui::TextDisabled("S");
 		}
-		else
-		{
-			ImGui::Text("%s", field.name.c_str());
-		}
 
-		ImGui::SameLine(0, 12);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-		ImGui::TextDisabled("%s", field.typeName.c_str());
-		ImGui::PopStyleColor();
-
-		ImGui::SameLine(0, 12);
-		if (field.isStatic)
-		{
-			ImGui::TextDisabled("[static]");
-		}
-		else
-		{
-			ImGui::TextDisabled("0x%X", field.offset);
-		}
-
-		ImGui::Spacing();
-		RenderEditableField(component, field);
-
-		ImGui::EndChild();
-		ImGui::PopStyleVar(2);
-		ImGui::PopStyleColor();
-
-		ImGui::Spacing();
+		ImGui::EndTable();
 	}
 }
 
 void Inspector::RenderComponentsSection(InspectedObjectTab& tab)
 {
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 	ImGui::SetNextItemWidth(200);
 	ImGui::InputTextWithHint("##ComponentSearch", "Filter components...", tab.componentSearchBuffer, sizeof(tab.componentSearchBuffer));
-	ImGui::PopStyleColor();
 
 	ImGui::Spacing();
 
@@ -985,9 +867,7 @@ void Inspector::RenderComponentsSection(InspectedObjectTab& tab)
 	{
 		const std::string& compName = tab.cachedComponentNames[i];
 		if (PassesComponentFilter(compName, tab.componentSearchBuffer))
-		{
 			filteredComponentIndices.push_back(i);
-		}
 	}
 
 	if (filteredComponentIndices.empty())
@@ -999,11 +879,7 @@ void Inspector::RenderComponentsSection(InspectedObjectTab& tab)
 	ImGui::TextDisabled("Components: %zu of %zu", filteredComponentIndices.size(), tab.cachedComponents.size());
 	ImGui::Spacing();
 
-	ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
-	ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.2f, 0.2f, 0.25f, 1.0f));
-	ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.15f, 0.15f, 0.2f, 1.0f));
-
-	if (ImGui::BeginTabBar("ComponentsTabs", ImGuiTabBarFlags_Reorderable))
+	if (ImGui::BeginTabBar("ComponentsTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs))
 	{
 		for (const size_t idx : filteredComponentIndices)
 		{
@@ -1013,70 +889,44 @@ void Inspector::RenderComponentsSection(InspectedObjectTab& tab)
 			const auto& properties = tab.cachedComponentProperties.size() > idx ? tab.cachedComponentProperties[idx] : std::vector<ComponentPropertyInfo>{};
 			const auto& methods = tab.cachedComponentMethods.size() > idx ? tab.cachedComponentMethods[idx] : std::vector<ComponentMethodInfo>{};
 
-			std::string tabLabel = compName;
-			if (!fields.empty() || !properties.empty() || !methods.empty())
-			{
-				tabLabel += "##" + std::to_string(idx);
-			}
+			std::string tabLabel = compName + "##" + std::to_string(idx);
 
 			if (ImGui::BeginTabItem(tabLabel.c_str()))
 			{
 				ImGui::Spacing();
 
 				std::string fullName = GetComponentFullTypeName(comp);
-				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.9f, 1.0f));
 				ImGui::TextDisabled("Type: %s", fullName.c_str());
-				ImGui::PopStyleColor();
 
 				ImGui::Spacing();
 				ImGui::Separator();
 				ImGui::Spacing();
-
-				ImGui::TextDisabled("Fields: %zu | Properties: %zu | Methods: %zu",
-					fields.size(), properties.size(), methods.size());
-
-				ImGui::Spacing();
-				ImGui::Separator();
-				ImGui::Spacing();
-
-				ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.08f, 0.08f, 0.08f, 1.0f));
-				ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
-				ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.12f, 0.12f, 0.16f, 1.0f));
 
 				std::string innerTabBarId = "InnerTabs_" + std::to_string(idx);
 
 				if (ImGui::BeginTabBar(innerTabBarId.c_str()))
 				{
-					std::string fieldsTabLabel = " Fields";
-					if (!fields.empty())
-					{
-						fieldsTabLabel += " (" + std::to_string(fields.size()) + ")";
-					}
-					if (ImGui::BeginTabItem(fieldsTabLabel.c_str()))
+					std::string fieldsLabel = "Fields";
+					if (!fields.empty()) fieldsLabel += " (" + std::to_string(fields.size()) + ")";
+					if (ImGui::BeginTabItem(fieldsLabel.c_str()))
 					{
 						ImGui::Spacing();
 						RenderFieldsSection(comp, fields, tab, idx);
 						ImGui::EndTabItem();
 					}
 
-					std::string propsTabLabel = " Properties";
-					if (!properties.empty())
-					{
-						propsTabLabel += " (" + std::to_string(properties.size()) + ")";
-					}
-					if (ImGui::BeginTabItem(propsTabLabel.c_str()))
+					std::string propsLabel = "Properties";
+					if (!properties.empty()) propsLabel += " (" + std::to_string(properties.size()) + ")";
+					if (ImGui::BeginTabItem(propsLabel.c_str()))
 					{
 						ImGui::Spacing();
 						RenderPropertiesSection(comp, properties, tab, idx);
 						ImGui::EndTabItem();
 					}
 
-					std::string methodsTabLabel = " Methods";
-					if (!methods.empty())
-					{
-						methodsTabLabel += " (" + std::to_string(methods.size()) + ")";
-					}
-					if (ImGui::BeginTabItem(methodsTabLabel.c_str()))
+					std::string methodsLabel = "Methods";
+					if (!methods.empty()) methodsLabel += " (" + std::to_string(methods.size()) + ")";
+					if (ImGui::BeginTabItem(methodsLabel.c_str()))
 					{
 						ImGui::Spacing();
 						RenderMethodsSection(comp, methods, tab, idx);
@@ -1086,8 +936,6 @@ void Inspector::RenderComponentsSection(InspectedObjectTab& tab)
 					ImGui::EndTabBar();
 				}
 
-				ImGui::PopStyleColor(3);
-
 				ImGui::EndTabItem();
 			}
 		}
@@ -1095,66 +943,16 @@ void Inspector::RenderComponentsSection(InspectedObjectTab& tab)
 		ImGui::EndTabBar();
 	}
 
-	ImGui::PopStyleColor(3);
 }
 
 void Inspector::RenderDetailsWindow()
 {
 	if (!showDetailsWindow || openTabs.empty()) return;
 
-	ImGui::SetNextWindowSize(ImVec2(850, 700), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(900, 700), ImGuiCond_FirstUseEver);
 
 	if (ImGui::Begin("Inspector", &showDetailsWindow))
 	{
-		if (!pinnedObjects.empty() || !recentSelections.empty())
-		{
-			ImGui::Text("Quick Access:");
-			ImGui::SameLine();
-
-			if (!pinnedObjects.empty())
-			{
-				if (ImGui::BeginCombo("##Pinned", "Pinned"))
-				{
-					for (auto* obj : pinnedObjects)
-					{
-						if (!Core::helper->SafeIsAlive(obj)) continue;
-
-						std::string name = "(Unknown)";
-						if (const auto n = obj->GetName()) name = n->ToString();
-
-						if (ImGui::Selectable(name.c_str()))
-						{
-							OpenObjectInNewTab(obj);
-						}
-					}
-					ImGui::EndCombo();
-				}
-				ImGui::SameLine();
-			}
-
-			if (!recentSelections.empty())
-			{
-				if (ImGui::BeginCombo("##Recent", "Recent"))
-				{
-					for (auto* obj : recentSelections)
-					{
-						if (!Core::helper->SafeIsAlive(obj)) continue;
-
-						std::string name = "(Unknown)";
-						if (const auto n = obj->GetName()) name = n->ToString();
-
-						if (ImGui::Selectable(name.c_str()))
-						{
-							OpenObjectInNewTab(obj);
-						}
-					}
-					ImGui::EndCombo();
-				}
-			}
-
-			ImGui::Separator();
-		}
-
 		RenderTabBar();
 	}
 	ImGui::End();
@@ -1164,6 +962,7 @@ void Inspector::RenderDetailsWindow()
 
 void Inspector::RenderTabBar()
 {
+
 	if (ImGui::BeginTabBar("InspectorTabs",
 		ImGuiTabBarFlags_Reorderable |
 		ImGuiTabBarFlags_AutoSelectNewTabs |
@@ -1182,9 +981,7 @@ void Inspector::RenderTabBar()
 			ImGuiTabItemFlags flags = 0;
 
 			if (IsObjectPinned(tab.gameObject))
-			{
 				flags |= ImGuiTabItemFlags_NoCloseButton;
-			}
 
 			if (ImGui::BeginTabItem(tab.tabName.c_str(), &tabOpen, flags))
 			{
@@ -1207,6 +1004,7 @@ void Inspector::RenderTabBar()
 
 		ImGui::EndTabBar();
 	}
+
 }
 
 void Inspector::RenderTabContent(InspectedObjectTab& tab)
@@ -1225,9 +1023,7 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	}
 
 	if (ImGui::Button("Refresh"))
-	{
 		RefreshTabData(tab);
-	}
 	ImGui::SameLine();
 	ImGui::Checkbox("Auto Update", &Core::config->inspector.AutoUpdateObject);
 	ImGui::SameLine();
@@ -1241,14 +1037,7 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 
 	ImGui::Separator();
 
-	if (!tab.objectPath.empty())
-	{
-		ImGui::TextWrapped("Path: %s", tab.objectPath.c_str());
-		ImGui::Separator();
-	}
-
 	std::string objectName = "(Unknown)";
-
 	if (tab.gameObject && Core::helper->SafeIsAlive(tab.gameObject))
 	{
 		UT::String* name = nullptr;
@@ -1257,17 +1046,28 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 			objectName = name->ToString();
 	}
 
+	ImGui::AlignTextToFramePadding();
 	ImGui::Text("Name: %s", objectName.c_str());
 
 	if (bool isActive = true; Core::helper->SafeGetActiveSelf(tab.gameObject, isActive))
 	{
 		ImGui::SameLine();
 		if (ImGui::Checkbox("##Active", &isActive))
-		{
 			Core::helper->SafeSetActive(tab.gameObject, isActive);
-		}
 		ImGui::SameLine();
 		ImGui::Text("Active");
+	}
+
+	ImGui::SameLine();
+	if (IsObjectPinned(tab.gameObject))
+	{
+		if (ImGui::SmallButton("Unpin"))
+			UnpinObject(tab.gameObject);
+	}
+	else
+	{
+		if (ImGui::SmallButton("Pin"))
+			PinObject(tab.gameObject);
 	}
 
 	if (tab.gameObject && Core::helper->SafeIsAlive(tab.gameObject))
@@ -1275,30 +1075,20 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 		UT::String* tag;
 		if (const auto validTag = Core::helper->SafeGetTag(tab.gameObject, tag); tag && validTag)
 		{
-			ImGui::Text("Tag: %s", tag->ToString().c_str());
+			ImGui::SameLine();
+			ImGui::TextDisabled("| Tag: %s", tag->ToString().c_str());
 		}
 	}
 
 	if (bool isStatic = false; Helper::SafeGetIsStatic(tab.gameObject, isStatic))
 	{
 		ImGui::SameLine();
-		ImGui::Text("| Static: %s", isStatic ? "Yes" : "No");
+		ImGui::TextDisabled("| Static: %s", isStatic ? "Yes" : "No");
 	}
 
-	ImGui::SameLine();
-	if (IsObjectPinned(tab.gameObject))
+	if (!tab.objectPath.empty())
 	{
-		if (ImGui::SmallButton("Unpin"))
-		{
-			UnpinObject(tab.gameObject);
-		}
-	}
-	else
-	{
-		if (ImGui::SmallButton("Pin"))
-		{
-			PinObject(tab.gameObject);
-		}
+		ImGui::TextDisabled("Path: %s", tab.objectPath.c_str());
 	}
 
 	ImGui::Separator();
@@ -1306,12 +1096,8 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	if (ImGui::BeginChild("Content", ImVec2(0, 0), false))
 	{
 		UT::Transform* transform = nullptr;
-
 		if (tab.gameObject && Core::helper->SafeIsAlive(tab.gameObject))
-		{
 			Core::helper->SafeGetTransform(tab.gameObject, transform);
-		}
-
 
 		if (transform)
 		{
@@ -1319,7 +1105,7 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 		}
 		else
 		{
-			ImGui::TextDisabled("Transform not available (object may be destroyed)");
+			ImGui::TextDisabled("Transform not available");
 		}
 
 		ImGui::Spacing();

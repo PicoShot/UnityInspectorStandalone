@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "inspector.h"
 #include "assembly_explorer.h"
 
@@ -44,7 +44,7 @@ void Inspector::Render()
 
 	UR::ThreadAttach();
 
-	ImGui::SetNextWindowSize(ImVec2(350, 500), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(380, 600), ImGuiCond_FirstUseEver);
 
 	if (ImGui::Begin("Hierarchy", nullptr))
 	{
@@ -54,19 +54,18 @@ void Inspector::Render()
 		}
 
 		ImGui::SameLine();
-		ImGui::Checkbox("Auto Refresh", &Core::config->inspector.AutoRefresh);
+		ImGui::Checkbox("Auto", &Core::config->inspector.AutoRefresh);
 
 		ImGui::SameLine();
-		ImGui::Text("Objects: %zu", rootNodes.size());
+		ImGui::TextDisabled("| %zu objects", rootNodes.size());
 
 		ImGui::SameLine();
-
 		ImGui::SetNextItemWidth(-1);
 		ImGui::InputTextWithHint("##Search", "Search...", searchBuffer, sizeof(searchBuffer));
 
 		ImGui::Separator();
 
-		if (ImGui::BeginChild("HierarchyTree", ImVec2(0, 0), true))
+		if (ImGui::BeginChild("HierarchyTree", ImVec2(0, 0), false))
 		{
 			if (rootNodes.empty())
 			{
