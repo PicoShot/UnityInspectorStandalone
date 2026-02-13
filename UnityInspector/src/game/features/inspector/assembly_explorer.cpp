@@ -503,41 +503,46 @@ void AssemblyExplorer::RenderClassDetailsPanel()
     {
         if (ImGui::CollapsingHeader("Fields", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::Columns(3, "FieldsColumns", false);
-            ImGui::SetColumnWidth(0, 150.0f);
-            ImGui::SetColumnWidth(1, -1);
-            ImGui::SetColumnWidth(2, 60.0f);
+            ImGui::Indent();
             
-            for (const auto& field : klass->fields)
+            if (ImGui::BeginTable("FieldsTable", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
             {
-                if (!field) continue;
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 200.0f);
+                ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 60.0f);
                 
-                ImVec4 color = field->static_field ? 
-                    ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
-                    ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-                
-                ImGui::PushStyleColor(ImGuiCol_Text, color);
-                ImGui::TextUnformatted(field->name.c_str());
-                ImGui::PopStyleColor();
-                ImGui::NextColumn();
-                
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
-                ImGui::TextUnformatted(field->type->name.c_str());
-                ImGui::PopStyleColor();
-                ImGui::NextColumn();
-                
-                if (!field->static_field)
+                for (const auto& field : klass->fields)
                 {
-                    ImGui::TextDisabled("0x%X", field->offset);
+                    if (!field) continue;
+                    
+                    ImGui::TableNextRow();
+                    
+                    ImGui::TableSetColumnIndex(0);
+                    ImVec4 color = field->static_field ? 
+                        ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
+                        ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+                    ImGui::PushStyleColor(ImGuiCol_Text, color);
+                    ImGui::TextUnformatted(field->name.c_str());
+                    ImGui::PopStyleColor();
+                    
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
+                    std::string typeName = field->type->name;
+                    if (typeName.length() > 50) typeName = typeName.substr(0, 47) + "...";
+                    ImGui::TextUnformatted(typeName.c_str());
+                    ImGui::PopStyleColor();
+                    
+                    ImGui::TableSetColumnIndex(2);
+                    if (!field->static_field)
+                        ImGui::TextDisabled("0x%X", field->offset);
+                    else
+                        ImGui::TextDisabled("[S]");
                 }
-                else
-                {
-                    ImGui::TextDisabled("[S]");
-                }
-                ImGui::NextColumn();
+                
+                ImGui::EndTable();
             }
             
-            ImGui::Columns(1);
+            ImGui::Unindent();
         }
     }
     
@@ -545,56 +550,65 @@ void AssemblyExplorer::RenderClassDetailsPanel()
     {
         if (ImGui::CollapsingHeader("Methods"))
         {
-            ImGui::Columns(3, "MethodsColumns", false);
-            ImGui::SetColumnWidth(0, 180.0f);
-            ImGui::SetColumnWidth(1, -1);
-            ImGui::SetColumnWidth(2, 30.0f);
+            ImGui::Indent();
             
-            for (const auto& method : klass->methods)
+            if (ImGui::BeginTable("MethodsTable", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
             {
-                if (!method) continue;
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 180.0f);
+                ImGui::TableSetupColumn("Return Type", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn("Parameters", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 50.0f);
                 
-                ImVec4 color = method->static_function ? 
-                    ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
-                    ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-                
-                ImGui::PushStyleColor(ImGuiCol_Text, color);
-                ImGui::TextUnformatted(method->name.c_str());
-                ImGui::PopStyleColor();
-                ImGui::NextColumn();
-                
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
-                ImGui::Text("-> %s", method->return_type->name.c_str());
-                ImGui::PopStyleColor();
-                ImGui::NextColumn();
-                
-                if (method->static_function)
+                for (const auto& method : klass->methods)
                 {
-                    ImGui::TextDisabled("[S]");
-                }
-                ImGui::NextColumn();
-                
-                if (!method->args.empty())
-                {
-                    ImGui::Columns(1);
+                    if (!method) continue;
                     
-                    std::string params;
-                    for (const auto& arg : method->args)
+                    ImGui::TableNextRow();
+                    
+                    ImGui::TableSetColumnIndex(0);
+                    ImVec4 color = method->static_function ? 
+                        ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
+                        ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+                    ImGui::PushStyleColor(ImGuiCol_Text, color);
+                    ImGui::TextUnformatted(method->name.c_str());
+                    ImGui::PopStyleColor();
+                    
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
+                    std::string retType = method->return_type->name;
+                    if (retType.length() > 40) retType = retType.substr(0, 37) + "...";
+                    ImGui::Text("-> %s", retType.c_str());
+                    ImGui::PopStyleColor();
+                    
+                    ImGui::TableSetColumnIndex(2);
+                    if (!method->args.empty())
                     {
-                        if (!arg) continue;
-                        if (!params.empty()) params += ", ";
-                        params += arg->pType->name + " " + arg->name;
+                        std::string params;
+                        for (const auto& arg : method->args)
+                        {
+                            if (!arg) continue;
+                            if (!params.empty()) params += ", ";
+                            params += arg->pType->name + " " + arg->name;
+                        }
+                        if (params.length() > 60) params = params.substr(0, 57) + "...";
+                        ImGui::TextDisabled("(%s)", params.c_str());
                     }
-                    ImGui::TextDisabled("    (%s)", params.c_str());
+                    else
+                    {
+                        ImGui::TextDisabled("()");
+                    }
                     
-                    ImGui::Columns(3, "MethodsColumns", false);
-                    ImGui::SetColumnWidth(0, 180.0f);
-                    ImGui::SetColumnWidth(1, -1);
-                    ImGui::SetColumnWidth(2, 30.0f);
+                    ImGui::TableSetColumnIndex(3);
+                    std::string flags;
+                    if (method->static_function) flags += "S";
+                    if (!flags.empty())
+                        ImGui::TextDisabled("[%s]", flags.c_str());
                 }
+                
+                ImGui::EndTable();
             }
             
-            ImGui::Columns(1);
+            ImGui::Unindent();
         }
     }
     
