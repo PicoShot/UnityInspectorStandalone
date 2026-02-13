@@ -68,6 +68,9 @@
     <ClInclude Include="src\game\features\inspector\assembly_explorer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\game\features\inspector\field_editor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="library\xorstr\xorstr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -161,6 +164,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\game\features\inspector\assembly_explorer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\game\features\inspector\field_editor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\game\features\Tests\Tests.cpp">

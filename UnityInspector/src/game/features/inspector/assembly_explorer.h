@@ -1,5 +1,6 @@
 #pragma once
 #include "game/core/core.h"
+#include "field_editor.h"
 
 struct ClassInstanceInfo
 {
@@ -85,8 +86,11 @@ private:
     void RefreshInstances(AssemblyClassInfo* classInfo);
     
     void RenderInstanceNode(ClassInstanceInfo& instance);
-    void RenderFieldValue(UR::Field* field, void* instance);
+    void RenderFieldRow(UR::Field* field, void* instance);
     void RenderMethodInvokePopup();
+    
+    // Field editor for editing field values
+    std::unique_ptr<FieldEditor> fieldEditor;
     
     std::string FormatClassName(const std::string& name) const;
     std::string FormatNamespaceName(const std::string& name) const;

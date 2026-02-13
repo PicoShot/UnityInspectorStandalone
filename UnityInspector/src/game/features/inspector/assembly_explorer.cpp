@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "assembly_explorer.h"
+#include "field_editor.h"
 
 void AssemblyExplorer::Update(const float deltaTime)
 {
@@ -622,22 +623,30 @@ void AssemblyExplorer::RenderClassDetailsPanel()
             
             ImGui::Indent();
             
-            if (ImGui::BeginTable("FieldsTable", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
+            if (ImGui::BeginTable("FieldsTable", 5, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
             {
-                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-                ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+                ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 130.0f);
                 ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 50.0f);
                 ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 50.0f);
                 
                 for (const auto& field : klass->fields)
                 {
                     if (!field) continue;
                     
+                    // Check if we can edit this field
+                    bool isStatic = field->static_field;
+                    bool canEdit = isStatic || canEditInstance;
+                    bool isEditableType = FieldEditor::IsEditableType(field->type ? field->type->name : "");
+                    bool isPointerType = FieldEditor::IsPointerType(field->type ? field->type->name : "");
+                    bool showEdit = canEdit && (isEditableType || isPointerType);
+                    
                     ImGui::TableNextRow();
                     
                     // Column 0: Name
                     ImGui::TableSetColumnIndex(0);
-                    ImVec4 color = field->static_field ? 
+                    ImVec4 color = isStatic ? 
                         ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
                         ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
                     ImGui::PushStyleColor(ImGuiCol_Text, color);
@@ -648,23 +657,64 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     ImGui::TableSetColumnIndex(1);
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
                     std::string typeName = field->type->name;
-                    if (typeName.length() > 40) typeName = typeName.substr(0, 37) + "...";
+                    if (typeName.length() > 35) typeName = typeName.substr(0, 32) + "...";
                     ImGui::TextUnformatted(typeName.c_str());
                     ImGui::PopStyleColor();
                     
                     // Column 2: Offset
                     ImGui::TableSetColumnIndex(2);
-                    if (!field->static_field)
+                    if (!isStatic)
                         ImGui::TextDisabled("0x%X", field->offset);
                     else
                         ImGui::TextDisabled("[S]");
                     
-                    // Column 3: Value (editable if possible)
+                    // Column 3: Value preview
                     ImGui::TableSetColumnIndex(3);
-                    RenderFieldValue(field.get(), canEditInstance ? selectedInstance->instance : nullptr);
+                    RenderFieldRow(field.get(), canEditInstance ? selectedInstance->instance : nullptr);
+                    
+                    // Column 4: Edit button
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::PushID(field.get());
+                    
+                    if (!showEdit)
+                    {
+                        ImGui::BeginDisabled();
+                    }
+                    
+                    if (ImGui::SmallButton("Edit"))
+                    {
+                        void* target = isStatic ? nullptr : selectedInstance->instance;
+                        std::string title = "Edit Field: " + field->name;
+                        
+                        if (!fieldEditor)
+                            fieldEditor = std::make_unique<FieldEditor>();
+                        
+                        fieldEditor->OpenFieldEditor(field.get(), target, title);
+                    }
+                    
+                    if (!showEdit && ImGui::IsItemHovered())
+                    {
+                        if (!canEdit)
+                            ImGui::SetTooltip("Select an instance to edit non-static fields");
+                        else
+                            ImGui::SetTooltip("This field type is not editable");
+                    }
+                    
+                    if (!showEdit)
+                    {
+                        ImGui::EndDisabled();
+                    }
+                    
+                    ImGui::PopID();
                 }
                 
                 ImGui::EndTable();
+            }
+            
+            // Render field editor window if open
+            if (fieldEditor && fieldEditor->IsOpen())
+            {
+                fieldEditor->Render();
             }
             
             ImGui::Unindent();
@@ -886,7 +936,7 @@ ImVec4 AssemblyExplorer::GetClassColor(const AssemblyClassInfo& classInfo) const
 }
 
 
-void AssemblyExplorer::RenderFieldValue(UR::Field* field, void* instance)
+void AssemblyExplorer::RenderFieldRow(UR::Field* field, void* instance)
 {
     if (!field) return;
     
