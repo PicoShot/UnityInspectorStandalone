@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "assembly_explorer.h"
 #include "field_editor.h"
+#include <sstream>
 
 void AssemblyExplorer::Update(const float deltaTime)
 {
@@ -135,7 +136,6 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
         const float minPanelWidth = 150.0f;
         if (assemblyPanelWidth < minPanelWidth) assemblyPanelWidth = minPanelWidth;
         if (classPanelWidth < minPanelWidth) classPanelWidth = minPanelWidth;
-        if (instancePanelWidth < minPanelWidth) instancePanelWidth = minPanelWidth;
         
         ImGui::BeginChild("AssemblyExplorerMain", ImVec2(0, availableHeight), false, ImGuiWindowFlags_NoScrollbar);
         
@@ -147,19 +147,10 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
         ImGui::SameLine();
         RenderClassListPanel();
         
-        if (selectedClass)
-        {
-            ImGui::SameLine();
-            RenderDivider("ClassInstanceDivider", classPanelWidth, availableHeight);
-            
-            ImGui::SameLine();
-            RenderInstanceListPanel();
-        }
-        
         if (showDetailsPanel && selectedClass)
         {
             ImGui::SameLine();
-            RenderDivider("InstanceDetailsDivider", instancePanelWidth, availableHeight);
+            RenderDivider("ClassDetailsDivider", classPanelWidth, availableHeight);
             
             ImGui::SameLine();
             RenderClassDetailsPanel();
@@ -386,81 +377,6 @@ void AssemblyExplorer::RenderClassListPanel()
     ImGui::EndChild();
 }
 
-void AssemblyExplorer::RenderInstanceListPanel()
-{
-    ImGui::BeginChild("InstanceList", ImVec2(instancePanelWidth, 0), true);
-    
-    if (!selectedClass)
-    {
-        ImGui::TextDisabled("Select a class to view instances");
-        ImGui::EndChild();
-        return;
-    }
-    
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
-    ImGui::Text("Instances");
-    ImGui::PopStyleColor();
-    
-    ImGui::SameLine();
-    if (ImGui::SmallButton("Refresh"))
-    {
-        RefreshInstances(selectedClass);
-    }
-    
-    ImGui::SetNextItemWidth(-1);
-    ImGui::InputTextWithHint("##InstanceSearch", "Search instances...", instanceSearchBuffer, sizeof(instanceSearchBuffer));
-    
-    ImGui::Separator();
-    
-    ImGui::TextDisabled("Count: %zu", selectedClass->instances.size());
-    ImGui::Spacing();
-    
-    ImGui::BeginChild("InstanceListScroll", ImVec2(0, 0), false);
-    
-    for (auto& instance : selectedClass->instances)
-    {
-        if (instanceSearchBuffer[0] != '\0' &&
-            instance.displayName.find(instanceSearchBuffer) == std::string::npos)
-        {
-            continue;
-        }
-        
-        RenderInstanceNode(instance);
-    }
-    
-    ImGui::EndChild();
-    
-    ImGui::EndChild();
-}
-
-void AssemblyExplorer::RenderInstanceNode(ClassInstanceInfo& instance)
-{
-    ImGui::PushID(&instance);
-    
-    bool isSelected = (selectedInstance == &instance);
-    
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | 
-                               ImGuiTreeNodeFlags_Leaf |
-                               ImGuiTreeNodeFlags_NoTreePushOnOpen;
-    
-    if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
-    
-    std::string label = "[@] " + instance.displayName;
-    ImGui::TreeNodeEx(label.c_str(), flags);
-    
-    if (ImGui::IsItemClicked())
-    {
-        SelectInstance(&instance);
-    }
-    
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::SetTooltip("Address: %p", instance.instance);
-    }
-    
-    ImGui::PopID();
-}
-
 void AssemblyExplorer::RenderNamespaceNode(NamespaceGroup& ns)
 {
     ImGui::PushID(&ns);
@@ -586,7 +502,67 @@ void AssemblyExplorer::RenderClassDetailsPanel()
     
     ImGui::Separator();
     
-    ImGui::Columns(2, "ClassStats", false);
+    if (!selectedClass->instances.empty())
+    {
+        ImGui::TextDisabled("Active Instance:");
+        
+        std::string previewText = "None";
+        if (selectedInstance)
+        {
+            previewText = selectedInstance->displayName;
+        }
+        
+        if (ImGui::BeginCombo("##InstanceSelect", previewText.c_str()))
+        {
+            bool isSelected = (selectedInstance == nullptr);
+            if (ImGui::Selectable("None", isSelected))
+            {
+                selectedInstance = nullptr;
+            }
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+            
+            for (size_t i = 0; i < selectedClass->instances.size(); i++)
+            {
+                auto& instance = selectedClass->instances[i];
+                std::string label = std::to_string(i + 1) + " - " + instance.displayName;
+                
+                bool isSelected = (selectedInstance == &instance);
+                if (ImGui::Selectable(label.c_str(), isSelected))
+                {
+                    selectedInstance = &instance;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            
+            ImGui::EndCombo();
+        }
+        
+        if (ImGui::IsItemHovered() && selectedInstance)
+        {
+            ImGui::SetTooltip("Address: %p", selectedInstance->instance);
+        }
+        
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Refresh##Instances"))
+        {
+            RefreshInstances(selectedClass);
+        }
+    }
+    else
+    {
+        ImGui::TextDisabled("No active instances found");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Refresh##Instances"))
+        {
+            RefreshInstances(selectedClass);
+        }
+    }
+    
+    ImGui::Separator();
+    
+    ImGui::Columns(3, "ClassStats", false);
     
     ImGui::TextDisabled("Fields:");
     ImGui::Text("%d", selectedClass->fieldCount);
@@ -594,6 +570,10 @@ void AssemblyExplorer::RenderClassDetailsPanel()
     
     ImGui::TextDisabled("Methods:");
     ImGui::Text("%d", selectedClass->methodCount);
+    ImGui::NextColumn();
+    
+    ImGui::TextDisabled("Instances:");
+    ImGui::Text("%zu", selectedClass->instances.size());
     ImGui::NextColumn();
     
     ImGui::Columns(1);
@@ -856,18 +836,16 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo)
     try
     {
         auto objects = classInfo->classHandle->FindObjectsOfType<void*>();
-        int index = 0;
         for (auto* obj : objects)
         {
             if (!obj) continue;
             
             ClassInstanceInfo info;
             info.instance = obj;
-            info.displayName = classInfo->name + " #" + std::to_string(index++);
             
-            // Try to get GameObject name if it's a Component
-            // Note: This would require additional Unity type definitions
-            // For now, just use the index
+            std::stringstream ss;
+            ss << std::hex << obj;
+            info.displayName = "0x" + ss.str();
             
             classInfo->instances.push_back(std::move(info));
         }

@@ -62,9 +62,8 @@ private:
     bool groupByNamespace = true;
     bool autoRefreshInstances = false;
     
-    float assemblyPanelWidth = 200.0f;
-    float classPanelWidth = 250.0f;
-    float instancePanelWidth = 200.0f;
+    float assemblyPanelWidth = 250.0f;
+    float classPanelWidth = 300.0f;
     
     void LoadAssemblyData();
     void RefreshAssemblyData();
@@ -72,7 +71,6 @@ private:
     void RenderAssemblyExplorerWindow();
     void RenderAssemblyListPanel();
     void RenderClassListPanel();
-    void RenderInstanceListPanel();
     void RenderClassDetailsPanel();
     void RenderDivider(const char* id, float& widthToAdjust, float height);
     
@@ -85,18 +83,15 @@ private:
     void SelectInstance(ClassInstanceInfo* instance);
     void RefreshInstances(AssemblyClassInfo* classInfo);
     
-    void RenderInstanceNode(ClassInstanceInfo& instance);
     void RenderFieldRow(UR::Field* field, void* instance);
     void RenderMethodInvokePopup();
     
-    // Field editor for editing field values
     std::unique_ptr<FieldEditor> fieldEditor;
     
     std::string FormatClassName(const std::string& name) const;
     std::string FormatNamespaceName(const std::string& name) const;
     ImVec4 GetClassColor(const AssemblyClassInfo& classInfo) const;
     
-    // Method invocation popup state
     struct MethodInvokeState {
         bool showPopup = false;
         UR::Method* targetMethod = nullptr;
