@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "game/core/core.h"
 
+struct AssemblyExplorer;
+
 enum class EditableType
 {
     None,
@@ -99,6 +101,9 @@ struct InspectedObjectTab final
 
 struct Inspector final : Core::Feature
 {
+    Inspector();
+    ~Inspector() override;
+    
     void Update(float deltaTime) override;
     void Render() override;
 
@@ -159,4 +164,6 @@ private:
     void RenderEditableProperty(UT::Component* component, const ComponentPropertyInfo& prop) const;
     void* InvokeMethod(UT::Component* component, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const;
     static EditableType DetermineEditableType(const std::string& typeName);
+
+    std::unique_ptr<AssemblyExplorer> assemblyExplorer;
 };

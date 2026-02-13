@@ -207,6 +207,7 @@
     <ClInclude Include="src\game\features\Tests\Tests.h" />
     <ClInclude Include="src\gui\fonts\Roboto_font.h" />
     <ClInclude Include="src\game\features\inspector\inspector.h" />
+    <ClInclude Include="src\game\features\inspector\assembly_explorer.h" />
     <ClInclude Include="library\xorstr\xorstr.hpp" />
     <ClInclude Include="src\game\helper\helper.h" />
     <ClInclude Include="src\game\hooks\hooks.h" />
@@ -273,6 +274,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='clang|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\game\core\core.cpp" />
+    <ClCompile Include="src\game\features\inspector\assembly_explorer.cpp" />
     <ClCompile Include="src\game\features\inspector\esp.cpp" />
     <ClCompile Include="src\game\features\inspector\inspector.cpp" />
     <ClCompile Include="src\game\features\inspector\utils.cpp" />

@@ -91,6 +91,19 @@ void Menu::RenderDebugTab() {
     ImGui::Spacing();
 
     ImGui::Checkbox(X("Enable Inspector"), &Core::config->inspector.Enabled);
+    
+    if (Core::config->inspector.Enabled)
+    {
+        ImGui::Indent();
+        
+        ImGui::Checkbox(X("Show Assembly Explorer"), &Core::config->inspector.ShowAssemblyExplorer);
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Open a window to browse all loaded assemblies and their classes");
+        }
+        
+        ImGui::Unindent();
+    }
 
     ImGui::EndChild();
 }

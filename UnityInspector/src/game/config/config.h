@@ -7,6 +7,7 @@ private:
         bool Enabled = true;
         bool AutoUpdateObject = false;
 		bool AutoRefresh = false;
+        bool ShowAssemblyExplorer = true;
     };
 public:
     bool ShowImGui = false;
