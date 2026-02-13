@@ -1,6 +1,13 @@
 #pragma once
 #include "game/core/core.h"
 
+struct ClassInstanceInfo
+{
+    void* instance = nullptr;
+    std::string displayName;
+    bool isActive = true;
+};
+
 struct AssemblyClassInfo
 {
     std::string name;
@@ -9,6 +16,10 @@ struct AssemblyClassInfo
     UR::Class* classHandle = nullptr;
     int fieldCount = 0;
     int methodCount = 0;
+    
+    // Cached instances
+    std::vector<ClassInstanceInfo> instances;
+    float instancesRefreshTimer = 0.0f;
 };
 
 struct NamespaceGroup
@@ -40,15 +51,19 @@ private:
     AssemblyInfo* selectedAssembly = nullptr;
     NamespaceGroup* selectedNamespace = nullptr;
     AssemblyClassInfo* selectedClass = nullptr;
+    ClassInstanceInfo* selectedInstance = nullptr;
     
     char assemblySearchBuffer[256] = {};
     char classSearchBuffer[256] = {};
+    char instanceSearchBuffer[256] = {};
     
     bool showDetailsPanel = true;
     bool groupByNamespace = true;
+    bool autoRefreshInstances = false;
     
-    float assemblyPanelWidth = 250.0f;
-    float classPanelWidth = 300.0f;
+    float assemblyPanelWidth = 200.0f;
+    float classPanelWidth = 250.0f;
+    float instancePanelWidth = 200.0f;
     
     void LoadAssemblyData();
     void RefreshAssemblyData();
@@ -56,6 +71,7 @@ private:
     void RenderAssemblyExplorerWindow();
     void RenderAssemblyListPanel();
     void RenderClassListPanel();
+    void RenderInstanceListPanel();
     void RenderClassDetailsPanel();
     void RenderDivider(const char* id, float& widthToAdjust, float height);
     
@@ -65,8 +81,25 @@ private:
     
     void SelectAssembly(AssemblyInfo* assembly);
     void SelectClass(AssemblyClassInfo* classInfo);
+    void SelectInstance(ClassInstanceInfo* instance);
+    void RefreshInstances(AssemblyClassInfo* classInfo);
+    
+    void RenderInstanceNode(ClassInstanceInfo& instance);
+    void RenderFieldValue(UR::Field* field, void* instance);
+    void RenderMethodInvokePopup();
     
     std::string FormatClassName(const std::string& name) const;
     std::string FormatNamespaceName(const std::string& name) const;
     ImVec4 GetClassColor(const AssemblyClassInfo& classInfo) const;
+    
+    // Method invocation popup state
+    struct MethodInvokeState {
+        bool showPopup = false;
+        UR::Method* targetMethod = nullptr;
+        void* targetInstance = nullptr;
+        std::vector<std::string> parameterValues;
+        std::string resultText;
+        bool hasResult = false;
+    };
+    MethodInvokeState invokeState;
 };

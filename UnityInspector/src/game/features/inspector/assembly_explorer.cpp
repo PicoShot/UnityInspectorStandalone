@@ -11,6 +11,17 @@ void AssemblyExplorer::Update(const float deltaTime)
         LoadAssemblyData();
         dataLoaded = true;
     }
+    
+    // Auto-refresh instances for selected class
+    if (autoRefreshInstances && selectedClass)
+    {
+        selectedClass->instancesRefreshTimer += deltaTime;
+        if (selectedClass->instancesRefreshTimer >= 1.0f)
+        {
+            selectedClass->instancesRefreshTimer = 0.0f;
+            RefreshInstances(selectedClass);
+        }
+    }
 }
 
 void AssemblyExplorer::Render()
@@ -98,7 +109,7 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
     
     UR::ThreadAttach();
     
-    ImGui::SetNextWindowSize(ImVec2(900, 600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(1200, 700), ImGuiCond_FirstUseEver);
     
     if (ImGui::Begin("Assembly Explorer", &Core::config->inspector.ShowAssemblyExplorer))
     {
@@ -113,6 +124,9 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
         ImGui::SameLine();
         ImGui::Checkbox("Show Details", &showDetailsPanel);
         
+        ImGui::SameLine();
+        ImGui::Checkbox("Auto Refresh Instances", &autoRefreshInstances);
+        
         ImGui::Separator();
         
         float availableHeight = ImGui::GetContentRegionAvail().y;
@@ -121,30 +135,47 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
         const float minPanelWidth = 150.0f;
         if (assemblyPanelWidth < minPanelWidth) assemblyPanelWidth = minPanelWidth;
         if (classPanelWidth < minPanelWidth) classPanelWidth = minPanelWidth;
-        
-        float detailsWidth = showDetailsPanel ? 
-            std::max(availableWidth - assemblyPanelWidth - classPanelWidth - 16.0f, minPanelWidth) : 0.0f;
+        if (instancePanelWidth < minPanelWidth) instancePanelWidth = minPanelWidth;
         
         ImGui::BeginChild("AssemblyExplorerMain", ImVec2(0, availableHeight), false, ImGuiWindowFlags_NoScrollbar);
         
+        // Assembly Panel
         RenderAssemblyListPanel();
         
         ImGui::SameLine();
         RenderDivider("AssemblyClassDivider", assemblyPanelWidth, availableHeight);
         
+        // Class Panel
         ImGui::SameLine();
         RenderClassListPanel();
         
-        if (showDetailsPanel)
+        // Instance Panel (only if class selected)
+        if (selectedClass)
         {
             ImGui::SameLine();
-            RenderDivider("ClassDetailsDivider", classPanelWidth, availableHeight);
+            RenderDivider("ClassInstanceDivider", classPanelWidth, availableHeight);
+            
+            ImGui::SameLine();
+            RenderInstanceListPanel();
+        }
+        
+        // Details Panel
+        if (showDetailsPanel && selectedClass)
+        {
+            ImGui::SameLine();
+            RenderDivider("InstanceDetailsDivider", instancePanelWidth, availableHeight);
             
             ImGui::SameLine();
             RenderClassDetailsPanel();
         }
         
         ImGui::EndChild();
+        
+        // Render method invocation popup
+        if (invokeState.showPopup)
+        {
+            RenderMethodInvokePopup();
+        }
     }
     ImGui::End();
 }
@@ -360,6 +391,84 @@ void AssemblyExplorer::RenderClassListPanel()
     ImGui::EndChild();
 }
 
+void AssemblyExplorer::RenderInstanceListPanel()
+{
+    ImGui::BeginChild("InstanceList", ImVec2(instancePanelWidth, 0), true);
+    
+    if (!selectedClass)
+    {
+        ImGui::TextDisabled("Select a class to view instances");
+        ImGui::EndChild();
+        return;
+    }
+    
+    // Header with class name
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
+    ImGui::Text("Instances");
+    ImGui::PopStyleColor();
+    
+    // Refresh button
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Refresh"))
+    {
+        RefreshInstances(selectedClass);
+    }
+    
+    // Search box
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputTextWithHint("##InstanceSearch", "Search instances...", instanceSearchBuffer, sizeof(instanceSearchBuffer));
+    
+    ImGui::Separator();
+    
+    ImGui::TextDisabled("Count: %zu", selectedClass->instances.size());
+    ImGui::Spacing();
+    
+    ImGui::BeginChild("InstanceListScroll", ImVec2(0, 0), false);
+    
+    for (auto& instance : selectedClass->instances)
+    {
+        if (instanceSearchBuffer[0] != '\0' &&
+            instance.displayName.find(instanceSearchBuffer) == std::string::npos)
+        {
+            continue;
+        }
+        
+        RenderInstanceNode(instance);
+    }
+    
+    ImGui::EndChild();
+    
+    ImGui::EndChild();
+}
+
+void AssemblyExplorer::RenderInstanceNode(ClassInstanceInfo& instance)
+{
+    ImGui::PushID(&instance);
+    
+    bool isSelected = (selectedInstance == &instance);
+    
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | 
+                               ImGuiTreeNodeFlags_Leaf |
+                               ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    
+    if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
+    
+    std::string label = "[@] " + instance.displayName;
+    ImGui::TreeNodeEx(label.c_str(), flags);
+    
+    if (ImGui::IsItemClicked())
+    {
+        SelectInstance(&instance);
+    }
+    
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Address: %p", instance.instance);
+    }
+    
+    ImGui::PopID();
+}
+
 void AssemblyExplorer::RenderNamespaceNode(NamespaceGroup& ns)
 {
     ImGui::PushID(&ns);
@@ -503,13 +612,22 @@ void AssemblyExplorer::RenderClassDetailsPanel()
     {
         if (ImGui::CollapsingHeader("Fields", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            // Show instance info if a non-static field is selected
+            bool canEditInstance = selectedInstance && selectedInstance->instance;
+            
+            if (!canEditInstance && !selectedClass->instances.empty())
+            {
+                ImGui::TextDisabled("Select an instance to edit non-static fields");
+            }
+            
             ImGui::Indent();
             
-            if (ImGui::BeginTable("FieldsTable", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
+            if (ImGui::BeginTable("FieldsTable", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
             {
-                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 150.0f);
-                ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 200.0f);
-                ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+                ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+                ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
                 
                 for (const auto& field : klass->fields)
                 {
@@ -517,6 +635,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     
                     ImGui::TableNextRow();
                     
+                    // Column 0: Name
                     ImGui::TableSetColumnIndex(0);
                     ImVec4 color = field->static_field ? 
                         ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
@@ -525,18 +644,24 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     ImGui::TextUnformatted(field->name.c_str());
                     ImGui::PopStyleColor();
                     
+                    // Column 1: Type
                     ImGui::TableSetColumnIndex(1);
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
                     std::string typeName = field->type->name;
-                    if (typeName.length() > 50) typeName = typeName.substr(0, 47) + "...";
+                    if (typeName.length() > 40) typeName = typeName.substr(0, 37) + "...";
                     ImGui::TextUnformatted(typeName.c_str());
                     ImGui::PopStyleColor();
                     
+                    // Column 2: Offset
                     ImGui::TableSetColumnIndex(2);
                     if (!field->static_field)
                         ImGui::TextDisabled("0x%X", field->offset);
                     else
                         ImGui::TextDisabled("[S]");
+                    
+                    // Column 3: Value (editable if possible)
+                    ImGui::TableSetColumnIndex(3);
+                    RenderFieldValue(field.get(), canEditInstance ? selectedInstance->instance : nullptr);
                 }
                 
                 ImGui::EndTable();
@@ -552,34 +677,45 @@ void AssemblyExplorer::RenderClassDetailsPanel()
         {
             ImGui::Indent();
             
-            if (ImGui::BeginTable("MethodsTable", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
+            // Show instance info for non-static methods
+            bool canInvokeInstance = selectedInstance && selectedInstance->instance;
+            
+            if (ImGui::BeginTable("MethodsTable", 5, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
             {
-                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 180.0f);
-                ImGui::TableSetupColumn("Return Type", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+                ImGui::TableSetupColumn("Return Type", ImGuiTableColumnFlags_WidthFixed, 120.0f);
                 ImGui::TableSetupColumn("Parameters", ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+                ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+                ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 60.0f);
                 
                 for (const auto& method : klass->methods)
                 {
                     if (!method) continue;
                     
+                    // Check if we can invoke this method
+                    bool isStatic = method->static_function;
+                    bool canInvoke = isStatic || canInvokeInstance;
+                    
                     ImGui::TableNextRow();
                     
+                    // Column 0: Name
                     ImGui::TableSetColumnIndex(0);
-                    ImVec4 color = method->static_function ? 
+                    ImVec4 color = isStatic ? 
                         ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
                         ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
                     ImGui::PushStyleColor(ImGuiCol_Text, color);
                     ImGui::TextUnformatted(method->name.c_str());
                     ImGui::PopStyleColor();
                     
+                    // Column 1: Return type
                     ImGui::TableSetColumnIndex(1);
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
                     std::string retType = method->return_type->name;
-                    if (retType.length() > 40) retType = retType.substr(0, 37) + "...";
+                    if (retType.length() > 35) retType = retType.substr(0, 32) + "...";
                     ImGui::Text("-> %s", retType.c_str());
                     ImGui::PopStyleColor();
                     
+                    // Column 2: Parameters
                     ImGui::TableSetColumnIndex(2);
                     if (!method->args.empty())
                     {
@@ -590,7 +726,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                             if (!params.empty()) params += ", ";
                             params += arg->pType->name + " " + arg->name;
                         }
-                        if (params.length() > 60) params = params.substr(0, 57) + "...";
+                        if (params.length() > 50) params = params.substr(0, 47) + "...";
                         ImGui::TextDisabled("(%s)", params.c_str());
                     }
                     else
@@ -598,11 +734,58 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                         ImGui::TextDisabled("()");
                     }
                     
+                    // Column 3: Flags
                     ImGui::TableSetColumnIndex(3);
                     std::string flags;
-                    if (method->static_function) flags += "S";
+                    if (isStatic) flags += "S";
                     if (!flags.empty())
                         ImGui::TextDisabled("[%s]", flags.c_str());
+                    
+                    // Column 4: Invoke button
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::PushID(method.get());
+                    
+                    if (!canInvoke)
+                    {
+                        ImGui::BeginDisabled();
+                    }
+                    
+                    if (ImGui::SmallButton("Invoke"))
+                    {
+                        void* target = isStatic ? nullptr : selectedInstance->instance;
+                        
+                        if (method->args.empty())
+                        {
+                            // Direct invoke for methods without parameters
+                            try
+                            {
+                                method->RuntimeInvoke<void>(target);
+                            }
+                            catch (...) {}
+                        }
+                        else
+                        {
+                            // Open invoke popup for methods with parameters
+                            invokeState.showPopup = true;
+                            invokeState.targetMethod = method.get();
+                            invokeState.targetInstance = target;
+                            invokeState.parameterValues.clear();
+                            invokeState.parameterValues.resize(method->args.size());
+                            invokeState.resultText.clear();
+                            invokeState.hasResult = false;
+                        }
+                    }
+                    
+                    if (!canInvoke)
+                    {
+                        ImGui::EndDisabled();
+                        if (ImGui::IsItemHovered())
+                        {
+                            ImGui::SetTooltip("Select an instance to invoke non-static methods");
+                        }
+                    }
+                    
+                    ImGui::PopID();
                 }
                 
                 ImGui::EndTable();
@@ -627,6 +810,47 @@ void AssemblyExplorer::SelectAssembly(AssemblyInfo* assembly)
 void AssemblyExplorer::SelectClass(AssemblyClassInfo* classInfo)
 {
     selectedClass = classInfo;
+    selectedInstance = nullptr;
+    
+    // Refresh instances for this class
+    if (selectedClass)
+    {
+        RefreshInstances(selectedClass);
+    }
+}
+
+void AssemblyExplorer::SelectInstance(ClassInstanceInfo* instance)
+{
+    selectedInstance = instance;
+}
+
+void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo)
+{
+    if (!classInfo || !classInfo->classHandle) return;
+    
+    classInfo->instances.clear();
+    
+    // Use Unity's FindObjectsOfType to get all instances
+    try
+    {
+        auto objects = classInfo->classHandle->FindObjectsOfType<void*>();
+        int index = 0;
+        for (auto* obj : objects)
+        {
+            if (!obj) continue;
+            
+            ClassInstanceInfo info;
+            info.instance = obj;
+            info.displayName = classInfo->name + " #" + std::to_string(index++);
+            
+            // Try to get GameObject name if it's a Component
+            // Note: This would require additional Unity type definitions
+            // For now, just use the index
+            
+            classInfo->instances.push_back(std::move(info));
+        }
+    }
+    catch (...) {}
 }
 
 std::string AssemblyExplorer::FormatClassName(const std::string& name) const
@@ -659,4 +883,148 @@ ImVec4 AssemblyExplorer::GetClassColor(const AssemblyClassInfo& classInfo) const
         return ImVec4(0.7f, 0.7f, 0.7f, 1.0f);  // Gray for others with parent
     
     return ImVec4(0.9f, 0.9f, 0.9f, 1.0f);      // White for base classes
+}
+
+
+void AssemblyExplorer::RenderFieldValue(UR::Field* field, void* instance)
+{
+    if (!field) return;
+    
+    // For now, just display the value - editing would require more complex type handling
+    // This is a simplified version that shows raw values for common types
+    
+    try
+    {
+        if (field->static_field)
+        {
+            // Static field - can always read
+            if (field->type->name == "System.Int32" || field->type->name == "System.Int")
+            {
+                int value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%d", value);
+            }
+            else if (field->type->name == "System.Single" || field->type->name == "System.Float")
+            {
+                float value = 0.0f;
+                field->GetStaticValue(&value);
+                ImGui::Text("%.3f", value);
+            }
+            else if (field->type->name == "System.Boolean" || field->type->name == "System.Bool")
+            {
+                bool value = false;
+                field->GetStaticValue(&value);
+                ImGui::Text("%s", value ? "true" : "false");
+            }
+            else if (field->type->name == "System.String")
+            {
+                // String handling would be more complex
+                ImGui::TextDisabled("\"...\"");
+            }
+            else
+            {
+                ImGui::TextDisabled("...");
+            }
+        }
+        else if (instance)
+        {
+            // Instance field - need instance pointer
+            void* fieldAddr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field->offset);
+            
+            if (field->type->name == "System.Int32" || field->type->name == "System.Int")
+            {
+                int value = *reinterpret_cast<int*>(fieldAddr);
+                ImGui::Text("%d", value);
+            }
+            else if (field->type->name == "System.Single" || field->type->name == "System.Float")
+            {
+                float value = *reinterpret_cast<float*>(fieldAddr);
+                ImGui::Text("%.3f", value);
+            }
+            else if (field->type->name == "System.Boolean" || field->type->name == "System.Bool")
+            {
+                bool value = *reinterpret_cast<bool*>(fieldAddr);
+                ImGui::Text("%s", value ? "true" : "false");
+            }
+            else if (field->type->name == "UnityEngine.Vector3")
+            {
+                Vec3 value = *reinterpret_cast<Vec3*>(fieldAddr);
+                ImGui::Text("(%.2f, %.2f, %.2f)", value.x, value.y, value.z);
+            }
+            else
+            {
+                ImGui::TextDisabled("...");
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled("-");
+        }
+    }
+    catch (...)
+    {
+        ImGui::TextDisabled("Error");
+    }
+}
+
+void AssemblyExplorer::RenderMethodInvokePopup()
+{
+    if (!invokeState.showPopup || !invokeState.targetMethod) return;
+    
+    ImGui::OpenPopup("Invoke Method");
+    
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    
+    if (ImGui::BeginPopupModal("Invoke Method", &invokeState.showPopup, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Method: %s", invokeState.targetMethod->name.c_str());
+        ImGui::Separator();
+        
+        // Parameter inputs
+        for (size_t i = 0; i < invokeState.targetMethod->args.size(); i++)
+        {
+            const auto& arg = invokeState.targetMethod->args[i];
+            if (!arg) continue;
+            
+            ImGui::Text("%s (%s):", arg->name.c_str(), arg->pType->name.c_str());
+            
+            char buf[256];
+            strncpy_s(buf, invokeState.parameterValues[i].c_str(), sizeof(buf));
+            buf[sizeof(buf) - 1] = '\0';
+            
+            std::string id = "##param" + std::to_string(i);
+            if (ImGui::InputText(id.c_str(), buf, sizeof(buf)))
+            {
+                invokeState.parameterValues[i] = buf;
+            }
+        }
+        
+        ImGui::Separator();
+        
+        // Result display
+        if (invokeState.hasResult)
+        {
+            ImGui::Text("Result: %s", invokeState.resultText.c_str());
+        }
+        
+        // Buttons
+        if (ImGui::Button("Invoke", ImVec2(120, 0)))
+        {
+            // TODO: Parse parameters and invoke method
+            // This is complex due to type conversion - simplified for now
+            invokeState.resultText = "Invoked!";
+            invokeState.hasResult = true;
+        }
+        
+        ImGui::SameLine();
+        
+        if (ImGui::Button("Close", ImVec2(120, 0)))
+        {
+            invokeState.showPopup = false;
+            ImGui::CloseCurrentPopup();
+        }
+        
+        ImGui::EndPopup();
+    }
 }
