@@ -13,7 +13,6 @@ void AssemblyExplorer::Update(const float deltaTime)
         dataLoaded = true;
     }
     
-    // Auto-refresh instances for selected class
     if (autoRefreshInstances && selectedClass)
     {
         selectedClass->instancesRefreshTimer += deltaTime;
@@ -140,17 +139,14 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
         
         ImGui::BeginChild("AssemblyExplorerMain", ImVec2(0, availableHeight), false, ImGuiWindowFlags_NoScrollbar);
         
-        // Assembly Panel
         RenderAssemblyListPanel();
         
         ImGui::SameLine();
         RenderDivider("AssemblyClassDivider", assemblyPanelWidth, availableHeight);
         
-        // Class Panel
         ImGui::SameLine();
         RenderClassListPanel();
         
-        // Instance Panel (only if class selected)
         if (selectedClass)
         {
             ImGui::SameLine();
@@ -160,7 +156,6 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
             RenderInstanceListPanel();
         }
         
-        // Details Panel
         if (showDetailsPanel && selectedClass)
         {
             ImGui::SameLine();
@@ -172,7 +167,6 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
         
         ImGui::EndChild();
         
-        // Render method invocation popup
         if (invokeState.showPopup)
         {
             RenderMethodInvokePopup();
@@ -403,19 +397,16 @@ void AssemblyExplorer::RenderInstanceListPanel()
         return;
     }
     
-    // Header with class name
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.8f, 1.0f, 1.0f));
     ImGui::Text("Instances");
     ImGui::PopStyleColor();
     
-    // Refresh button
     ImGui::SameLine();
     if (ImGui::SmallButton("Refresh"))
     {
         RefreshInstances(selectedClass);
     }
     
-    // Search box
     ImGui::SetNextItemWidth(-1);
     ImGui::InputTextWithHint("##InstanceSearch", "Search instances...", instanceSearchBuffer, sizeof(instanceSearchBuffer));
     
@@ -613,7 +604,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
     {
         if (ImGui::CollapsingHeader("Fields", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            // Show instance info if a non-static field is selected
             bool canEditInstance = selectedInstance && selectedInstance->instance;
             
             if (!canEditInstance && !selectedClass->instances.empty())
@@ -635,7 +625,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                 {
                     if (!field) continue;
                     
-                    // Check if we can edit this field
                     bool isStatic = field->static_field;
                     bool canEdit = isStatic || canEditInstance;
                     bool isEditableType = FieldEditor::IsEditableType(field->type ? field->type->name : "");
@@ -644,7 +633,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     
                     ImGui::TableNextRow();
                     
-                    // Column 0: Name
                     ImGui::TableSetColumnIndex(0);
                     ImVec4 color = isStatic ? 
                         ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
@@ -653,7 +641,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     ImGui::TextUnformatted(field->name.c_str());
                     ImGui::PopStyleColor();
                     
-                    // Column 1: Type
                     ImGui::TableSetColumnIndex(1);
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
                     std::string typeName = field->type->name;
@@ -661,18 +648,15 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     ImGui::TextUnformatted(typeName.c_str());
                     ImGui::PopStyleColor();
                     
-                    // Column 2: Offset
                     ImGui::TableSetColumnIndex(2);
                     if (!isStatic)
                         ImGui::TextDisabled("0x%X", field->offset);
                     else
                         ImGui::TextDisabled("[S]");
                     
-                    // Column 3: Value preview
                     ImGui::TableSetColumnIndex(3);
                     RenderFieldRow(field.get(), canEditInstance ? selectedInstance->instance : nullptr);
                     
-                    // Column 4: Edit button
                     ImGui::TableSetColumnIndex(4);
                     ImGui::PushID(field.get());
                     
@@ -711,7 +695,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                 ImGui::EndTable();
             }
             
-            // Render field editor window if open
             if (fieldEditor && fieldEditor->IsOpen())
             {
                 fieldEditor->Render();
@@ -727,7 +710,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
         {
             ImGui::Indent();
             
-            // Show instance info for non-static methods
             bool canInvokeInstance = selectedInstance && selectedInstance->instance;
             
             if (ImGui::BeginTable("MethodsTable", 5, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
@@ -742,13 +724,11 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                 {
                     if (!method) continue;
                     
-                    // Check if we can invoke this method
                     bool isStatic = method->static_function;
                     bool canInvoke = isStatic || canInvokeInstance;
                     
                     ImGui::TableNextRow();
                     
-                    // Column 0: Name
                     ImGui::TableSetColumnIndex(0);
                     ImVec4 color = isStatic ? 
                         ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : 
@@ -757,7 +737,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     ImGui::TextUnformatted(method->name.c_str());
                     ImGui::PopStyleColor();
                     
-                    // Column 1: Return type
                     ImGui::TableSetColumnIndex(1);
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.5f, 1.0f));
                     std::string retType = method->return_type->name;
@@ -765,7 +744,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                     ImGui::Text("-> %s", retType.c_str());
                     ImGui::PopStyleColor();
                     
-                    // Column 2: Parameters
                     ImGui::TableSetColumnIndex(2);
                     if (!method->args.empty())
                     {
@@ -784,14 +762,12 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                         ImGui::TextDisabled("()");
                     }
                     
-                    // Column 3: Flags
                     ImGui::TableSetColumnIndex(3);
                     std::string flags;
                     if (isStatic) flags += "S";
                     if (!flags.empty())
                         ImGui::TextDisabled("[%s]", flags.c_str());
                     
-                    // Column 4: Invoke button
                     ImGui::TableSetColumnIndex(4);
                     ImGui::PushID(method.get());
                     
@@ -806,7 +782,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                         
                         if (method->args.empty())
                         {
-                            // Direct invoke for methods without parameters
                             try
                             {
                                 method->RuntimeInvoke<void>(target);
@@ -815,7 +790,6 @@ void AssemblyExplorer::RenderClassDetailsPanel()
                         }
                         else
                         {
-                            // Open invoke popup for methods with parameters
                             invokeState.showPopup = true;
                             invokeState.targetMethod = method.get();
                             invokeState.targetInstance = target;
@@ -862,7 +836,6 @@ void AssemblyExplorer::SelectClass(AssemblyClassInfo* classInfo)
     selectedClass = classInfo;
     selectedInstance = nullptr;
     
-    // Refresh instances for this class
     if (selectedClass)
     {
         RefreshInstances(selectedClass);
@@ -880,7 +853,6 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo)
     
     classInfo->instances.clear();
     
-    // Use Unity's FindObjectsOfType to get all instances
     try
     {
         auto objects = classInfo->classHandle->FindObjectsOfType<void*>();
@@ -938,38 +910,100 @@ ImVec4 AssemblyExplorer::GetClassColor(const AssemblyClassInfo& classInfo) const
 
 void AssemblyExplorer::RenderFieldRow(UR::Field* field, void* instance)
 {
-    if (!field) return;
+    if (!field || !field->type) return;
     
-    // For now, just display the value - editing would require more complex type handling
-    // This is a simplified version that shows raw values for common types
+    std::string typeName = field->type->name;
     
     try
     {
         if (field->static_field)
         {
-            // Static field - can always read
-            if (field->type->name == "System.Int32" || field->type->name == "System.Int")
+            if (typeName == "System.String")
             {
-                int value = 0;
-                field->GetStaticValue(&value);
-                ImGui::Text("%d", value);
+                UT::String* strPtr = nullptr;
+                field->GetStaticValue(&strPtr);
+                if (strPtr)
+                {
+                    std::string str = strPtr->ToString();
+                    if (str.length() > 25) str = str.substr(0, 22) + "...";
+                    ImGui::Text("\"%s\"", str.c_str());
+                }
+                else
+                {
+                    ImGui::TextDisabled("null");
+                }
             }
-            else if (field->type->name == "System.Single" || field->type->name == "System.Float")
-            {
-                float value = 0.0f;
-                field->GetStaticValue(&value);
-                ImGui::Text("%.3f", value);
-            }
-            else if (field->type->name == "System.Boolean" || field->type->name == "System.Bool")
+            else if (typeName == "System.Boolean" || typeName == "System.Bool")
             {
                 bool value = false;
                 field->GetStaticValue(&value);
                 ImGui::Text("%s", value ? "true" : "false");
             }
-            else if (field->type->name == "System.String")
+            else if (typeName == "System.Single" || typeName == "System.Float")
             {
-                // String handling would be more complex
-                ImGui::TextDisabled("\"...\"");
+                float value = 0.0f;
+                field->GetStaticValue(&value);
+                ImGui::Text("%.4f", value);
+            }
+            else if (typeName == "System.Double")
+            {
+                double value = 0.0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%.4f", value);
+            }
+            else if (typeName == "System.Int64")
+            {
+                int64_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%lld", value);
+            }
+            else if (typeName == "System.UInt64")
+            {
+                uint64_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%llu", value);
+            }
+            else if (typeName == "System.Int16" || typeName == "System.Short")
+            {
+                int16_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%d", value);
+            }
+            else if (typeName == "System.UInt16" || typeName == "System.UShort")
+            {
+                uint16_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%u", value);
+            }
+            else if (typeName == "System.Byte")
+            {
+                uint8_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%u", value);
+            }
+            else if (typeName == "System.SByte")
+            {
+                int8_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%d", value);
+            }
+            else if (typeName == "System.Int32" || typeName == "System.Int")
+            {
+                int32_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%d", value);
+            }
+            else if (typeName == "System.UInt32" || typeName == "System.UInt")
+            {
+                uint32_t value = 0;
+                field->GetStaticValue(&value);
+                ImGui::Text("%u", value);
+            }
+            else if (typeName == "UnityEngine.Vector3")
+            {
+                Vec3 value;
+                field->GetStaticValue(&value);
+                ImGui::Text("(%.2f, %.2f, %.2f)", value.x, value.y, value.z);
             }
             else
             {
@@ -978,32 +1012,89 @@ void AssemblyExplorer::RenderFieldRow(UR::Field* field, void* instance)
         }
         else if (instance)
         {
-            // Instance field - need instance pointer
             void* fieldAddr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field->offset);
             
-            if (field->type->name == "System.Int32" || field->type->name == "System.Int")
+            if (typeName == "System.String")
             {
-                int value = *reinterpret_cast<int*>(fieldAddr);
-                ImGui::Text("%d", value);
+                UT::String* strPtr = *reinterpret_cast<UT::String**>(fieldAddr);
+                if (strPtr)
+                {
+                    std::string str = strPtr->ToString();
+                    if (str.length() > 25) str = str.substr(0, 22) + "...";
+                    ImGui::Text("\"%s\"", str.c_str());
+                }
+                else
+                {
+                    ImGui::TextDisabled("null");
+                }
             }
-            else if (field->type->name == "System.Single" || field->type->name == "System.Float")
-            {
-                float value = *reinterpret_cast<float*>(fieldAddr);
-                ImGui::Text("%.3f", value);
-            }
-            else if (field->type->name == "System.Boolean" || field->type->name == "System.Bool")
+            else if (typeName == "System.Boolean" || typeName == "System.Bool")
             {
                 bool value = *reinterpret_cast<bool*>(fieldAddr);
                 ImGui::Text("%s", value ? "true" : "false");
             }
-            else if (field->type->name == "UnityEngine.Vector3")
+            else if (typeName == "System.Single" || typeName == "System.Float")
+            {
+                float value = *reinterpret_cast<float*>(fieldAddr);
+                ImGui::Text("%.4f", value);
+            }
+            else if (typeName == "System.Double")
+            {
+                double value = *reinterpret_cast<double*>(fieldAddr);
+                ImGui::Text("%.4f", value);
+            }
+            else if (typeName == "System.Int64")
+            {
+                int64_t value = *reinterpret_cast<int64_t*>(fieldAddr);
+                ImGui::Text("%lld", value);
+            }
+            else if (typeName == "System.UInt64")
+            {
+                uint64_t value = *reinterpret_cast<uint64_t*>(fieldAddr);
+                ImGui::Text("%llu", value);
+            }
+            else if (typeName == "System.Int16" || typeName == "System.Short")
+            {
+                int16_t value = *reinterpret_cast<int16_t*>(fieldAddr);
+                ImGui::Text("%d", value);
+            }
+            else if (typeName == "System.UInt16" || typeName == "System.UShort")
+            {
+                uint16_t value = *reinterpret_cast<uint16_t*>(fieldAddr);
+                ImGui::Text("%u", value);
+            }
+            else if (typeName == "System.Byte")
+            {
+                uint8_t value = *reinterpret_cast<uint8_t*>(fieldAddr);
+                ImGui::Text("%u", value);
+            }
+            else if (typeName == "System.SByte")
+            {
+                int8_t value = *reinterpret_cast<int8_t*>(fieldAddr);
+                ImGui::Text("%d", value);
+            }
+            else if (typeName == "System.Int32" || typeName == "System.Int")
+            {
+                int32_t value = *reinterpret_cast<int32_t*>(fieldAddr);
+                ImGui::Text("%d", value);
+            }
+            else if (typeName == "System.UInt32" || typeName == "System.UInt")
+            {
+                uint32_t value = *reinterpret_cast<uint32_t*>(fieldAddr);
+                ImGui::Text("%u", value);
+            }
+            else if (typeName == "UnityEngine.Vector3")
             {
                 Vec3 value = *reinterpret_cast<Vec3*>(fieldAddr);
                 ImGui::Text("(%.2f, %.2f, %.2f)", value.x, value.y, value.z);
             }
             else
             {
-                ImGui::TextDisabled("...");
+                void* ptr = *reinterpret_cast<void**>(fieldAddr);
+                if (ptr)
+                    ImGui::TextDisabled("%p", ptr);
+                else
+                    ImGui::TextDisabled("null");
             }
         }
         else
@@ -1031,7 +1122,6 @@ void AssemblyExplorer::RenderMethodInvokePopup()
         ImGui::Text("Method: %s", invokeState.targetMethod->name.c_str());
         ImGui::Separator();
         
-        // Parameter inputs
         for (size_t i = 0; i < invokeState.targetMethod->args.size(); i++)
         {
             const auto& arg = invokeState.targetMethod->args[i];
@@ -1052,13 +1142,11 @@ void AssemblyExplorer::RenderMethodInvokePopup()
         
         ImGui::Separator();
         
-        // Result display
         if (invokeState.hasResult)
         {
             ImGui::Text("Result: %s", invokeState.resultText.c_str());
         }
         
-        // Buttons
         if (ImGui::Button("Invoke", ImVec2(120, 0)))
         {
             // TODO: Parse parameters and invoke method
