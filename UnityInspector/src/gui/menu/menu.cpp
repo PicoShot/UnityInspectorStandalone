@@ -3,65 +3,65 @@
 #include "game/core/core.h"
 
 
-void Menu::RenderVisualTab() {
-    ImGui::BeginChild(X("VisualTab"), ImVec2(0, 0), true);
-
-    ImGui::Text(X("Visual Enhancements"));
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    if (ImGui::CollapsingHeader(X("ESP")))
-    {
-       
-    }
-
-    if (ImGui::CollapsingHeader(X("Field of View")))
-    {
-        
-    }
-
-    if (ImGui::CollapsingHeader(X("Other")))
-    {
-       
-    }
-
-    ImGui::EndChild();
-}
-
-void Menu::RenderAimTab() {
-    ImGui::BeginChild(X("AimTab"), ImVec2(0, 0), true);
-
-    ImGui::Text(X("Aim Assistance"));
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::EndChild();
-}
-
-void Menu::RenderMiscTab() {
-    ImGui::BeginChild(X("MiscTab"), ImVec2(0, 0), true);
-
-    ImGui::Text(X("Miscellaneous"));
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    if (ImGui::CollapsingHeader(X("Movement")))
-    {
-       
-    }
-
-    if (ImGui::CollapsingHeader(X("Network")))
-    {
-        
-    }
-
-    if (ImGui::CollapsingHeader(X("Il2Cpp GC")))
-    {
-        
-    }
-
-    ImGui::EndChild();
-}
+//void Menu::RenderVisualTab() {
+//    ImGui::BeginChild(X("VisualTab"), ImVec2(0, 0), true);
+//
+//    ImGui::Text(X("Visual Enhancements"));
+//    ImGui::Separator();
+//    ImGui::Spacing();
+//
+//    if (ImGui::CollapsingHeader(X("ESP")))
+//    {
+//       
+//    }
+//
+//    if (ImGui::CollapsingHeader(X("Field of View")))
+//    {
+//        
+//    }
+//
+//    if (ImGui::CollapsingHeader(X("Other")))
+//    {
+//       
+//    }
+//
+//    ImGui::EndChild();
+//}
+//
+//void Menu::RenderAimTab() {
+//    ImGui::BeginChild(X("AimTab"), ImVec2(0, 0), true);
+//
+//    ImGui::Text(X("Aim Assistance"));
+//    ImGui::Separator();
+//    ImGui::Spacing();
+//
+//    ImGui::EndChild();
+//}
+//
+//void Menu::RenderMiscTab() {
+//    ImGui::BeginChild(X("MiscTab"), ImVec2(0, 0), true);
+//
+//    ImGui::Text(X("Miscellaneous"));
+//    ImGui::Separator();
+//    ImGui::Spacing();
+//
+//    if (ImGui::CollapsingHeader(X("Movement")))
+//    {
+//       
+//    }
+//
+//    if (ImGui::CollapsingHeader(X("Network")))
+//    {
+//        
+//    }
+//
+//    if (ImGui::CollapsingHeader(X("Il2Cpp GC")))
+//    {
+//        
+//    }
+//
+//    ImGui::EndChild();
+//}
 
 void Menu::RenderInfoTab() {
     ImGui::BeginChild(X("InfoTab"), ImVec2(0, 0), true);
@@ -91,19 +91,20 @@ void Menu::RenderDebugTab() {
     ImGui::Spacing();
 
     ImGui::Checkbox(X("Enable Inspector"), &Core::config->inspector.Enabled);
-    
-    if (Core::config->inspector.Enabled)
-    {
-        ImGui::Indent();
-        
-        ImGui::Checkbox(X("Show Assembly Explorer"), &Core::config->inspector.ShowAssemblyExplorer);
-        if (ImGui::IsItemHovered())
-        {
-            ImGui::SetTooltip("Open a window to browse all loaded assemblies and their classes");
-        }
-        
-        ImGui::Unindent();
-    }
+
+    ImGui::Checkbox(X("Show Assembly Explorer"), &Core::config->inspector.ShowAssemblyExplorer);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Open a window to browse all loaded assemblies and their classes");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::Text(X("Debug Console"));
+    ImGui::Checkbox(X("Show Debug Console"), &Core::config->inspector.ShowDebugConsole);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
 
     ImGui::EndChild();
 }
@@ -116,16 +117,16 @@ void Menu::RenderMenu()
         ImGui::SetNextWindowPos(ImVec2(600, 400), ImGuiCond_FirstUseEver);
 
 #ifdef _DEBUG
-        const char* menuTitle = X("Pico.dll (Debug Build)");
+        const char* menuTitle = X("UnityInspector (Debug Build)");
 #else
-        const char* menuTitle = X("Pico.dll (Release Build)");
+        const char* menuTitle = X("UnityInspector (Release Build)");
 #endif
 
         ImGui::Begin(menuTitle, &Core::config->ShowImGui, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize);
 
         if (ImGui::BeginTabBar(X("MainTabs"), ImGuiTabBarFlags_NoCloseWithMiddleMouseButton)) {
 
-            if (ImGui::BeginTabItem(X("Visual"))) {
+            /*if (ImGui::BeginTabItem(X("Visual"))) {
                 RenderVisualTab();
                 ImGui::EndTabItem();
             }
@@ -138,7 +139,7 @@ void Menu::RenderMenu()
             if (ImGui::BeginTabItem(X("Misc"))) {
                 RenderMiscTab();
                 ImGui::EndTabItem();
-            }
+            }*/
 
             if (ImGui::BeginTabItem(X("Info"))) {
                 RenderInfoTab();

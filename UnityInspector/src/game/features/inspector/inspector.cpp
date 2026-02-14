@@ -1,14 +1,13 @@
 #include "pch.h"
 #include "inspector.h"
-#include "assembly_explorer.h"
 
 Inspector::Inspector() = default;
 Inspector::~Inspector() = default;
 
 void Inspector::Update(const float deltaTime)
 {
-	const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer] = Core::config->inspector;
-	if (!Enabled) return;
+	const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole] = Core::config->inspector;
+	if (!Enabled || !Core::config->ShowImGui) return;
 
 	UR::ThreadAttach();
 
@@ -27,20 +26,11 @@ void Inspector::Update(const float deltaTime)
 			RefreshTabData(openTabs[activeTabIndex]);
 		}
 	}
-	
-	if (ShowAssemblyExplorer)
-	{
-		if (!assemblyExplorer)
-		{
-			assemblyExplorer = std::make_unique<AssemblyExplorer>();
-		}
-		assemblyExplorer->Update(deltaTime);
-	}
 }
 
 void Inspector::Render()
 {
-	if (!Core::config->inspector.Enabled) return;
+	if (!Core::config->inspector.Enabled || !Core::config->ShowImGui) return;
 
 	UR::ThreadAttach();
 
@@ -85,22 +75,4 @@ void Inspector::Render()
 
 	RenderDetailsWindow();
 	DrawSelectedObjectBoundingBox();
-
-	if (Core::config->inspector.ShowAssemblyExplorer)
-	{
-		if (!assemblyExplorer)
-		{
-			assemblyExplorer = std::make_unique<AssemblyExplorer>();
-		}
-		
-		auto* explorer = static_cast<AssemblyExplorer*>(assemblyExplorer.get());
-		if (explorer)
-		{
-			explorer->Render();
-		}
-	}
-	else if (assemblyExplorer)
-	{
-		assemblyExplorer.reset();
-	}
 }

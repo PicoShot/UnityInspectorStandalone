@@ -1,8 +1,6 @@
 ﻿#pragma once
 #include "game/core/core.h"
 
-struct AssemblyExplorer;
-
 enum class EditableType
 {
     None,
@@ -165,5 +163,4 @@ private:
     void* InvokeMethod(UT::Component* component, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const;
     static EditableType DetermineEditableType(const std::string& typeName);
 
-    std::unique_ptr<AssemblyExplorer> assemblyExplorer;
 };

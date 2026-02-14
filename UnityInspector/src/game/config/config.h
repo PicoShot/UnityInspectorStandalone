@@ -4,13 +4,14 @@
 struct Config {
 private:
     struct Inspector {
-        bool Enabled = true;
+        bool Enabled = false;
         bool AutoUpdateObject = false;
 		bool AutoRefresh = false;
-        bool ShowAssemblyExplorer = true;
+        bool ShowAssemblyExplorer = false;
+        bool ShowDebugConsole = false;
     };
 public:
-    bool ShowImGui = false;
+    bool ShowImGui = true;
 	HMODULE gameAssembly = nullptr;
 	UR::Mode gameMode;
     Inspector inspector;

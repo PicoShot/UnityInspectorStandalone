@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "window.h"
 #include "game/core/core.h"
-//#include "game/hooks/hooks.h"
+#include "game/hooks/hooks.h"
 #include "gui/menu/menu.h"
 #include "gui/fonts/Roboto_font.h"
 
@@ -88,7 +88,7 @@ void Window::OnPresent()
 
         if (ImGui_ImplWin32_Init(dx_hook::Hk11::GetHwnd()) && ImGui_ImplDX11_Init(device, context))
         {
-            //Hooks::Init();
+            Hooks::Init();
             UR::ThreadAttach();
             g_ImGuiInitialized = true;
         }
@@ -151,7 +151,7 @@ LRESULT Window::MyWndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam,
         {
 		case VK_INSERT:
         {
-            auto& menu = Core::config->inspector.Enabled;
+            auto& menu = Core::config->ShowImGui;
             menu = !menu;
             ImGui::GetIO().MouseDrawCursor = menu;
             ClipCursor(nullptr);

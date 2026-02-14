@@ -1,44 +1,6 @@
 #pragma once
 #include "game/core/core.h"
-#include "field_editor.h"
-
-struct ClassInstanceInfo
-{
-    void* instance = nullptr;
-    std::string displayName;
-    bool isActive = true;
-};
-
-struct AssemblyClassInfo
-{
-    std::string name;
-    std::string fullName;
-    std::string parent;
-    UR::Class* classHandle = nullptr;
-    int fieldCount = 0;
-    int methodCount = 0;
-    
-    // Cached instances
-    std::vector<ClassInstanceInfo> instances;
-    float instancesRefreshTimer = 0.0f;
-};
-
-struct NamespaceGroup
-{
-    std::string name;
-    std::vector<AssemblyClassInfo> classes;
-    bool isExpanded = false;
-};
-
-struct AssemblyInfo
-{
-    std::string name;
-    std::string fileName;
-    UR::Assembly* assemblyHandle = nullptr;
-    int classCount = 0;
-    bool isExpanded = false;
-    std::vector<NamespaceGroup> namespaces;
-};
+#include "game/features/inspector/field_editor.h"
 
 struct AssemblyExplorer final : Core::Feature
 {
@@ -46,6 +8,43 @@ struct AssemblyExplorer final : Core::Feature
     void Render() override;
 
 private:
+    struct ClassInstanceInfo
+    {
+        void* instance = nullptr;
+        std::string displayName;
+        bool isActive = true;
+    };
+
+    struct AssemblyClassInfo
+    {
+        std::string name;
+        std::string fullName;
+        std::string parent;
+        UR::Class* classHandle = nullptr;
+        int fieldCount = 0;
+        int methodCount = 0;
+
+        std::vector<ClassInstanceInfo> instances;
+        float instancesRefreshTimer = 0.0f;
+    };
+
+    struct NamespaceGroup
+    {
+        std::string name;
+        std::vector<AssemblyClassInfo> classes;
+        bool isExpanded = false;
+    };
+
+    struct AssemblyInfo
+    {
+        std::string name;
+        std::string fileName;
+        UR::Assembly* assemblyHandle = nullptr;
+        int classCount = 0;
+        bool isExpanded = false;
+        std::vector<NamespaceGroup> namespaces;
+    };
+
     bool dataLoaded = false;
     
     std::vector<AssemblyInfo> assemblies;

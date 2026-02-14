@@ -22,6 +22,9 @@
 #include <array>
 #include <utility>
 #include <excpt.h>
+#include <mutex>
+#include <string>
+#include <cctype>
 
 // SDK
 #include "unityresolve/UnityResolve.hpp"

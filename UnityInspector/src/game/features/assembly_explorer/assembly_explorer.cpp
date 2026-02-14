@@ -1,11 +1,11 @@
 #include "pch.h"
 #include "assembly_explorer.h"
-#include "field_editor.h"
+#include "game/features/inspector/field_editor.h"
 #include <sstream>
 
 void AssemblyExplorer::Update(const float deltaTime)
 {
-    const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer] = Core::config->inspector;
+    const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole] = Core::config->inspector;
     if (!Enabled) return;
     
     if (!dataLoaded && !UR::assembly.empty())
@@ -27,7 +27,7 @@ void AssemblyExplorer::Update(const float deltaTime)
 
 void AssemblyExplorer::Render()
 {
-    if (!Core::config->inspector.Enabled) return;
+    if (!Core::config->inspector.ShowAssemblyExplorer || !Core::config->ShowImGui) return;
     
     RenderAssemblyExplorerWindow();
 }
