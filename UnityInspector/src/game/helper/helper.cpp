@@ -3,7 +3,7 @@
 #include "game/core/core.h"
 
 
-bool Helper::SafeIsAlive(UT::UnityObject* obj)
+bool Helper::SafeIsAlive(UnityObject* obj)
 {
     if (!obj) return false;
 
@@ -17,7 +17,7 @@ bool Helper::SafeIsAlive(UT::UnityObject* obj)
     }
 }
 
-bool Helper::SafeGetTag(UT::GameObject* obj, UT::String*& outTag)
+bool Helper::SafeGetTag(GameObject* obj, UT::String*& outTag)
 {
     if (!obj) return false;
 
@@ -32,7 +32,7 @@ bool Helper::SafeGetTag(UT::GameObject* obj, UT::String*& outTag)
     }
 }
 
-bool Helper::SafeGetActiveSelf(UT::GameObject* obj, bool& outActive)
+bool Helper::SafeGetActiveSelf(GameObject* obj, bool& outActive)
 {
     if (!obj) return false;
 
@@ -47,7 +47,7 @@ bool Helper::SafeGetActiveSelf(UT::GameObject* obj, bool& outActive)
     }
 }
 
-bool Helper::SafeSetActive(UT::GameObject* obj, bool value)
+bool Helper::SafeSetActive(GameObject* obj, bool value)
 {
     if (!obj) return false;
 
@@ -62,7 +62,7 @@ bool Helper::SafeSetActive(UT::GameObject* obj, bool value)
     }
 }
 
-bool Helper::SafeGetIsStatic(UT::GameObject* obj, bool& outStatic)
+bool Helper::SafeGetIsStatic(GameObject* obj, bool& outStatic)
 {
     if (!obj) return false;
 
@@ -165,111 +165,111 @@ bool Helper::SafeWriteBool(void* ptr, const int offset, const bool value)
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeReadVector2(void* ptr, const int offset, UT::Vector2& outValue)
+bool Helper::SafeReadVector2(void* ptr, const int offset, Vec2& outValue)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        outValue = *reinterpret_cast<UT::Vector2*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+        outValue = *reinterpret_cast<Vec2*>(reinterpret_cast<uintptr_t>(ptr) + offset);
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeWriteVector2(void* ptr, const int offset, const UT::Vector2& value)
+bool Helper::SafeWriteVector2(void* ptr, const int offset, const Vec2& value)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        *reinterpret_cast<UT::Vector2*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+        *reinterpret_cast<Vec2*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeReadVector3(void* ptr, const int offset, UT::Vector3& outValue)
+bool Helper::SafeReadVector3(void* ptr, const int offset, Vec3& outValue)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        outValue = *reinterpret_cast<UT::Vector3*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+        outValue = *reinterpret_cast<Vec3*>(reinterpret_cast<uintptr_t>(ptr) + offset);
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeWriteVector3(void* ptr, const int offset, const UT::Vector3& value)
+bool Helper::SafeWriteVector3(void* ptr, const int offset, const Vec3& value)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        *reinterpret_cast<UT::Vector3*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+        *reinterpret_cast<Vec3*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeReadVector4(void* ptr, const int offset, UT::Vector4& outValue)
+bool Helper::SafeReadVector4(void* ptr, const int offset, Vec4& outValue)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        outValue = *reinterpret_cast<UT::Vector4*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+        outValue = *reinterpret_cast<Vec4*>(reinterpret_cast<uintptr_t>(ptr) + offset);
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeWriteVector4(void* ptr, const int offset, const UT::Vector4& value)
+bool Helper::SafeWriteVector4(void* ptr, const int offset, const Vec4& value)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        *reinterpret_cast<UT::Vector4*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+        *reinterpret_cast<Vec4*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeReadQuaternion(void* ptr, const int offset, UT::Quaternion& outValue)
+bool Helper::SafeReadQuaternion(void* ptr, const int offset, Quat& outValue)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        outValue = *reinterpret_cast<UT::Quaternion*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+        outValue = *reinterpret_cast<Quat*>(reinterpret_cast<uintptr_t>(ptr) + offset);
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeWriteQuaternion(void* ptr, const int offset, const UT::Quaternion& value)
+bool Helper::SafeWriteQuaternion(void* ptr, const int offset, const Quat& value)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        *reinterpret_cast<UT::Quaternion*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+        *reinterpret_cast<Quat*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeReadColor(void* ptr, const int offset, UT::Color& outValue)
+bool Helper::SafeReadColor(void* ptr, const int offset, Color& outValue)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        outValue = *reinterpret_cast<UT::Color*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+        outValue = *reinterpret_cast<Color*>(reinterpret_cast<uintptr_t>(ptr) + offset);
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
-bool Helper::SafeWriteColor(void* ptr, const int offset, const UT::Color& value)
+bool Helper::SafeWriteColor(void* ptr, const int offset, const Color& value)
 {
     if (!ptr || offset < 0) return false;
     __try
     {
-        *reinterpret_cast<UT::Color*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+        *reinterpret_cast<Color*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
@@ -450,7 +450,7 @@ bool Helper::SafeSetStaticFieldDouble(void* fieldHandle, double value)
     catch (...) { return false; }
 }
 
-bool Helper::SafeGetStaticFieldVector3(void* fieldHandle, UT::Vector3& outValue)
+bool Helper::SafeGetStaticFieldVector3(void* fieldHandle, Vec3& outValue)
 {
     if (!fieldHandle) return false;
     try
@@ -459,32 +459,32 @@ bool Helper::SafeGetStaticFieldVector3(void* fieldHandle, UT::Vector3& outValue)
         {
             void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
                 UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-            UR::Invoke<void, void*, void*, UT::Vector3*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+            UR::Invoke<void, void*, void*, Vec3*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
         }
         else
         {
-            UR::Invoke<void, void*, UT::Vector3*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+            UR::Invoke<void, void*, Vec3*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
         }
         return true;
     }
     catch (...) { return false; }
 }
 
-bool Helper::SafeSetStaticFieldVector3(void* fieldHandle, const UT::Vector3& value)
+bool Helper::SafeSetStaticFieldVector3(void* fieldHandle, const Vec3& value)
 {
     if (!fieldHandle) return false;
     try
     {
-        UT::Vector3 v = value;
+        Vec3 v = value;
         if (Core::config->gameMode == UnityResolve::Mode::Mono)
         {
             void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
             UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-            UR::Invoke<void, void*, void*, UT::Vector3*>("mono_field_static_set_value", vTable, fieldHandle, &v);
+            UR::Invoke<void, void*, void*, Vec3*>("mono_field_static_set_value", vTable, fieldHandle, &v);
         }
         else
         {
-            UR::Invoke<void, void*, UT::Vector3*>("il2cpp_field_static_set_value", fieldHandle, &v);
+            UR::Invoke<void, void*, Vec3*>("il2cpp_field_static_set_value", fieldHandle, &v);
         }
         return true;
     }
@@ -563,7 +563,7 @@ void* Helper::SafeInvokeMethod(void* obj, void* methodHandle, void** params, boo
     }
 }
 
-bool Helper::SafeGetGameObject(UT::Transform* transform, UT::GameObject*& outGameObject)
+bool Helper::SafeGetGameObject(Transform* transform, GameObject*& outGameObject)
 {
     if (!transform) return false;
     __try
@@ -578,7 +578,37 @@ bool Helper::SafeGetGameObject(UT::Transform* transform, UT::GameObject*& outGam
     }
 }
 
-bool Helper::SafeGetTransform(UT::GameObject* gameObject, UT::Transform*& outTransform)
+bool Helper::SafeGetGameObject(MonoBehaviour* mb, GameObject*& outGameObject)
+{
+    if (!mb) return false;
+    __try
+    {
+        outGameObject = mb->GetGameObject();
+        return outGameObject != nullptr;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        outGameObject = nullptr;
+        return false;
+    }
+}
+
+bool Helper::SafeGetGameObject(Rigidbody* rb, GameObject*& outGameObject)
+{
+    if (!rb) return false;
+    __try
+    {
+        outGameObject = rb->GetGameObject();
+        return outGameObject != nullptr;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        outGameObject = nullptr;
+        return false;
+    }
+}
+
+bool Helper::SafeGetTransform(GameObject* gameObject, Transform*& outTransform)
 {
     if (!gameObject) return false;
     __try
@@ -593,7 +623,22 @@ bool Helper::SafeGetTransform(UT::GameObject* gameObject, UT::Transform*& outTra
     }
 }
 
-bool Helper::SafeGetParent(UT::Transform* transform, UT::Transform*& outParent)
+bool Helper::SafeGetTransform(Rigidbody* gameObject, Transform*& outTransform)
+{
+    if (!gameObject) return false;
+    __try
+    {
+        outTransform = gameObject->GetTransform();
+        return outTransform != nullptr;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        outTransform = nullptr;
+        return false;
+    }
+}
+
+bool Helper::SafeGetParent(Transform* transform, Transform*& outParent)
 {
     if (!transform) return false;
     __try
@@ -608,7 +653,7 @@ bool Helper::SafeGetParent(UT::Transform* transform, UT::Transform*& outParent)
     }
 }
 
-bool Helper::SafeGetName(UT::UnityObject* obj, UT::String*& outName)
+bool Helper::SafeGetName(UnityObject* obj, UT::String*& outName)
 {
     if (!obj) return false;
     __try
@@ -623,7 +668,7 @@ bool Helper::SafeGetName(UT::UnityObject* obj, UT::String*& outName)
     }
 }
 
-bool Helper::SafeGetChildCount(UT::Transform* transform, int& outCount)
+bool Helper::SafeGetChildCount(Transform* transform, int& outCount)
 {
     if (!transform) return false;
     __try
@@ -638,7 +683,7 @@ bool Helper::SafeGetChildCount(UT::Transform* transform, int& outCount)
     }
 }
 
-bool Helper::SafeGetChild(UT::Transform* transform, int index, UT::Transform*& outChild)
+bool Helper::SafeGetChild(Transform* transform, int index, Transform*& outChild)
 {
     if (!transform) return false;
     __try
@@ -653,11 +698,12 @@ bool Helper::SafeGetChild(UT::Transform* transform, int index, UT::Transform*& o
     }
 }
 
-Vec3 Helper::TryGetPosition(Transform* go)
+bool Helper::TryGetPosition(Transform* go, Vec3& pos)
 {
     __try
     {
-        return go->GetPosition();
+        pos = go->GetPosition();
+        return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
