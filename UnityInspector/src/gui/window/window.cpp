@@ -4,6 +4,8 @@
 #include "game/hooks/hooks.h"
 #include "gui/menu/menu.h"
 #include "gui/fonts/Roboto_font.h"
+#include "input_forwarder.h"
+#include "external_overlay.h"
 
 void Window::SetMenuStyle() {
     auto& style = ImGui::GetStyle();
@@ -65,63 +67,105 @@ void Window::SetMenuStyle() {
     style.WindowTitleAlign = ImVec2(0.5, 0.5);
 }
 
-void Window::OnPresent()
+void Window::InitializeImGui(const HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context)
 {
-    auto device = dx_hook::Hk11::GetDevice();
-    auto context = dx_hook::Hk11::GetContext();
-    auto targetView = dx_hook::Hk11::GetTargetView();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+    io.ConfigWindowsResizeFromEdges = false;
+    const auto font = io.Fonts->AddFontFromMemoryCompressedTTF(Roboto_font_compressed_data, Roboto_font_compressed_size, 16.0f, nullptr);
+    io.FontDefault = font;
+    io.IniFilename = nullptr;
+    io.IniSavingRate = 0.f;
+    io.LogFilename = nullptr;
+    io.MouseDrawCursor = true;
+    SetMenuStyle();
 
-    if (!device || !context || !*targetView) return;
-
-    if (!g_ImGuiInitialized) {
-        ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-        io.ConfigWindowsResizeFromEdges = false;
-        auto font = io.Fonts->AddFontFromMemoryCompressedTTF(Roboto_font_compressed_data, Roboto_font_compressed_size, 16.0f, nullptr);
-        io.FontDefault = font;
-        io.IniFilename = nullptr;
-        io.IniSavingRate = 0.f;
-        io.LogFilename = nullptr;
-        io.MouseDrawCursor = true;
-        SetMenuStyle();
-
-        if (ImGui_ImplWin32_Init(dx_hook::Hk11::GetHwnd()) && ImGui_ImplDX11_Init(device, context))
-        {
-            Hooks::Init();
-            UR::ThreadAttach();
-            g_ImGuiInitialized = true;
-        }
+    if (ImGui_ImplWin32_Init(hwnd) && ImGui_ImplDX11_Init(device, context)) 
+    {
+        Hooks::Init();
+        UR::ThreadAttach();
+        g_ImGuiInitialized = true;
     }
+}
 
+void Window::ShutdownImGui()
+{
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+    g_ImGuiInitialized = false;
+}
+
+void Window::RenderFrame(ID3D11DeviceContext* context, ID3D11RenderTargetView* targetView)
+{
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    for (const auto& feature : Core::features)
-    {
-        feature->Update(ImGui::GetIO().DeltaTime);
-    }
-   
+    for (const auto& feature : Core::features) feature->Update(ImGui::GetIO().DeltaTime);
+
     Menu::RenderMenu();
 
-    for (const auto& feature : Core::features)
-    {
-        feature->Render();
-    }
+    for (const auto& feature : Core::features) feature->Render();
 
     ImGui::Render();
 
-    context->OMSetRenderTargets(1, targetView, nullptr);
+    context->OMSetRenderTargets(1, &targetView, nullptr);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+}
+
+void Window::OnPresent()
+{
+    const auto device = dx_hook::Hk11::GetDevice();
+    const auto context = dx_hook::Hk11::GetContext();
+    const auto targetView = dx_hook::Hk11::GetTargetView();
+
+    if (!device || !context || !*targetView) return;
+
+    if (!g_ImGuiInitialized) InitializeImGui(dx_hook::Hk11::GetHwnd(), device, context);
+
+    RenderFrame(context, *targetView);
+}
+
+void Window::RenderToExternalOverlay(ID3D11Device* device, ID3D11DeviceContext* context,ID3D11RenderTargetView* targetView, const HWND hwnd)
+{
+    if (!g_ImGuiInitialized) InitializeImGui(hwnd, device, context);
+
+    RenderFrame(context, targetView);
+}
+
+void Window::UpdateExternalInput()
+{
+    if (!g_ImGuiInitialized) return;
+
+    if (InputForwarder::IsMenuTogglePressed()) {
+        auto& menu = Core::config->ShowImGui;
+        menu = !menu;
+        ImGui::GetIO().MouseDrawCursor = menu;
+        ClipCursor(nullptr);
+
+        if (Core::config->externalOverlay) Core::config->externalOverlay->SetInputCapture(menu);
+    }
+
+    if (InputForwarder::IsCursorTogglePressed()) 
+    {
+        static bool cursor = false;
+        cursor = !cursor;
+        cursor ? ShowCursor(TRUE) : ShowCursor(FALSE);
+    }
+
+    if (InputForwarder::IsCursorUnlockPressed()) ClipCursor(nullptr);
 }
 
 LRESULT Window::MyWndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
 {
-    if (g_ImGuiInitialized) {
+    if (g_ImGuiInitialized) 
+    {
         ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
 
-        if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureMouseUnlessPopupClose) {
+        if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureMouseUnlessPopupClose) 
+        {
             switch (uMsg) {
             case WM_LBUTTONDOWN:
             case WM_LBUTTONUP:

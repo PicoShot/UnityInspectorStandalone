@@ -8,6 +8,8 @@
 
 // Standard
 #include <windows.h>
+#include <d3d11.h>
+#pragma comment(lib, "d3d11.lib")
 #include <cstdio>
 #include <cstdint>
 #include <vector>
@@ -23,6 +25,8 @@
 #include <utility>
 #include <excpt.h>
 #include <mutex>
+#include <atomic>
+#include <memory>
 #include <string>
 #include <cctype>
 

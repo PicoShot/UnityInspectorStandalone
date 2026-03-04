@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "pch.h"
 
+struct ExternalOverlay;
+
 struct Config {
 private:
     struct Inspector {
@@ -14,5 +16,6 @@ public:
     bool ShowImGui = true;
 	HMODULE gameAssembly = nullptr;
 	UR::Mode gameMode;
+    ExternalOverlay* externalOverlay = nullptr;
     Inspector inspector;
 };

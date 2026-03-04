@@ -2,6 +2,9 @@
 
 #include "game/core/core.h"
 #include "gui/window/window.h"
+#include "gui/window/window_finder.h"
+#include "gui/window/external_overlay.h"
+#include "gui/window/input_forwarder.h"
 
 static void Init(HMODULE hMod)
 {
@@ -42,23 +45,56 @@ static void Init(HMODULE hMod)
 
     LOG_INFO(X("initializing Overlay Hook."));
 
-    for (const auto& [method, name] : hookMethods) {
-        LOG_DEBUG(X("Trying {} DirectX Hook."), name);
-        if (dx_hook::Hk11::Build(Window::OnPresent, method)) {
+    for (const auto& [method, name] : hookMethods) 
+    {
+        if (dx_hook::Hk11::Build(Window::OnPresent, method)) 
+        {
             LOG_INFO(X("Successfully initialized {} DirectX Hook."), name);
             hookSuccess = true;
             break;
         }
-
-        LOG_ERROR(X("Failed to initialize {} DirectX Hook."), name);
     }
 
-    if (!hookSuccess) 
+    if (!hookSuccess)
     {
-        LOG_ERROR(X("All hooking methods failed!"));
-        goto exit;
+        HWND gameHwnd = nullptr;
+        for (uint8_t i = 0; i < 10 && !gameHwnd; i++) 
+        {
+            gameHwnd = WindowFinder::FindGameWindow();
+            if (!gameHwnd) std::this_thread::sleep_for(500ms);
+        }
+
+        if (!gameHwnd) {
+            LOG_ERROR(X("Failed to find game window for external overlay!"));
+            goto exit;
+        }
+
+        LOG_INFO(X("Found game window: {}"), reinterpret_cast<uint64_t>(gameHwnd));
+
+        const auto externalOverlay = std::make_unique<ExternalOverlay>();
+        if (!externalOverlay->Create(gameHwnd)) 
+        {
+            LOG_ERROR(X("Failed to create external overlay!"));
+            goto exit;
+        }
+
+        config->externalOverlay = externalOverlay.get();
+        InputForwarder::Initialize(externalOverlay->GetOverlayHwnd(), gameHwnd);
+        externalOverlay->SetInputCapture(config->ShowImGui);
+
+        LOG_INFO(X("External overlay initialized successfully."));
+        externalOverlay->RunRenderLoop();
+
+        config->externalOverlay = nullptr;
+        InputForwarder::Shutdown();
+        externalOverlay->Destroy();
+        LOG_INFO(X("External overlay shut down."));
     }
-    dx_hook::Hk11::SetWndProc(Window::MyWndProc);
+    else 
+    {
+        dx_hook::Hk11::SetWndProc(Window::MyWndProc);
+    }
+
     return;
 
 exit:

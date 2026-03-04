@@ -178,6 +178,9 @@
     <ClInclude Include="src\pch\pch.h" />
     <ClInclude Include="src\game\sdk\sdk.h" />
     <ClInclude Include="src\gui\window\window.h" />
+    <ClInclude Include="src\gui\window\window_finder.h" />
+    <ClInclude Include="src\gui\window\external_overlay.h" />
+    <ClInclude Include="src\gui\window\input_forwarder.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\dllmain.cpp" />
@@ -228,6 +231,9 @@
     <ClCompile Include="src\game\hooks\hooks.cpp" />
     <ClCompile Include="src\gui\menu\menu.cpp" />
     <ClCompile Include="src\gui\window\window.cpp" />
+    <ClCompile Include="src\gui\window\window_finder.cpp" />
+    <ClCompile Include="src\gui\window\external_overlay.cpp" />
+    <ClCompile Include="src\gui\window\input_forwarder.cpp" />
     <ClCompile Include="src\pch\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
