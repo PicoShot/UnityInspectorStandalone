@@ -1,6 +1,5 @@
 ﻿#include "pch.h"
-#include "Tests.h"
-
+#include "tests.h"
 
 void Tests::Update(float deltaTime)
 {
