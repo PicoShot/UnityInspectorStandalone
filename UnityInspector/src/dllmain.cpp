@@ -10,9 +10,9 @@ static void Init(HMODULE hMod)
 {
     const std::vector<std::pair<dx_hook::Hk11::Mode, const char*>> hookMethods =
     {
-        {dx_hook::Hk11::Mode::Discord, "Discord"},
-        {dx_hook::Hk11::Mode::Steam, "Steam"},
-        {dx_hook::Hk11::Mode::Kiero, "Kiero"},
+        {dx_hook::Hk11::Mode::Discord, X("Discord")},
+        {dx_hook::Hk11::Mode::Steam, X("Steam")},
+        {dx_hook::Hk11::Mode::Kiero, X("Kiero")},
         //{dx_hook::Hk11::Mode::SteamLegacy, "Steam Legacy"},
     };
 
