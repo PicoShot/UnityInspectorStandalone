@@ -576,9 +576,13 @@ void Inspector::RefreshHierarchy()
 
 	const auto transformClass = assembly->Get("Transform", "UnityEngine");
 	if (!transformClass) return;
-
-	const auto transforms = transformClass->FindObjectsByType<UT::Transform*>();
-	if (transforms.empty()) return;
+	std::vector<UT::Transform*> transforms;
+	transforms = transformClass->FindObjectsByType<UT::Transform*>();
+	if (transforms.empty())
+	{
+		transforms = transformClass->FindObjectsOfType<UT::Transform*>();
+		if (transforms.empty()) return;
+	}
 
 	for (const auto& t : transforms)
 	{
