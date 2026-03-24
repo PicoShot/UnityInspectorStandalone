@@ -14,6 +14,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <future>
 #include <utility>
 #include <algorithm>
 #include <unordered_set>
@@ -44,6 +45,7 @@
 #include "imgui/imgui_impl_win32.h"
 
 // Misc
+#include "ini/inicpp.h"
 #include "json/json.hpp"
 #include "xorstr/xorstr.hpp"
 #include "console/Console.hpp"
@@ -87,29 +89,8 @@ using Sprite = UT::Sprite;
 using Material = UT::Material;
 using Shader = UT::Shader;
 
-// Proxy exports for version.dll
-#pragma comment(linker, "/export:GetFileVersionInfoA=C:\\Windows\\System32\\version.GetFileVersionInfoA")
-#pragma comment(linker, "/export:GetFileVersionInfoByHandle=C:\\Windows\\System32\\version.GetFileVersionInfoByHandle")
-#pragma comment(linker, "/export:GetFileVersionInfoExA=C:\\Windows\\System32\\version.GetFileVersionInfoExA")
-#pragma comment(linker, "/export:GetFileVersionInfoExW=C:\\Windows\\System32\\version.GetFileVersionInfoExW")
-#pragma comment(linker, "/export:GetFileVersionInfoSizeA=C:\\Windows\\System32\\version.GetFileVersionInfoSizeA")
-#pragma comment(linker, "/export:GetFileVersionInfoSizeExA=C:\\Windows\\System32\\version.GetFileVersionInfoSizeExA")
-#pragma comment(linker, "/export:GetFileVersionInfoSizeExW=C:\\Windows\\System32\\version.GetFileVersionInfoSizeExW")
-#pragma comment(linker, "/export:GetFileVersionInfoSizeW=C:\\Windows\\System32\\version.GetFileVersionInfoSizeW")
-#pragma comment(linker, "/export:GetFileVersionInfoW=C:\\Windows\\System32\\version.GetFileVersionInfoW")
-#pragma comment(linker, "/export:VerFindFileA=C:\\Windows\\System32\\version.VerFindFileA")
-#pragma comment(linker, "/export:VerFindFileW=C:\\Windows\\System32\\version.VerFindFileW")
-#pragma comment(linker, "/export:VerInstallFileA=C:\\Windows\\System32\\version.VerInstallFileA")
-#pragma comment(linker, "/export:VerInstallFileW=C:\\Windows\\System32\\version.VerInstallFileW")
-#pragma comment(linker, "/export:VerLanguageNameA=C:\\Windows\\System32\\version.VerLanguageNameA")
-#pragma comment(linker, "/export:VerLanguageNameW=C:\\Windows\\System32\\version.VerLanguageNameW")
-#pragma comment(linker, "/export:VerQueryValueA=C:\\Windows\\System32\\version.VerQueryValueA")
-#pragma comment(linker, "/export:VerQueryValueW=C:\\Windows\\System32\\version.VerQueryValueW")
-
-
+#pragma region winhttp.dll_Proxy
 // Proxy exports for winhttp.dll
-#pragma comment(linker, "/export:DllCanUnloadNow=C:\\Windows\\System32\\winhttp.DllCanUnloadNow")
-#pragma comment(linker, "/export:DllGetClassObject=C:\\Windows\\System32\\winhttp.DllGetClassObject")
 #pragma comment(linker, "/export:Private1=C:\\Windows\\System32\\winhttp.Private1")
 #pragma comment(linker, "/export:SvchostPushServiceGlobals=C:\\Windows\\System32\\winhttp.SvchostPushServiceGlobals")
 #pragma comment(linker, "/export:WinHttpAddRequestHeaders=C:\\Windows\\System32\\winhttp.WinHttpAddRequestHeaders")
@@ -199,3 +180,4 @@ using Shader = UT::Shader;
 #pragma comment(linker, "/export:WinHttpWebSocketShutdown=C:\\Windows\\System32\\winhttp.WinHttpWebSocketShutdown")
 #pragma comment(linker, "/export:WinHttpWriteData=C:\\Windows\\System32\\winhttp.WinHttpWriteData")
 #pragma comment(linker, "/export:WinHttpWriteProxySettings=C:\\Windows\\System32\\winhttp.WinHttpWriteProxySettings")
+#pragma endregion

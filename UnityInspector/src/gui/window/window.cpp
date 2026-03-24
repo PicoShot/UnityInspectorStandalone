@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "window.h"
-#include "game/core/core.h"
-#include "game/hooks/hooks.h"
+#include "core/core.h"
+#include "hooks/hooks.h"
 #include "gui/menu/menu.h"
 #include "gui/fonts/Roboto_font.h"
 #include "input_forwarder.h"
@@ -83,7 +83,6 @@ void Window::InitializeImGui(const HWND hwnd, ID3D11Device* device, ID3D11Device
 
     if (ImGui_ImplWin32_Init(hwnd) && ImGui_ImplDX11_Init(device, context)) 
     {
-        Hooks::Init();
         UR::ThreadAttach();
         g_ImGuiInitialized = true;
     }
@@ -105,7 +104,7 @@ void Window::RenderFrame(ID3D11DeviceContext* context, ID3D11RenderTargetView* t
 
     for (const auto& feature : Core::features) feature->Update(ImGui::GetIO().DeltaTime);
 
-    Menu::RenderMenu();
+    Menu::Render();
 
     for (const auto& feature : Core::features) feature->Render();
 
@@ -140,12 +139,12 @@ void Window::UpdateExternalInput()
     if (!g_ImGuiInitialized) return;
 
     if (InputForwarder::IsMenuTogglePressed()) {
-        auto& menu = Core::config->ShowImGui;
+        auto& menu = Core::config->internal.showImGui;
         menu = !menu;
         ImGui::GetIO().MouseDrawCursor = menu;
         ClipCursor(nullptr);
 
-        if (Core::config->externalOverlay) Core::config->externalOverlay->SetInputCapture(menu);
+        if (Core::config->internal.externalOverlay) Core::config->internal.externalOverlay->SetInputCapture(menu);
     }
 
     if (InputForwarder::IsCursorTogglePressed()) 
@@ -195,7 +194,7 @@ LRESULT Window::MyWndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam,
         {
 		case VK_INSERT:
         {
-            auto& menu = Core::config->ShowImGui;
+            auto& menu = Core::config->internal.showImGui;
             menu = !menu;
             ImGui::GetIO().MouseDrawCursor = menu;
             ClipCursor(nullptr);

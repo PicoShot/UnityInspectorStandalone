@@ -425,14 +425,22 @@ public:
 		hmodule_ = hmodule;
 
 		if (mode_ == Mode::Il2Cpp) {
-			pDomain = Invoke<void*>("il2cpp_domain_get");
-			while (!Invoke<bool>("il2cpp_is_vm_thread", nullptr))
+			do {
+				pDomain = Invoke<void*>("il2cpp_domain_get");
+				if (pDomain) break;
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			} while (true);
 			Invoke<void*>("il2cpp_thread_attach", pDomain);
+
 			ForeachAssembly();
 		}
 		else {
-			pDomain = Invoke<void*>("mono_get_root_domain");
+			do {
+				pDomain = Invoke<void*>("mono_get_root_domain");
+				if (pDomain) break;
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			} while (true);
+
 			Invoke<void*>("mono_thread_attach", pDomain);
 			Invoke<void*>("mono_jit_thread_attach", pDomain);
 
