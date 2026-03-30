@@ -11,7 +11,7 @@ void UNITY_CALLING_CONVENTION QuitHooks::HApplicationQuit0()
 void UNITY_CALLING_CONVENTION QuitHooks::HApplicationQuit1(int exitCode)
 {
 	if (Core::context->settings.ini.avoid_quiting) return;
-	HookManager::Fcall(HApplicationQuit0);
+	HookManager::Fcall(HApplicationQuit1, exitCode);
 }
 
 void QuitHooks::Install()

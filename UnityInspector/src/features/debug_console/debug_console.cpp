@@ -1,17 +1,16 @@
 #include "pch.h"
 #include "debug_console.h"
 
-std::deque<LogEntry> DebugConsole::logBuffer;
-std::mutex DebugConsole::logMutex;
-float DebugConsole::currentTime = 0.0f;
-
 void DebugConsole::Update(float)
 {
 }
 
 std::string DebugConsole::GetStackTrace()
 {
-    auto* stackTraceClass = UR::Get("UnityEngine.CoreModule.dll")->Get("StackTraceUtility", "UnityEngine");
+	static auto* unityCore = UR::Get("UnityEngine.CoreModule.dll");
+    if (!unityCore) return "";
+
+    static auto* stackTraceClass = unityCore->Get("StackTraceUtility", "UnityEngine");
     if (!stackTraceClass) return "";
     
     auto* mExtract = stackTraceClass->Get<UR::Method>("ExtractStackTrace");
@@ -25,7 +24,10 @@ std::string DebugConsole::GetStackTrace()
 
 std::string DebugConsole::GetCallingSource()
 {
-    auto* stackTraceClass = UR::Get("UnityEngine.CoreModule.dll")->Get("StackTrace", "System.Diagnostics");
+    static auto* unityCore = UR::Get("UnityEngine.CoreModule.dll");
+    if (!unityCore) return "";
+
+    static auto* stackTraceClass = unityCore->Get("StackTrace", "System.Diagnostics");
     if (!stackTraceClass) return "";
     
     auto* mGetFrame = stackTraceClass->Get<UR::Method>("GetFrame", { "System.Int32" });
@@ -34,7 +36,7 @@ std::string DebugConsole::GetCallingSource()
     auto* frame = mGetFrame->Invoke<void*, int>(0);
     if (!frame) return "";
     
-    auto* frameClass = UR::Get("UnityEngine.CoreModule.dll")->Get("StackFrame", "System.Diagnostics");
+    static auto* frameClass = unityCore->Get("StackFrame", "System.Diagnostics");
     if (!frameClass) return "";
     
     auto* mGetMethod = frameClass->Get<UR::Method>("GetMethod");
@@ -43,7 +45,10 @@ std::string DebugConsole::GetCallingSource()
     auto* methodInfo = mGetMethod->Invoke<void*, void*>(frame);
     if (!methodInfo) return "";
     
-    auto* methodBaseClass = UR::Get("System.dll")->Get("MethodBase", "System.Reflection");
+    static auto* systemCore = UR::Get("System.dll");
+    if (!systemCore) return "";
+
+    auto* methodBaseClass = systemCore->Get("MethodBase", "System.Reflection");
     if (!methodBaseClass) return "";
     
     auto* mGetName = methodBaseClass->Get<UR::Method>("get_Name");
