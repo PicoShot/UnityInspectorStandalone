@@ -34,9 +34,9 @@ struct DebugConsole : IFeature
     
 private:
     static constexpr size_t MAX_LOGS = 1000;
-    static std::deque<LogEntry> logBuffer;
-    static std::mutex logMutex;
-    static float currentTime;
+    static inline std::deque<LogEntry> logBuffer;
+    static inline std::mutex logMutex;
+    static inline float currentTime;
     
     bool showLog = true;
     bool showWarning = true;
