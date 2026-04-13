@@ -1,32 +1,6 @@
 #include "pch.h"
 #include "inspector.h"
 
-EditableType Inspector::DetermineEditableType(const std::string& typeName)
-{
-	if (typeName == "System.Int16" || typeName == "System.Int32" || typeName == "System.Int64" || typeName == "System.UInt16" || typeName == "System.UInt32" || typeName == "System.UInt64")
-		return EditableType::Int;
-	if (typeName == "System.Single")
-		return EditableType::Float;
-	if (typeName == "System.Double")
-		return EditableType::Double;
-	if (typeName == "System.Boolean")
-		return EditableType::Bool;
-	if (typeName == "System.String")
-		return EditableType::String;
-	if (typeName == "UnityEngine.Vector2")
-		return EditableType::Vector2;
-	if (typeName == "UnityEngine.Vector3")
-		return EditableType::Vector3;
-	if (typeName == "UnityEngine.Vector4")
-		return EditableType::Vector4;
-	if (typeName == "UnityEngine.Quaternion")
-		return EditableType::Quaternion;
-	if (typeName == "UnityEngine.Color")
-		return EditableType::Color;
-
-	return EditableType::None;
-}
-
 std::string Inspector::GetComponentFullTypeName(UT::Component* component) const
 {
 	if (!component) return "Unknown";
@@ -424,57 +398,12 @@ void* Inspector::InvokeMethod(UT::Component* component, const ComponentMethodInf
 {
 	if (!method.methodHandle) return nullptr;
 
-	std::vector<void*> params;
-	std::vector<std::unique_ptr<char[]>> buffers;
-
-	for (size_t i = 0; i < method.parameters.size(); i++)
-	{
-		const auto& paramType = method.parameterEditableTypes[i];
-		const std::string& valueStr = paramValues[i];
-
-		switch (paramType)
-		{
-		case EditableType::Int:
-		{
-			auto buf = std::make_unique<char[]>(sizeof(int));
-			*reinterpret_cast<int*>(buf.get()) = std::stoi(valueStr);
-			params.push_back(buf.get());
-			buffers.push_back(std::move(buf));
-			break;
-		}
-		case EditableType::Float:
-		{
-			auto buf = std::make_unique<char[]>(sizeof(float));
-			*reinterpret_cast<float*>(buf.get()) = std::stof(valueStr);
-			params.push_back(buf.get());
-			buffers.push_back(std::move(buf));
-			break;
-		}
-		case EditableType::Double:
-		{
-			auto buf = std::make_unique<char[]>(sizeof(double));
-			*reinterpret_cast<double*>(buf.get()) = std::stod(valueStr);
-			params.push_back(buf.get());
-			buffers.push_back(std::move(buf));
-			break;
-		}
-		case EditableType::Bool:
-		{
-			auto buf = std::make_unique<char[]>(sizeof(bool));
-			*reinterpret_cast<bool*>(buf.get()) = (valueStr == "true" || valueStr == "1");
-			params.push_back(buf.get());
-			buffers.push_back(std::move(buf));
-			break;
-		}
-		default:
-			params.push_back(nullptr);
-			break;
-		}
-	}
+	auto paramBuffers = Helper::BuildInvokeParams(paramValues, method.parameterEditableTypes);
 
 	bool success = false;
 	void* obj = method.isStatic ? nullptr : component;
-	void* result = Helper::SafeInvokeMethod(obj, method.methodHandle, params.empty() ? nullptr : params.data(), success);
+	void* result = Helper::SafeInvokeMethod(obj, method.methodHandle,
+		paramBuffers.params.empty() ? nullptr : paramBuffers.params.data(), success);
 
 	return success ? result : nullptr;
 }
@@ -632,8 +561,10 @@ void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 		if (!tab.gameObject) return;
 		if (!tab.gameObject->IsAlive()) return;
 
-		// FIXME: Crash on refresh if object is destroyed 
-		for (const auto components = tab.gameObject->GetComponents<UT::Component*>(componentClass); auto& comp : components)
+		std::vector<UT::Component*> components;
+		if (!Helper::SafeGetComponents(tab.gameObject, componentClass, components)) return;
+
+		for (auto& comp : components)
 		{
 
 			if (comp && Helper::SafeIsAlive(comp))

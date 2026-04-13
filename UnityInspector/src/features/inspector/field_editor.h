@@ -1,33 +1,8 @@
 #pragma once
 #include "features/features.h"
-#include <functional>
+#include "features/inspector/editable_type.h"
 
-struct FieldEditor;
-
-struct EditableFieldValue
-{
-    std::string name;
-    std::string typeName;
-    UR::Field* field = nullptr;
-    UR::Type* type = nullptr;
-    
-    union SimpleValue
-    {
-        int32_t int32;
-        int64_t int64;
-        float float32;
-        double float64;
-        bool boolean;
-        void* pointer;
-    } value;
-    
-    bool isStatic = false;
-    bool isPointer = false;
-    bool isEditable = false;
-    
-    void* instance = nullptr;
-    int32_t offset = 0;
-};
+EditableType DetermineEditableType(const std::string& typeName);
 
 struct FieldEditorState
 {
@@ -70,7 +45,8 @@ struct FieldEditor final
     
 private:
     FieldEditorState state;
-    
+    std::vector<std::unique_ptr<FieldEditor>> nestedEditors;
+
     static UR::Class* GetPointerClass(const std::string& typeName);
     void ReadFieldValue();
     void WriteFieldValue();
@@ -78,8 +54,12 @@ private:
     void RenderFloatEditor();
     void RenderBoolEditor();
     void RenderStringEditor();
-    
+
     void RenderNestedInspector();
-    
+
     void RenderNestedFieldValue(UR::Field* field, void* instance);
+
+    static void ReadValueFromAddress(void* addr, const std::string& typeName, FieldEditorState& state);
+    static void WriteValueToAddress(void* addr, const std::string& typeName, const FieldEditorState& state);
+    static std::string FormatFieldValue(void* addr, const std::string& typeName);
 };

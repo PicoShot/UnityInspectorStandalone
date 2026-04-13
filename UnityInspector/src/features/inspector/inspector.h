@@ -1,20 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "features/features.h"
-
-enum class EditableType
-{
-    None,
-    Int,
-    Float,
-    Double,
-    Bool,
-    String,
-    Vector2,
-    Vector3,
-    Vector4,
-    Quaternion,
-    Color
-};
+#include "features/inspector/field_editor.h"
 
 struct ComponentFieldInfo final
 {
@@ -159,6 +145,5 @@ private:
     void RenderEditableField(UT::Component* component, const ComponentFieldInfo& field) const;
     void RenderEditableProperty(UT::Component* component, const ComponentPropertyInfo& prop) const;
     void* InvokeMethod(UT::Component* component, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const;
-    static EditableType DetermineEditableType(const std::string& typeName);
 
 };

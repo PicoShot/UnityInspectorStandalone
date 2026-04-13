@@ -564,6 +564,80 @@ namespace Helper
 		}
 	}
 
+	InvokeParamBuffers BuildInvokeParams(const std::vector<std::string>& paramValues,
+		const std::vector<EditableType>& paramTypes)
+	{
+		InvokeParamBuffers result;
+		for (size_t i = 0; i < paramValues.size() && i < paramTypes.size(); i++)
+		{
+			const std::string& valueStr = paramValues[i];
+			switch (paramTypes[i])
+			{
+			case EditableType::Int:
+			{
+				auto buf = std::make_unique<char[]>(sizeof(int));
+				*reinterpret_cast<int*>(buf.get()) = std::stoi(valueStr);
+				result.params.push_back(buf.get());
+				result.buffers.push_back(std::move(buf));
+				break;
+			}
+			case EditableType::Float:
+			{
+				auto buf = std::make_unique<char[]>(sizeof(float));
+				*reinterpret_cast<float*>(buf.get()) = std::stof(valueStr);
+				result.params.push_back(buf.get());
+				result.buffers.push_back(std::move(buf));
+				break;
+			}
+			case EditableType::Double:
+			{
+				auto buf = std::make_unique<char[]>(sizeof(double));
+				*reinterpret_cast<double*>(buf.get()) = std::stod(valueStr);
+				result.params.push_back(buf.get());
+				result.buffers.push_back(std::move(buf));
+				break;
+			}
+			case EditableType::Bool:
+			{
+				auto buf = std::make_unique<char[]>(sizeof(bool));
+				*reinterpret_cast<bool*>(buf.get()) = (valueStr == "true" || valueStr == "1");
+				result.params.push_back(buf.get());
+				result.buffers.push_back(std::move(buf));
+				break;
+			}
+			case EditableType::String:
+			{
+				UT::String* str = UT::String::New(valueStr.c_str());
+				auto buf = std::make_unique<char[]>(sizeof(void*));
+				*reinterpret_cast<void**>(buf.get()) = str;
+				result.params.push_back(buf.get());
+				result.buffers.push_back(std::move(buf));
+				break;
+			}
+			default:
+				result.params.push_back(nullptr);
+				break;
+			}
+		}
+		return result;
+	}
+
+	bool SafeGetComponents(GameObject* obj, UR::Class* componentClass, std::vector<UT::Component*>& outComponents)
+	{
+		outComponents.clear();
+		if (!obj || !componentClass) return false;
+		try
+		{
+			outComponents = obj->GetComponents<UT::Component*>(componentClass);
+			return true;
+		}
+		catch (...)
+		{
+			outComponents.clear();
+			return false;
+		}
+	}
+
 	bool SafeGetGameObject(Transform* transform, GameObject*& outGameObject)
 	{
 		if (!transform) return false;

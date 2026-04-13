@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "pch.h"
+#include "features/inspector/editable_type.h"
 
 namespace Helper
 {
@@ -53,6 +54,17 @@ namespace Helper
 	bool SafeInvokeSetter(void* obj, void* methodHandle, void* value);
 
 	void* SafeInvokeMethod(void* obj, void* methodHandle, void** params, bool& success);
+
+	struct InvokeParamBuffers
+	{
+		std::vector<void*> params;
+		std::vector<std::unique_ptr<char[]>> buffers;
+	};
+
+	InvokeParamBuffers BuildInvokeParams(const std::vector<std::string>& paramValues,
+		const std::vector<EditableType>& paramTypes);
+
+	bool SafeGetComponents(GameObject* obj, UR::Class* componentClass, std::vector<UT::Component*>& outComponents);
 	bool SafeGetGameObject(Rigidbody* rb, GameObject*& outGameObject);
 	bool SafeGetGameObject(Transform* transform, GameObject*& outGameObject);
 	bool SafeGetGameObject(MonoBehaviour* mb, GameObject*& outGameObject);

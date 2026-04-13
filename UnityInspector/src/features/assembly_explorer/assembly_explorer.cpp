@@ -1105,33 +1105,124 @@ void AssemblyExplorer::RenderMethodInvokePopup()
         {
             const auto& arg = invokeState.targetMethod->args[i];
             if (!arg) continue;
-            
-            ImGui::Text("%s (%s):", arg->name.c_str(), arg->pType->name.c_str());
-            
-            char buf[256];
-            strncpy_s(buf, invokeState.parameterValues[i].c_str(), sizeof(buf));
-            buf[sizeof(buf) - 1] = '\0';
-            
-            std::string id = "##param" + std::to_string(i);
-            if (ImGui::InputText(id.c_str(), buf, sizeof(buf)))
+
+            std::string typeName = arg->pType ? arg->pType->name : "unknown";
+            EditableType paramType = DetermineEditableType(typeName);
+
+            ImGui::PushID(static_cast<int>(i));
+            ImGui::Text("%s (%s):", arg->name.c_str(), typeName.c_str());
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(-1);
+
+            char buf[256] = {};
+            if (i < invokeState.parameterValues.size() && !invokeState.parameterValues[i].empty())
+                strncpy_s(buf, invokeState.parameterValues[i].c_str(), sizeof(buf) - 1);
+
+            switch (paramType)
             {
-                invokeState.parameterValues[i] = buf;
+            case EditableType::Int:
+            case EditableType::Float:
+            case EditableType::Double:
+                if (ImGui::InputText("##param", buf, sizeof(buf), ImGuiInputTextFlags_CharsDecimal))
+                    invokeState.parameterValues[i] = buf;
+                break;
+            case EditableType::Bool:
+            {
+                bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
+                if (ImGui::Checkbox("##param", &val))
+                    invokeState.parameterValues[i] = val ? "true" : "false";
+                break;
             }
+            default:
+                if (ImGui::InputText("##param", buf, sizeof(buf)))
+                    invokeState.parameterValues[i] = buf;
+                break;
+            }
+
+            ImGui::PopID();
         }
-        
+
         ImGui::Separator();
-        
+
         if (invokeState.hasResult)
         {
             ImGui::Text("Result: %s", invokeState.resultText.c_str());
         }
-        
+
         if (ImGui::Button("Invoke", ImVec2(120, 0)))
         {
-            // TODO: Parse parameters and invoke method
-            // This is complex due to type conversion - simplified for now
-            invokeState.resultText = "Invoked!";
+            std::vector<EditableType> paramTypes;
+            for (const auto& arg : invokeState.targetMethod->args)
+            {
+                if (arg && arg->pType)
+                    paramTypes.push_back(DetermineEditableType(arg->pType->name));
+                else
+                    paramTypes.push_back(EditableType::None);
+            }
+
+            auto paramBuffers = Helper::BuildInvokeParams(invokeState.parameterValues, paramTypes);
+
+            bool success = false;
+            bool isStatic = invokeState.targetMethod->flags & 0x10;
+            void* obj = isStatic ? nullptr : invokeState.targetInstance;
+            void* result = Helper::SafeInvokeMethod(obj, invokeState.targetMethod->address,
+                paramBuffers.params.empty() ? nullptr : paramBuffers.params.data(), success);
+
             invokeState.hasResult = true;
+            if (success && result)
+            {
+                std::string retTypeName = invokeState.targetMethod->return_type
+                    ? invokeState.targetMethod->return_type->name : "void";
+
+                if (retTypeName == "System.Void" || retTypeName == "void")
+                {
+                    invokeState.resultText = "(void)";
+                }
+                else
+                {
+                    EditableType retType = DetermineEditableType(retTypeName);
+                    void* unboxed = UR::Invoke<void*, void*>(
+                        Config::state.unityMode == UnityResolve::Mode::Mono
+                            ? "mono_object_unbox" : "il2cpp_object_unbox", result);
+
+                    if (unboxed)
+                    {
+                        switch (retType)
+                        {
+                        case EditableType::Int:
+                            invokeState.resultText = std::to_string(*static_cast<int*>(unboxed));
+                            break;
+                        case EditableType::Float:
+                            invokeState.resultText = std::to_string(*static_cast<float*>(unboxed));
+                            break;
+                        case EditableType::Double:
+                            invokeState.resultText = std::to_string(*static_cast<double*>(unboxed));
+                            break;
+                        case EditableType::Bool:
+                            invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
+                            break;
+                        default:
+                            invokeState.resultText = std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        invokeState.resultText = std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
+                    }
+                }
+            }
+            else if (success)
+            {
+                std::string retTypeName = invokeState.targetMethod->return_type
+                    ? invokeState.targetMethod->return_type->name : "void";
+                invokeState.resultText = (retTypeName == "System.Void" || retTypeName == "void")
+                    ? "(completed)" : "(null)";
+            }
+            else
+            {
+                invokeState.resultText = "(invocation failed)";
+            }
         }
         
         ImGui::SameLine();

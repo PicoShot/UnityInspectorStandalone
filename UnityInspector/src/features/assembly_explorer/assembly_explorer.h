@@ -92,7 +92,7 @@ private:
     std::string FormatNamespaceName(const std::string& name) const;
     ImVec4 GetClassColor(const AssemblyClassInfo& classInfo) const;
     
-    struct MethodInvokeState {
+    struct AEMethodInvokeState {
         bool showPopup = false;
         UR::Method* targetMethod = nullptr;
         void* targetInstance = nullptr;
@@ -100,5 +100,5 @@ private:
         std::string resultText;
         bool hasResult = false;
     };
-    MethodInvokeState invokeState;
+    AEMethodInvokeState invokeState;
 };
