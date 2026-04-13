@@ -1,6 +1,22 @@
 #include "pch.h"
 #include "inspector.h"
 
+static bool CaseInsensitiveFind(const std::string& haystack, const char* needle)
+{
+	if (!needle || needle[0] == '\0') return true;
+
+	std::string lower;
+	for (const char* p = needle; *p; p++)
+		lower += static_cast<char>(std::tolower(static_cast<unsigned char>(*p)));
+
+	std::string lowerName;
+	lowerName.reserve(haystack.size());
+	for (char c : haystack)
+		lowerName += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+	return lowerName.find(lower) != std::string::npos;
+}
+
 static void AppendNodeTree(const HierarchyNode& node, std::string& out, int depth)
 {
 	for (int i = 0; i < depth; i++)
@@ -27,7 +43,7 @@ static void AppendNodeTree(const HierarchyNode& node, std::string& out, int dept
 bool Inspector::NodeMatchesSearch(const HierarchyNode& node) const
 {
 	if (searchBuffer[0] == '\0') return true;
-	if (node.name.find(searchBuffer) != std::string::npos) return true;
+	if (CaseInsensitiveFind(node.name, searchBuffer)) return true;
 	for (const auto& child : node.children)
 	{
 		if (NodeMatchesSearch(child)) return true;

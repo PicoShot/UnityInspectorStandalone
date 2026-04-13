@@ -54,18 +54,10 @@ void Inspector::Render()
 		ImGui::SameLine();
 		ImGui::TextDisabled("| %zu", rootNodes.size());
 
-		ImGui::SameLine();
-		float clearW = searchBuffer[0] != '\0' ? 22.0f : 0.0f;
-		ImGui::SetNextItemWidth(-(clearW + (clearW > 0 ? ImGui::GetStyle().ItemSpacing.x : 0)));
+		ImGui::PushItemWidth(-1);
 		ImGui::InputTextWithHint("##Search", "Search...", searchBuffer, sizeof(searchBuffer),
 			ImGuiInputTextFlags_EscapeClearsAll);
-
-		if (searchBuffer[0] != '\0')
-		{
-			ImGui::SameLine();
-			if (ImGui::SmallButton("x##ClearSearch"))
-				searchBuffer[0] = '\0';
-		}
+		ImGui::PopItemWidth();
 
 		ImGui::Separator();
 
