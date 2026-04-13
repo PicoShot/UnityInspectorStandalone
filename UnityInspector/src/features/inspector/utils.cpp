@@ -31,7 +31,7 @@ std::string Inspector::GetComponentFullTypeName(UT::Component* component) const
 {
 	if (!component) return "Unknown";
 
-	if (Core::context->state.unityMode == UnityResolve::Mode::Mono)
+	if (Config::state.unityMode == UnityResolve::Mode::Mono)
 	{
 		if (void* monoClass = UR::Invoke<void*, void*>("mono_object_get_class", component))
 		{
@@ -84,7 +84,7 @@ std::vector<ComponentFieldInfo> Inspector::GetComponentFields(UT::Component* com
 	std::vector<ComponentFieldInfo> fields;
 	if (!component) return fields;
 
-	if (Core::context->state.unityMode == UnityResolve::Mode::Mono)
+	if (Config::state.unityMode == UnityResolve::Mode::Mono)
 	{
 		void* monoClass = UR::Invoke<void*, void*>("mono_object_get_class", component);
 		if (!monoClass) return fields;
@@ -179,7 +179,7 @@ std::vector<ComponentPropertyInfo> Inspector::GetComponentProperties(UT::Compone
 	std::vector<ComponentPropertyInfo> properties;
 	if (!component) return properties;
 
-	if (Core::context->state.unityMode == UnityResolve::Mode::Mono)
+	if (Config::state.unityMode == UnityResolve::Mode::Mono)
 	{
 		void* monoClass = UR::Invoke<void*, void*>("mono_object_get_class", component);
 		if (!monoClass) return properties;
@@ -269,7 +269,7 @@ std::vector<ComponentMethodInfo> Inspector::GetComponentMethods(UT::Component* c
 	std::vector<ComponentMethodInfo> methods;
 	if (!component) return methods;
 
-	if (Core::context->state.unityMode == UnityResolve::Mode::Mono)
+	if (Config::state.unityMode == UnityResolve::Mode::Mono)
 	{
 		void* monoClass = UR::Invoke<void*, void*>("mono_object_get_class", component);
 		if (!monoClass) return methods;
@@ -396,7 +396,7 @@ std::string Inspector::GetComponentTypeName(UT::Component* component) const
 {
 	if (!component) return "Unknown";
 
-	if (Core::context->state.unityMode == UnityResolve::Mode::Mono)
+	if (Config::state.unityMode == UnityResolve::Mode::Mono)
 	{
 		if (void* monoClass = UR::Invoke<void*, void*>("mono_object_get_class", component))
 		{

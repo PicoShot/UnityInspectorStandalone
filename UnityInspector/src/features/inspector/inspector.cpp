@@ -1,13 +1,12 @@
 #include "pch.h"
 #include "inspector.h"
 
-Inspector::Inspector() = default;
-Inspector::~Inspector() = default;
+REGISTER_FEATURE(Inspector)
 
 void Inspector::Update(const float deltaTime)
 {
-	const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole] = Core::context->settings.inspector;
-	if (!Enabled || !Core::context->state.showMenu) return;
+	const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole] = Config::settings.inspector;
+	if (!Enabled || !Config::state.showMenu) return;
 
 	UR::ThreadAttach();
 
@@ -30,7 +29,7 @@ void Inspector::Update(const float deltaTime)
 
 void Inspector::Render()
 {
-	if (!Core::context->settings.inspector.enabled || !Core::context->state.showMenu) return;
+	if (!Config::settings.inspector.enabled || !Config::state.showMenu) return;
 
 	UR::ThreadAttach();
 
@@ -44,7 +43,7 @@ void Inspector::Render()
 		}
 
 		ImGui::SameLine();
-		ImGui::Checkbox("Auto", &Core::context->settings.inspector.autoRefresh);
+		ImGui::Checkbox("Auto", &Config::settings.inspector.autoRefresh);
 
 		ImGui::SameLine();
 		ImGui::TextDisabled("| %zu objects", rootNodes.size());

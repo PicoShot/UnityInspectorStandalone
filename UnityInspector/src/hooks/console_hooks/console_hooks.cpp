@@ -2,6 +2,8 @@
 #include "console_hooks.h"
 #include "features/debug_console/debug_console.h"
 
+REGISTER_HOOK(ConsoleHooks)
+
 void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogObject(void* message)
 {
 	if (message)
@@ -121,7 +123,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogAssertion(void* message)
 
 void ConsoleHooks::Install()
 {
-	auto* unityCoreModule = UR::Get(X("UnityEngine.CoreModule.dll"));
+	auto* unityCoreModule = UR::Get("UnityEngine.CoreModule.dll");
 	if (!unityCoreModule) return;
 
 	auto* debugClass = unityCoreModule->Get("Debug", "UnityEngine");

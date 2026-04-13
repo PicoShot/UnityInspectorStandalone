@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "core/core.h"
+#include "features/features.h"
 
 enum class EditableType
 {
@@ -97,11 +97,9 @@ struct InspectedObjectTab final
     int currentMethodPage = 0;
 };
 
-struct Inspector final : IFeature
+class Inspector final : public IFeature
 {
-    Inspector();
-    ~Inspector() override;
-    
+public:
     void Update(float deltaTime) override;
     void Render() override;
 

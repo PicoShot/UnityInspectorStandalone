@@ -1,8 +1,9 @@
 #pragma once
-#include "core/core.h"
+#include "features/features.h"
 
-struct Tests : IFeature
+class Tests : public IFeature
 {
+public:
 	void Update(float deltaTime) override;
 	void Render() override;
 };

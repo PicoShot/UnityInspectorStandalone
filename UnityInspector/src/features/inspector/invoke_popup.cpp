@@ -93,7 +93,7 @@ void Inspector::RenderMethodInvokePopup()
 				{
 					const EditableType retType = DetermineEditableType(invokeState.method.returnTypeName);
 					void* unboxed = UR::Invoke<void*, void*>(
-						Core::context->state.unityMode == UnityResolve::Mode::Mono ? "mono_object_unbox" : "il2cpp_object_unbox", result);
+						Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_object_unbox" : "il2cpp_object_unbox", result);
 
 					if (unboxed)
 					{

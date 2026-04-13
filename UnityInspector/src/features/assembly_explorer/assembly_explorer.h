@@ -1,9 +1,10 @@
 #pragma once
-#include "core/core.h"
+#include "features/features.h"
 #include "features/inspector/field_editor.h"
 
-struct AssemblyExplorer final : IFeature
+class AssemblyExplorer final : public IFeature
 {
+public:
     void Update(float deltaTime) override;
     void Render() override;
 

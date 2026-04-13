@@ -11,12 +11,8 @@ public:
 	virtual void Render() = 0;
 };
 
-class Menu 
+namespace Menu
 {
-public:
-	static void Init();
-	static void Render();
-private:
-	static inline std::vector<std::unique_ptr<ITab>> s_Tabs;
-	static inline bool s_Initialized = false;
-};
+	void Init();
+	void Render();
+}

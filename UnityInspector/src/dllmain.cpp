@@ -3,6 +3,7 @@
 
 BOOL APIENTRY DllMain(HMODULE hMod, DWORD reason, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
 	if (reason == DLL_PROCESS_ATTACH)
 	{
 		DisableThreadLibraryCalls(hMod);

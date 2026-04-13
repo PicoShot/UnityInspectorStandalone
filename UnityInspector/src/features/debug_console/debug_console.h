@@ -1,5 +1,5 @@
 #pragma once
-#include "core/core.h"
+#include "features/features.h"
 
 enum class LogType
 {
@@ -22,8 +22,9 @@ struct LogEntry
         : message(msg), stackTrace(trace), source(src), type(t), timestamp(time) {}
 };
 
-struct DebugConsole : IFeature
+class DebugConsole final : public IFeature
 {   
+public:
     void Update(float deltaTime) override;
     void Render() override;
     

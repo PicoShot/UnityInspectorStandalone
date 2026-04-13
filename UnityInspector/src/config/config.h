@@ -1,15 +1,12 @@
 #pragma once
 #include "pch.h"
 
-struct ExternalOverlay;
-
 struct RuntimeState
 {
 	bool showMenu = true;
 	bool showCursor = false;
 	HMODULE gameHandle = nullptr;
 	UR::Mode unityMode;
-	ExternalOverlay* externalOverlay = nullptr;
 };
 
 struct InspectorSettings
@@ -38,27 +35,26 @@ struct UserSettings
 	{
 		char buffer[MAX_PATH];
 		GetModuleFileNameA(nullptr, buffer, MAX_PATH);
-		auto configPath = std::filesystem::path(buffer).parent_path() / X("config.ini");
+		auto configPath = std::filesystem::path(buffer).parent_path() / "config.ini";
 
 		if (!std::filesystem::exists(configPath)) return;
 
 		ini::IniFile configFile;
 		configFile.load(configPath.string());
 
-		if (configFile.count(X("Config")))
+		if (configFile.count("Config"))
 		{
-			auto& c = configFile[X("Config")];
-			if (c.count(X("appid")))             ini.appid = c[X("appid")].as<uint32_t>();
-			if (c.count(X("debug_console")))     ini.debug_console = c[X("debug_console")].as<bool>();
-			if (c.count(X("avoid_quiting")))     ini.avoid_quiting = c[X("avoid_quiting")].as<bool>();
-			if (c.count(X("internal_overlay")))  ini.internal_overlay = c[X("internal_overlay")].as<bool>();
-			if (c.count(X("external_overlay")))  ini.external_overlay = c[X("external_overlay")].as<bool>();
+			auto& c = configFile["Config"];
+			if (c.count("debug_console"))    ini.debug_console = c["debug_console"].as<bool>();
+			if (c.count("avoid_quiting"))     ini.avoid_quiting = c["avoid_quiting"].as<bool>();
+			if (c.count("internal_overlay"))  ini.internal_overlay = c["internal_overlay"].as<bool>();
+			if (c.count("external_overlay"))  ini.external_overlay = c["external_overlay"].as<bool>();
 		}
 	}
 };
 
-struct AppContext
+namespace Config
 {
-	UserSettings settings;
-	RuntimeState state;
-};
+	inline UserSettings settings;
+	inline RuntimeState state;
+}

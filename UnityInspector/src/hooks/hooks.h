@@ -2,6 +2,7 @@
 #include "pch.h"
 #include <vector>
 #include <memory>
+#include <functional>
 
 class IHook
 {
@@ -15,6 +16,20 @@ class Hooks
 public:
 	static void Init();
 
-private:
-	static inline std::vector<std::unique_ptr<IHook>> s_Hooks;
+	using Factory = std::function<std::unique_ptr<IHook>()>;
+	static std::vector<Factory>& GetRegistry()
+	{
+		static std::vector<Factory> registry;
+		return registry;
+	}
 };
+
+#define REGISTER_HOOK(HookClass)                                          \
+    static struct HookClass##_Registrar {                                 \
+        HookClass##_Registrar() {                                         \
+            Hooks::GetRegistry().push_back(                               \
+                []() -> std::unique_ptr<IHook> {                          \
+                    return std::make_unique<HookClass>();                  \
+                });                                                       \
+        }                                                                 \
+    } s_##HookClass##_registrar;

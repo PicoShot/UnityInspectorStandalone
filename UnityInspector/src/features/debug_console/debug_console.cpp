@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "debug_console.h"
 
+REGISTER_FEATURE(DebugConsole)
+
 void DebugConsole::Update(float)
 {
 }
@@ -88,7 +90,7 @@ std::string DebugConsole::GetCallingSource()
 
 void DebugConsole::Render()
 {
-    if (!Core::context->settings.inspector.showDebugConsole || !Core::context->state.showMenu) return;
+    if (!Config::settings.inspector.showDebugConsole || !Config::state.showMenu) return;
     
     RenderConsoleWindow();
 }
@@ -210,7 +212,7 @@ void DebugConsole::RenderConsoleWindow()
     ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
     
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar;
-    if (!ImGui::Begin("Debug Console", &Core::context->settings.inspector.showDebugConsole, windowFlags))
+    if (!ImGui::Begin("Debug Console", &Config::settings.inspector.showDebugConsole, windowFlags))
     {
         ImGui::End();
         return;

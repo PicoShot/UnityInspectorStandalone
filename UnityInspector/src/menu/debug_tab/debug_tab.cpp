@@ -1,26 +1,26 @@
 #include "pch.h"
 #include "debug_tab.h"
-#include "core/core.h"
+#include "config/config.h"
 
 void DebugTab::Render()
 {
 	ImGui::BeginChild("DebugTab", ImVec2(0, 0), true);
 
-	ImGui::Text(X("Debug Tools"));
+	ImGui::Text("Debug Tools");
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	ImGui::Checkbox(X("Enable Inspector"), &Core::context->settings.inspector.enabled);
+	ImGui::Checkbox("Enable Inspector", &Config::settings.inspector.enabled);
 
-	ImGui::Checkbox(X("Show Assembly Explorer"), &Core::context->settings.inspector.showAssemblyExplorer);
+	ImGui::Checkbox("Show Assembly Explorer", &Config::settings.inspector.showAssemblyExplorer);
 	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Open a window to browse all loaded assemblies and their classes");
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	ImGui::Text(X("Debug Console"));
-	ImGui::Checkbox(X("Show Debug Console"), &Core::context->settings.inspector.showDebugConsole);
+	ImGui::Text("Debug Console");
+	ImGui::Checkbox("Show Debug Console", &Config::settings.inspector.showDebugConsole);
 
 	ImGui::Spacing();
 	ImGui::Separator();

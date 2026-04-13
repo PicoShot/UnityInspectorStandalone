@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include <Windows.h>
 #include <cstdio>
-#include <print>
 #include <format>
 #include <string>
 
@@ -52,47 +51,47 @@ namespace console {
 		switch (type) {
 		case Info:
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Green * 16);
-			std::print(" ");
+			std::cout << " ";
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Black);
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | White);
-			std::print("[");
+			std::cout << "[";
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | Green);
-			std::print("Info ");
+			std::cout << "Info ";
 			break;
 		case Debug:
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Blue * 16);
-			std::print(" ");
+			std::cout << " ";
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Black);
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | White);
-			std::print("[");
+			std::cout << "[";
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | Blue);
-			std::print("Debug");
+			std::cout << "Debug";
 			break;
 		case Warning:
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Yellow * 16);
-			std::print(" ");
+			std::cout << " ";
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Black);
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | White);
-			std::print("[");
+			std::cout << "[";
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | Yellow);
-			std::print("Warn ");
+			std::cout << "Warn ";
 			break;
 		case Error:
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Red * 16);
-			std::print(" ");
+			std::cout << " ";
 			SetConsoleTextAttribute(hWnd_, BACKGROUND_INTENSITY | Black);
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | White);
-			std::print("[");
+			std::cout << "[";
 			SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | Red);
-			std::print("Error");
+			std::cout << "Error";
 			break;
 		}
 		SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | White);
-		std::print("]>[");
+		std::cout << "]>[";
 		SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | Purple);
-		std::print("{}:{}", file.substr(file.find_last_of('\\') + 1), line);
+		std::cout<< std::format("{}:{}", file.substr(file.find_last_of('\\') + 1), line);
 		SetConsoleTextAttribute(hWnd_, FOREGROUND_INTENSITY | White);
-		std::print("] :{}\n", text);
+		std::cout << std::format("] :{}\n", text);
 	}
 
 	static auto StartConsole(const char* title, const bool close) -> HWND {

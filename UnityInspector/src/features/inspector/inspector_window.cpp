@@ -1025,7 +1025,7 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	if (ImGui::Button("Refresh"))
 		RefreshTabData(tab);
 	ImGui::SameLine();
-	ImGui::Checkbox("Auto Update", &Core::context->settings.inspector.autoUpdateObject);
+	ImGui::Checkbox("Auto Update", &Config::settings.inspector.autoUpdateObject);
 	ImGui::SameLine();
 
 	if (ImGui::Button("Close Tab"))
