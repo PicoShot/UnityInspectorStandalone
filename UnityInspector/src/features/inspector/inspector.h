@@ -6,6 +6,7 @@ struct ComponentFieldInfo final
 {
 	std::string name;
 	std::string typeName;
+	std::string enumTypeName;
 	int offset;
 	void* fieldHandle;
 	void* classHandle = nullptr;

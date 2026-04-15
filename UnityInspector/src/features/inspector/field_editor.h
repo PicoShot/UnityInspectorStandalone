@@ -2,7 +2,9 @@
 #include "features/features.h"
 #include "features/inspector/editable_type.h"
 
-EditableType DetermineEditableType(const std::string& typeName);
+EditableType DetermineEditableType(const std::string& typeName, std::string* enumTypeNameOut = nullptr);
+
+std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTypeName);
 
 struct FieldEditorState
 {

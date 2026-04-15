@@ -468,7 +468,7 @@ void AssemblyExplorer::RenderClassNode(AssemblyClassInfo& classInfo)
 		if (classInfo.classHandle && classInfo.classHandle->address)
 		{
 			char addrBuf[32];
-			snprintf(addrBuf, sizeof(addrBuf), "0x%llX", (unsigned long long)(uintptr_t)classInfo.classHandle->address);
+			snprintf(addrBuf, sizeof(addrBuf), "0x%llX", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(classInfo.classHandle->address)));
 			if (ImGui::MenuItem("Copy Class Address"))
 				ImGui::SetClipboardText(addrBuf);
 		}
@@ -496,7 +496,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 	{
 		HMODULE hMod = GetModuleHandleA("GameAssembly.dll");
 		if (!hMod) hMod = GetModuleHandleA("mono-2.0-bdwgc.dll");
-		if (hMod) s_moduleBase = (uintptr_t)hMod;
+		if (hMod) s_moduleBase = reinterpret_cast<uintptr_t>(hMod);
 	}
 
 	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.4f, 1.0f));
@@ -641,11 +641,11 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					{
 						uintptr_t addr = 0;
 						if (isStatic)
-							addr = (uintptr_t)field->address;
+							addr = reinterpret_cast<uintptr_t>(field->address);
 						else if (canEditInstance)
-							addr = (uintptr_t)selectedInstance->instance + (uintptr_t)field->offset;
+							addr = reinterpret_cast<uintptr_t>(selectedInstance->instance) + static_cast<uintptr_t>(field->offset);
 						char addrBuf[32];
-						snprintf(addrBuf, sizeof(addrBuf), "0x%llX", (unsigned long long)addr);
+						snprintf(addrBuf, sizeof(addrBuf), "0x%llX", static_cast<unsigned long long>(addr));
 						ImGui::TextDisabled("%s", addrBuf);
 						ImGui::Separator();
 						if (addr && ImGui::MenuItem("Copy Address"))
@@ -664,7 +664,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					if (!isStatic)
 						ImGui::TextDisabled("0x%X", field->offset);
 					else if (field->address && s_moduleBase)
-						ImGui::TextDisabled("0x%X", (uint32_t)((uintptr_t)field->address - s_moduleBase));
+						ImGui::TextDisabled("0x%X", static_cast<uint32_t>(reinterpret_cast<uintptr_t>(field->address) - s_moduleBase));
 					else
 						ImGui::TextDisabled("[S]");
 
@@ -756,7 +756,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					if (ImGui::BeginPopup("##mctx"))
 					{
 						char addrBuf[32];
-						snprintf(addrBuf, sizeof(addrBuf), "0x%llX", (unsigned long long)(uintptr_t)method->address);
+						snprintf(addrBuf, sizeof(addrBuf), "0x%llX", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(method->address)));
 						ImGui::TextDisabled("%s", addrBuf);
 						ImGui::Separator();
 						if (ImGui::MenuItem("Copy Address"))
@@ -764,7 +764,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						if (s_moduleBase && method->address)
 						{
 							char rvaBuf[32];
-							snprintf(rvaBuf, sizeof(rvaBuf), "0x%X", (uint32_t)((uintptr_t)method->address - s_moduleBase));
+							snprintf(rvaBuf, sizeof(rvaBuf), "0x%X", static_cast<uint32_t>(reinterpret_cast<uintptr_t>(method->address) - s_moduleBase));
 							if (ImGui::MenuItem("Copy RVA"))
 								ImGui::SetClipboardText(rvaBuf);
 						}
@@ -799,10 +799,10 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					ImGui::TableSetColumnIndex(3);
 					if (method->address && s_moduleBase)
 					{
-						uintptr_t rva = (uintptr_t)method->address - s_moduleBase;
-						ImGui::TextDisabled("0x%X", (uint32_t)rva);
+						uintptr_t rva = reinterpret_cast<uintptr_t>(method->address) - s_moduleBase;
+						ImGui::TextDisabled("0x%X", static_cast<uint32_t>(rva));
 						if (ImGui::IsItemHovered())
-							ImGui::SetTooltip("Abs: 0x%llX", (unsigned long long)(uintptr_t)method->address);
+							ImGui::SetTooltip("Abs: 0x%llX", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(method->address)));
 					}
 					else
 					{

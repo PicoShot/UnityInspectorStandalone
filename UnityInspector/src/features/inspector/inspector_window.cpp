@@ -115,12 +115,6 @@ static void SectionLabel(const char* text, size_t count)
 		ImGui::TextDisabled("%s", text);
 }
 
-static std::string Truncate(const std::string& s, size_t maxLen)
-{
-	if (s.length() <= maxLen) return s;
-	return s.substr(0, maxLen - 3) + "...";
-}
-
 void Inspector::RenderEditableField(UT::Component* component, const ComponentFieldInfo& field) const
 {
 	if (!component || field.offset < 0) return;
@@ -207,8 +201,28 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			int val;
 			if (Helper::SafeReadInt(component, field.offset, val))
 			{
-				if (ImGui::DragInt("##val", &val))
-					Helper::SafeWriteInt(component, field.offset, val);
+				if (field.enumTypeName.empty())
+				{
+					if (ImGui::DragInt("##val", &val))
+						Helper::SafeWriteInt(component, field.offset, val);
+				}
+				else
+				{
+					auto enumVals = GetEnumValues(field.enumTypeName);
+					int currentIdx = 0;
+					for (size_t i = 0; i < enumVals.size(); i++)
+					{
+						if (enumVals[i].second == val) { currentIdx = static_cast<int>(i); break; }
+					}
+					std::vector<const char*> names;
+					for (auto& ev : enumVals) names.push_back(ev.first.c_str());
+					if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
+					{
+						Helper::SafeWriteInt(component, field.offset, enumVals[currentIdx].second);
+					}
+					ImGui::SameLine();
+					ImGui::Text("%d", val);
+				}
 			}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
@@ -613,11 +627,8 @@ void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<
 		tab.fieldSearchBuffers.resize(componentIndex + 1);
 	char* lSearchBuffer = tab.fieldSearchBuffers[componentIndex].data();
 
-	ImGui::PushItemWidth(-180);
 	ImGui::InputTextWithHint("##FieldSearch", "Search fields...", lSearchBuffer, 256);
-	ImGui::PopItemWidth();
 
-	ImGui::SameLine();
 	ImGui::Checkbox("Editable", &tab.filterEditableOnly);
 	ImGui::SameLine();
 	ImGui::Checkbox("Static", &tab.filterStaticOnly);
@@ -685,7 +696,7 @@ void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<
 			}
 
 			ImGui::TableSetColumnIndex(1);
-			ImGui::TextUnformatted(Truncate(field->typeName, 35).c_str());
+			ImGui::TextUnformatted(field->typeName.c_str());
 
 			ImGui::TableSetColumnIndex(2);
 			RenderEditableField(component, *field);
@@ -757,7 +768,7 @@ void Inspector::RenderPropertiesSection(UT::Component* component, const std::vec
 				ImGui::PopStyleColor();
 
 			ImGui::TableSetColumnIndex(1);
-			ImGui::TextUnformatted(Truncate(prop->typeName, 30).c_str());
+			ImGui::TextUnformatted(prop->typeName.c_str());
 
 			ImGui::TableSetColumnIndex(2);
 			RenderEditableProperty(component, *prop);
@@ -847,10 +858,10 @@ void Inspector::RenderMethodsSection(UT::Component* component, const std::vector
 				for (size_t i = 0; i < method->parameters.size(); i++)
 				{
 					if (i > 0) sig += ", ";
-					sig += Truncate(method->parameters[i].second, 20);
+					sig += method->parameters[i].second;
 				}
 			}
-			sig += " -> " + Truncate(method->returnTypeName, 20);
+			sig += " -> " + method->returnTypeName;
 			ImGui::TextDisabled("(%s)", sig.c_str());
 
 			ImGui::TableSetColumnIndex(2);

@@ -1,8 +1,102 @@
 #include "pch.h"
 #include "field_editor.h"
 
-EditableType DetermineEditableType(const std::string& typeName)
+#define API(fn) (Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_" fn : "il2cpp_" fn)
+
+bool IsEnumClass(const std::string& typeName)
 {
+	for (const auto& assembly : UR::assembly)
+	{
+		if (!assembly) continue;
+		for (const auto& klass : assembly->classes)
+		{
+			if (!klass) continue;
+			if (klass->name == typeName)
+			{
+				void* klassPtr = klass.get();
+				if (UR::Invoke<bool, void*>(API("class_is_enum"), klassPtr))
+					return true;
+			}
+		}
+	}
+	return false;
+}
+
+std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTypeName)
+{
+	std::vector<std::pair<std::string, int>> result;
+
+	void* enumClass = nullptr;
+	for (const auto& assembly : UR::assembly)
+	{
+		if (!assembly) continue;
+		for (const auto& klass : assembly->classes)
+		{
+			if (!klass) continue;
+			if (klass->name == enumTypeName)
+			{
+				enumClass = klass.get();
+				break;
+			}
+		}
+		if (enumClass) break;
+	}
+
+	if (!enumClass) return result;
+
+	void* iter = nullptr;
+	void* field;
+	while ((field = UR::Invoke<void*, void*, void*>(API("class_get_fields"), enumClass, iter)))
+	{
+		const int flags = UR::Invoke<int, void*>(API("field_get_flags"), field);
+		if ((flags & 0x10) != 0)
+		{
+			const char* fieldName = UR::Invoke<const char*, void*>(API("field_get_name"), field);
+			if (fieldName)
+			{
+				int value = 0;
+				UR::Invoke<void, void*, int*>(API("field_get_static_value"), field, &value);
+				result.push_back({ fieldName, value });
+			}
+		}
+	}
+
+	return result;
+}
+
+static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fieldTypeName, std::string* enumTypeNameOut)
+{
+	if (enumTypeNameOut) enumTypeNameOut->clear();
+
+	if (fieldTypeName == "System.Int32")
+	{
+		size_t lastDot = typeName.rfind('.');
+		std::string shortName = (lastDot != std::string::npos) ? typeName.substr(lastDot + 1) : typeName;
+
+		if (IsEnumClass(shortName))
+		{
+			typeName = "Enum";
+			if (enumTypeNameOut) *enumTypeNameOut = shortName;
+		}
+		else if (lastDot != std::string::npos)
+		{
+			std::string fullName = typeName.substr(lastDot + 1);
+			if (IsEnumClass(fullName))
+			{
+				typeName = "Enum";
+				if (enumTypeNameOut) *enumTypeNameOut = fullName;
+			}
+		}
+	}
+}
+
+EditableType DetermineEditableType(const std::string& typeName, std::string* enumTypeNameOut)
+{
+	std::string effectiveTypeName = typeName;
+	CheckAndUpdateEnumType(effectiveTypeName, typeName, enumTypeNameOut);
+
+	if (effectiveTypeName == "Enum") return EditableType::Enum;
+
 	if (typeName == "System.Int16" || typeName == "System.Int32" || typeName == "System.Int64" ||
 		typeName == "System.UInt16" || typeName == "System.UInt32" || typeName == "System.UInt64" ||
 		typeName == "System.Byte" || typeName == "System.SByte")

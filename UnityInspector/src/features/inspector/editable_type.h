@@ -12,5 +12,6 @@ enum class EditableType
     Vector3,
     Vector4,
     Quaternion,
-    Color
+    Color,
+    Enum
 };
