@@ -186,6 +186,7 @@
     <ClInclude Include="src\menu\debug_tab\debug_tab.h" />
     <ClInclude Include="src\loader\loader.h" />
     <ClInclude Include="src\pch\pch.h" />
+    <ClInclude Include="src\pch\proxy.h" />
     <ClInclude Include="src\window\window.h" />
     <ClInclude Include="src\window\input.h" />
     <ClInclude Include="src\window\window_finder.h" />
