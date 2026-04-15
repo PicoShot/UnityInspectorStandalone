@@ -59,7 +59,7 @@ std::vector<ComponentFieldInfo> Inspector::GetComponentFields(UT::Component* com
 		void* iter = nullptr;
 		void* field;
 
-		while ((field = UR::Invoke<void*, void*, void*>(API("class_get_fields"), currentClass, iter)))
+		while ((field = UR::Invoke<void*, void*, void*>(API("class_get_fields"), currentClass, &iter)))
 		{
 			ComponentFieldInfo info;
 			info.fieldHandle = field;
@@ -83,7 +83,7 @@ std::vector<ComponentFieldInfo> Inspector::GetComponentFields(UT::Component* com
 				info.typeName = "unknown";
 			}
 
-			info.editableType = DetermineEditableType(info.typeName);
+			info.editableType = DetermineEditableType(info.typeName, &info.enumTypeName);
 			fields.push_back(info);
 		}
 
@@ -109,7 +109,7 @@ std::vector<ComponentPropertyInfo> Inspector::GetComponentProperties(UT::Compone
 		void* iter = nullptr;
 		void* prop;
 
-		while ((prop = UR::Invoke<void*, void*, void*>(API("class_get_properties"), currentClass, iter)))
+		while ((prop = UR::Invoke<void*, void*, void*>(API("class_get_properties"), currentClass, &iter)))
 		{
 			ComponentPropertyInfo info;
 
@@ -167,7 +167,7 @@ std::vector<ComponentMethodInfo> Inspector::GetComponentMethods(UT::Component* c
 		void* iter = nullptr;
 		void* method;
 
-		while ((method = UR::Invoke<void*, void*, void*>(API("class_get_methods"), currentClass, iter)))
+		while ((method = UR::Invoke<void*, void*, void*>(API("class_get_methods"), currentClass, &iter)))
 		{
 			ComponentMethodInfo info;
 			info.methodHandle = method;
@@ -203,7 +203,7 @@ std::vector<ComponentMethodInfo> Inspector::GetComponentMethods(UT::Component* c
 					void* mIter = nullptr;
 					void* mType;
 					int paramIndex = 0;
-					while (((mType = UR::Invoke<void*, void*, void*>("mono_signature_get_params", signature, mIter))) && paramIndex < paramCount)
+					while (((mType = UR::Invoke<void*, void*, void*>("mono_signature_get_params", signature, &mIter))) && paramIndex < paramCount)
 					{
 						const char* paramTypeName = UR::Invoke<const char*, void*>("mono_type_get_name", mType);
 						std::string pName = (std::cmp_less(paramIndex, static_cast<int>(paramNames.size())) && paramNames[paramIndex])
