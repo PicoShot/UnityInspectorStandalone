@@ -467,10 +467,11 @@ void AssemblyExplorer::RenderClassNode(AssemblyClassInfo& classInfo)
 		}
 		if (classInfo.classHandle && classInfo.classHandle->address)
 		{
-			char addrBuf[32];
-			snprintf(addrBuf, sizeof(addrBuf), "0x%llX", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(classInfo.classHandle->address)));
+			const auto addr = reinterpret_cast<std::uintptr_t>(classInfo.classHandle->address);
+
+			const std::string addrStr = std::format("0x{:X}", addr);
 			if (ImGui::MenuItem("Copy Class Address"))
-				ImGui::SetClipboardText(addrBuf);
+				ImGui::SetClipboardText(addrStr.c_str());
 		}
 		ImGui::EndPopup();
 	}
@@ -644,12 +645,11 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 							addr = reinterpret_cast<uintptr_t>(field->address);
 						else if (canEditInstance)
 							addr = reinterpret_cast<uintptr_t>(selectedInstance->instance) + static_cast<uintptr_t>(field->offset);
-						char addrBuf[32];
-						snprintf(addrBuf, sizeof(addrBuf), "0x%llX", static_cast<unsigned long long>(addr));
-						ImGui::TextDisabled("%s", addrBuf);
+						std::string addrStr = std::format("0x{:X}", static_cast<unsigned long long>(addr));
+						ImGui::TextDisabled("%s", addrStr.c_str());
 						ImGui::Separator();
 						if (addr && ImGui::MenuItem("Copy Address"))
-							ImGui::SetClipboardText(addrBuf);
+							ImGui::SetClipboardText(addrStr.c_str());
 						ImGui::EndPopup();
 					}
 
@@ -755,18 +755,20 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						ImGui::OpenPopup("##mctx");
 					if (ImGui::BeginPopup("##mctx"))
 					{
-						char addrBuf[32];
-						snprintf(addrBuf, sizeof(addrBuf), "0x%llX", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(method->address)));
-						ImGui::TextDisabled("%s", addrBuf);
+						auto addr = reinterpret_cast<std::uintptr_t>(method->address);
+						std::string addrStr = std::format("0x{:X}", addr);
+
+						ImGui::TextDisabled("%s", addrStr.c_str());
 						ImGui::Separator();
 						if (ImGui::MenuItem("Copy Address"))
-							ImGui::SetClipboardText(addrBuf);
+							ImGui::SetClipboardText(addrStr.c_str());
 						if (s_moduleBase && method->address)
 						{
-							char rvaBuf[32];
-							snprintf(rvaBuf, sizeof(rvaBuf), "0x%X", static_cast<uint32_t>(reinterpret_cast<uintptr_t>(method->address) - s_moduleBase));
+							const auto rva = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(method->address) - s_moduleBase);
+							std::string rvaStr = std::format("0x{:X}", rva);
+
 							if (ImGui::MenuItem("Copy RVA"))
-								ImGui::SetClipboardText(rvaBuf);
+								ImGui::SetClipboardText(rvaStr.c_str());
 						}
 						ImGui::EndPopup();
 					}

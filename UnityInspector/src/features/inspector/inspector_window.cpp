@@ -208,14 +208,14 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 				}
 				else
 				{
-					auto enumVals = GetEnumValues(field.enumTypeName);
+					const auto enumVals = GetEnumValues(field.enumTypeName);
 					int currentIdx = 0;
 					for (size_t i = 0; i < enumVals.size(); i++)
 					{
 						if (enumVals[i].second == val) { currentIdx = static_cast<int>(i); break; }
 					}
 					std::vector<const char*> names;
-					for (auto& ev : enumVals) names.push_back(ev.first.c_str());
+					for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
 					if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
 					{
 						Helper::SafeWriteInt(component, field.offset, enumVals[currentIdx].second);

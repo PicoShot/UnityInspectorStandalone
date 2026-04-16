@@ -48,11 +48,9 @@ std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTy
 	void* field;
 	while ((field = UR::Invoke<void*, void*, void*>(API("class_get_fields"), enumClass, iter)))
 	{
-		const int flags = UR::Invoke<int, void*>(API("field_get_flags"), field);
-		if ((flags & 0x10) != 0)
+		if (const int flags = UR::Invoke<int, void*>(API("field_get_flags"), field); (flags & 0x10) != 0)
 		{
-			const char* fieldName = UR::Invoke<const char*, void*>(API("field_get_name"), field);
-			if (fieldName)
+			if (const char* fieldName = UR::Invoke<const char*, void*>(API("field_get_name"), field))
 			{
 				int value = 0;
 				UR::Invoke<void, void*, int*>(API("field_get_static_value"), field, &value);
@@ -70,18 +68,16 @@ static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fie
 
 	if (fieldTypeName == "System.Int32")
 	{
-		size_t lastDot = typeName.rfind('.');
-		std::string shortName = (lastDot != std::string::npos) ? typeName.substr(lastDot + 1) : typeName;
+		const size_t lastDot = typeName.rfind('.');
 
-		if (IsEnumClass(shortName))
+		if (const std::string shortName = (lastDot != std::string::npos) ? typeName.substr(lastDot + 1) : typeName; IsEnumClass(shortName))
 		{
 			typeName = "Enum";
 			if (enumTypeNameOut) *enumTypeNameOut = shortName;
 		}
 		else if (lastDot != std::string::npos)
 		{
-			std::string fullName = typeName.substr(lastDot + 1);
-			if (IsEnumClass(fullName))
+			if (const std::string fullName = typeName.substr(lastDot + 1); IsEnumClass(fullName))
 			{
 				typeName = "Enum";
 				if (enumTypeNameOut) *enumTypeNameOut = fullName;
@@ -207,9 +203,7 @@ void FieldEditor::Render()
 		}
 		else if (IsEditableType(field->type ? field->type->name : ""))
 		{
-			const std::string typeName = field->type->name;
-
-			if (typeName == "System.String")
+			if (const std::string typeName = field->type->name; typeName == "System.String")
 			{
 				RenderStringEditor();
 			}

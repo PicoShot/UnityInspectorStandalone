@@ -147,7 +147,7 @@ void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
 		{
 			if (ImGui::MenuItem("Copy Path"))
 			{
-				std::string path = BuildObjectPath(node.transform);
+				const std::string path = BuildObjectPath(node.transform);
 				ImGui::SetClipboardText(path.c_str());
 			}
 		}

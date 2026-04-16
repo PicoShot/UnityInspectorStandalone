@@ -258,12 +258,12 @@ void* Inspector::InvokeMethod(UT::Component* component, const ComponentMethodInf
 {
 	if (!method.methodHandle) return nullptr;
 
-	auto paramBuffers = Helper::BuildInvokeParams(paramValues, method.parameterEditableTypes);
+	auto [params, buffers] = Helper::BuildInvokeParams(paramValues, method.parameterEditableTypes);
 
 	bool success = false;
 	void* obj = method.isStatic ? nullptr : component;
 	void* result = Helper::SafeInvokeMethod(obj, method.methodHandle,
-		paramBuffers.params.empty() ? nullptr : paramBuffers.params.data(), success);
+		params.empty() ? nullptr : params.data(), success);
 
 	return success ? result : nullptr;
 }
@@ -284,8 +284,7 @@ std::string Inspector::BuildObjectPath(UT::Transform* transform) const
 		if (!Helper::SafeIsAlive(go))
 			break;
 
-		UT::String* name = nullptr;
-		if (Helper::SafeGetName(go, name) && name)
+		if (UT::String* name = nullptr; Helper::SafeGetName(go, name) && name)
 		{
 			pathParts.push_back(name->ToString());
 		}
@@ -402,8 +401,7 @@ void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 
 	if (!tab.gameObject || !Helper::SafeIsAlive(tab.gameObject)) return;
 
-	UT::Transform* transform = nullptr;
-	if (Helper::SafeGetTransform(tab.gameObject, transform) && transform)
+	if (UT::Transform* transform = nullptr; Helper::SafeGetTransform(tab.gameObject, transform) && transform)
 	{
 		if (Helper::SafeIsAlive(transform))
 		{
@@ -530,8 +528,7 @@ void Inspector::OpenObjectInNewTab(UT::GameObject* obj)
 	InspectedObjectTab newTab;
 	newTab.gameObject = obj;
 
-	UT::String* name = nullptr;
-	if (Helper::SafeGetName(obj, name) && name)
+	if (UT::String* name = nullptr; Helper::SafeGetName(obj, name) && name)
 	{
 		newTab.tabName = name->ToString();
 	}

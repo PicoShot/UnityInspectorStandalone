@@ -607,7 +607,7 @@ namespace Helper
 			}
 			case EditableType::String:
 			{
-				UT::String* str = UT::String::New(valueStr.c_str());
+				UT::String* str = UT::String::New(valueStr);
 				auto buf = std::make_unique<char[]>(sizeof(void*));
 				*reinterpret_cast<void**>(buf.get()) = str;
 				result.params.push_back(buf.get());
@@ -875,7 +875,7 @@ namespace Helper
 		}
 	}
 
-	static bool SafePhysicsRaycast(const Ray& ray, RaycastHit* hit, float maxDist)
+	static bool SafePhysicsRaycast(const Ray& ray, const RaycastHit* hit, float maxDist)
 	{
 		__try
 		{
@@ -904,10 +904,10 @@ namespace Helper
 		const auto camera = SafeGetMainCamera();
 		if (!camera) return nullptr;
 
-		ImVec2 screenSize = ImGui::GetIO().DisplaySize;
-		Vec2 unityScreenPos = { screenPos.x, screenSize.y - screenPos.y };
+		const ImVec2 screenSize = ImGui::GetIO().DisplaySize;
+		const Vec2 unityScreenPos = { screenPos.x, screenSize.y - screenPos.y };
 
-		Ray ray = camera->ScreenPointToRay(unityScreenPos);
+		const Ray ray = camera->ScreenPointToRay(unityScreenPos);
 
 		RaycastHit hit{};
 		if (!SafePhysicsRaycast(ray, &hit, 1000.0f)) return nullptr;
@@ -917,11 +917,9 @@ namespace Helper
 		if (!obj) return nullptr;
 
 		GameObject* go = nullptr;
-		auto* collider = reinterpret_cast<Collider*>(obj);
-		if (SafeGetGameObject(collider, go) && go) return go;
+		if (auto* collider = reinterpret_cast<Collider*>(obj); SafeGetGameObject(collider, go) && go) return go;
 
-		auto* comp = reinterpret_cast<Component*>(obj);
-		if (SafeGetGameObject(comp, go) && go) return go;
+		if (auto* comp = reinterpret_cast<Component*>(obj); SafeGetGameObject(comp, go) && go) return go;
 
 		return nullptr;
 	}
