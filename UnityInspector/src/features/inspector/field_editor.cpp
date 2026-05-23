@@ -132,6 +132,8 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, const std::s
 
 	state.nestedClass = nullptr;
 	state.nestedInstance = nullptr;
+	state.isValueType = false;
+	state.ownedField.reset();
 
 	if (field->type)
 	{
@@ -140,22 +142,87 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, const std::s
 			state.nestedClass = GetPointerClass(typeName);
 			if (state.nestedClass)
 			{
-				void* ptrValue = nullptr;
-				if (field->static_field)
+				state.isValueType = (state.nestedClass->parent == "ValueType");
+
+				if (state.isValueType)
 				{
-					field->GetStaticValue(&ptrValue);
+					if (field->static_field)
+					{
+						// Static value types not supported for nested inspection
+					}
+					else if (instance)
+					{
+						state.nestedInstance = reinterpret_cast<void*>(
+							reinterpret_cast<uintptr_t>(instance) + field->offset);
+					}
 				}
-				else if (instance)
+				else
 				{
-					ptrValue = *reinterpret_cast<void**>(
-						reinterpret_cast<uintptr_t>(instance) + field->offset);
+					void* ptrValue = nullptr;
+					if (field->static_field)
+					{
+						field->GetStaticValue(&ptrValue);
+					}
+					else if (instance)
+					{
+						ptrValue = *reinterpret_cast<void**>(
+							reinterpret_cast<uintptr_t>(instance) + field->offset);
+					}
+					state.nestedInstance = ptrValue;
 				}
-				state.nestedInstance = ptrValue;
 			}
 		}
 	}
 
 	ReadFieldValue();
+}
+
+void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* instance, const std::string& title)
+{
+	if (fieldInfo.isStatic) return;
+	if (!IsPointerType(fieldInfo.typeName)) return;
+
+	state.showWindow = true;
+	state.windowTitle = title;
+	state.targetInstance = instance;
+	state.nestedClass = nullptr;
+	state.nestedInstance = nullptr;
+	state.isValueType = false;
+	state.ownedField.reset();
+
+	// Create synthetic UR::Field for metadata/display
+	auto ownedField = std::make_unique<UR::Field>();
+	ownedField->name = fieldInfo.name;
+	ownedField->offset = fieldInfo.offset;
+	ownedField->static_field = fieldInfo.isStatic;
+	auto fieldType = std::make_unique<UR::Type>();
+	fieldType->name = fieldInfo.typeName;
+	ownedField->type = std::move(fieldType);
+	state.targetField = ownedField.get();
+	state.ownedField = std::move(ownedField);
+
+	// Find the class for nested inspection
+	state.nestedClass = GetPointerClass(fieldInfo.typeName);
+	if (!state.nestedClass) return;
+
+	state.isValueType = (state.nestedClass->parent == "ValueType");
+
+	if (state.isValueType)
+	{
+		if (instance)
+		{
+			state.nestedInstance = reinterpret_cast<void*>(
+				reinterpret_cast<uintptr_t>(instance) + fieldInfo.offset);
+		}
+	}
+	else
+	{
+		if (instance)
+		{
+			state.nestedInstance = *reinterpret_cast<void**>(
+				reinterpret_cast<uintptr_t>(instance) + fieldInfo.offset);
+		}
+	}
 }
 
 void FieldEditor::Close()
@@ -165,6 +232,8 @@ void FieldEditor::Close()
 	state.targetInstance = nullptr;
 	state.nestedClass = nullptr;
 	state.nestedInstance = nullptr;
+	state.isValueType = false;
+	state.ownedField.reset();
 	nestedEditors.clear();
 }
 

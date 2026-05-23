@@ -2,18 +2,6 @@
 #include "features/features.h"
 #include "features/inspector/field_editor.h"
 
-struct ComponentFieldInfo final
-{
-	std::string name;
-	std::string typeName;
-	std::string enumTypeName;
-	int offset;
-	void* fieldHandle;
-	void* classHandle = nullptr;
-	bool isStatic = false;
-	EditableType editableType = EditableType::None;
-};
-
 struct ComponentPropertyInfo final
 {
 	std::string name;
@@ -104,6 +92,7 @@ private:
 	bool objectPickerActive = false;
 
 	MethodInvokeState invokeState;
+	std::unique_ptr<FieldEditor> fieldEditor;
 
 	void RefreshHierarchy();
 	void BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform);
@@ -128,7 +117,7 @@ private:
 	void RenderTabContent(InspectedObjectTab& tab);
 	void RenderTransformSection(UT::Transform* transform, InspectedObjectTab& tab) const;
 	void RenderComponentsSection(InspectedObjectTab& tab);
-	void RenderFieldsSection(UT::Component* component, const std::vector<ComponentFieldInfo>& fields, InspectedObjectTab& tab, size_t componentIndex) const;
+	void RenderFieldsSection(UT::Component* component, const std::vector<ComponentFieldInfo>& fields, InspectedObjectTab& tab, size_t componentIndex);
 	void RenderPropertiesSection(UT::Component* component, const std::vector<ComponentPropertyInfo>& properties, InspectedObjectTab& tab, size_t componentIndex) const;
 	void RenderMethodsSection(UT::Component* component, const std::vector<ComponentMethodInfo>& methods, InspectedObjectTab& tab, size_t componentIndex);
 	void RenderMethodInvokePopup();

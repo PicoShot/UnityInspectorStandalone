@@ -6,6 +6,18 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
 
 std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTypeName);
 
+struct ComponentFieldInfo final
+{
+	std::string name;
+	std::string typeName;
+	std::string enumTypeName;
+	int offset;
+	void* fieldHandle;
+	void* classHandle = nullptr;
+	bool isStatic = false;
+	EditableType editableType = EditableType::None;
+};
+
 struct FieldEditorState
 {
 	bool showWindow = false;
@@ -16,6 +28,10 @@ struct FieldEditorState
 
 	UR::Class* nestedClass = nullptr;
 	void* nestedInstance = nullptr;
+
+	std::unique_ptr<UR::Field> ownedField;
+
+	bool isValueType = false;
 
 	char stringBuffer[1024] = {};
 	int intValue = 0;
@@ -31,6 +47,7 @@ struct FieldEditor final
 	~FieldEditor();
 
 	void OpenFieldEditor(UR::Field* field, void* instance, const std::string& title);
+	void OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* instance, const std::string& title);
 
 	void Render();
 

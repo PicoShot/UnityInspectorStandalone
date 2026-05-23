@@ -615,7 +615,7 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 	ImGui::Spacing();
 }
 
-void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<ComponentFieldInfo>& fields, InspectedObjectTab& tab, const size_t componentIndex) const
+void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<ComponentFieldInfo>& fields, InspectedObjectTab& tab, const size_t componentIndex)
 {
 	if (fields.empty())
 	{
@@ -653,7 +653,7 @@ void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<
 	SectionLabel("Fields", filteredFields.size());
 	ImGui::Spacing();
 
-	if (ImGui::BeginTable("FieldsTable", 3,
+	if (ImGui::BeginTable("FieldsTable", 4,
 		ImGuiTableFlags_Resizable |
 		ImGuiTableFlags_BordersInnerV |
 		ImGuiTableFlags_SizingFixedFit |
@@ -663,6 +663,7 @@ void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<
 		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 150.0f);
 		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 140.0f);
 		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 50.0f);
 		ImGui::TableHeadersRow();
 
 		for (const auto* field : filteredFields)
@@ -700,6 +701,19 @@ void Inspector::RenderFieldsSection(UT::Component* component, const std::vector<
 
 			ImGui::TableSetColumnIndex(2);
 			RenderEditableField(component, *field);
+
+			ImGui::TableSetColumnIndex(3);
+			if (!field->isStatic && field->editableType == EditableType::None && FieldEditor::IsPointerType(field->typeName))
+			{
+				ImGui::PushID(field->fieldHandle);
+				if (ImGui::SmallButton("Edit"))
+				{
+					if (!fieldEditor)
+						fieldEditor = std::make_unique<FieldEditor>();
+					fieldEditor->OpenFieldEditor(*field, component, "Edit Field: " + field->name);
+				}
+				ImGui::PopID();
+			}
 		}
 
 		ImGui::EndTable();
@@ -994,6 +1008,9 @@ void Inspector::RenderDetailsWindow()
 	ImGui::End();
 
 	RenderMethodInvokePopup();
+
+	if (fieldEditor && fieldEditor->IsOpen())
+		fieldEditor->Render();
 }
 
 void Inspector::RenderTabBar()
