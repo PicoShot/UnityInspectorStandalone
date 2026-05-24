@@ -46,7 +46,7 @@ std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTy
 
 	void* iter = nullptr;
 	void* field;
-	while ((field = UR::Invoke<void*, void*, void*>(API("class_get_fields"), enumClass, iter)))
+	while ((field = UR::Invoke<void*, void*, void*>(API("class_get_fields"), enumClass, &iter)))
 	{
 		if (const int flags = UR::Invoke<int, void*>(API("field_get_flags"), field); (flags & 0x10) != 0)
 		{
@@ -320,10 +320,16 @@ void FieldEditor::Render()
 	}
 	ImGui::End();
 
+	std::vector<std::unique_ptr<FieldEditor>> newEditors;
 	for (auto& editor : nestedEditors)
 	{
-		if (editor) editor->Render();
+		if (editor)
+		{
+			editor->Render();
+			editor->TakePendingEditors(newEditors);
+		}
 	}
+	nestedEditors.insert(nestedEditors.end(), std::make_move_iterator(newEditors.begin()), std::make_move_iterator(newEditors.end()));
 
 	std::erase_if(nestedEditors, [](const std::unique_ptr<FieldEditor>& e) {
 		return !e || !e->IsOpen();
@@ -686,6 +692,12 @@ void FieldEditor::RenderStringEditor()
 		ImVec2(-1, ImGui::GetTextLineHeight() * 4));
 }
 
+void FieldEditor::TakePendingEditors(std::vector<std::unique_ptr<FieldEditor>>& out)
+{
+	out.insert(out.end(), std::make_move_iterator(pendingEditors.begin()), std::make_move_iterator(pendingEditors.end()));
+	pendingEditors.clear();
+}
+
 void FieldEditor::RenderNestedInspector()
 {
 	if (!state.nestedClass || !state.nestedInstance) return;
@@ -739,13 +751,13 @@ void FieldEditor::RenderNestedInspector()
 			if ((isEditable || isPointer) && !field->static_field)
 			{
 				ImGui::PushID(field.get());
-				if (ImGui::SmallButton("Edit"))
-				{
-					std::string title = "Edit " + state.nestedClass->name + "." + field->name;
-					auto editor = std::make_unique<FieldEditor>();
-					editor->OpenFieldEditor(field.get(), state.nestedInstance, title);
-					nestedEditors.push_back(std::move(editor));
-				}
+					if (ImGui::SmallButton("Edit"))
+					{
+						std::string title = "Edit " + state.nestedClass->name + "." + field->name;
+						auto editor = std::make_unique<FieldEditor>();
+						editor->OpenFieldEditor(field.get(), state.nestedInstance, title);
+						pendingEditors.push_back(std::move(editor));
+					}
 				ImGui::PopID();
 			}
 		}

@@ -1137,7 +1137,9 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 	std::vector<size_t> filteredComponentIndices;
 	for (size_t i = 0; i < target.cachedComponents.size(); i++)
 	{
-		const std::string& compName = i < target.cachedComponentNames.size() ? target.cachedComponentNames[i] : "Unknown";
+		if (i >= target.cachedComponentNames.size())
+			continue;
+		const std::string& compName = target.cachedComponentNames[i];
 		if (PassesComponentFilter(compName, target.componentSearchBuffer))
 			filteredComponentIndices.push_back(i);
 	}
@@ -1153,9 +1155,14 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 
 	for (const size_t idx : filteredComponentIndices)
 	{
-		const auto comp = idx < target.cachedComponents.size() ? target.cachedComponents[idx] : nullptr;
-		const std::string& compName = idx < target.cachedComponentNames.size() ? target.cachedComponentNames[idx] : "Unknown";
-		const auto& fields = target.cachedComponentFields.size() > idx ? target.cachedComponentFields[idx] : std::vector<ComponentFieldInfo>{};
+		if (idx >= target.cachedComponents.size() ||
+		    idx >= target.cachedComponentNames.size() ||
+		    idx >= target.cachedComponentFields.size())
+		    continue;
+
+		const auto comp = target.cachedComponents[idx];
+		const std::string& compName = target.cachedComponentNames[idx];
+		const auto& fields = target.cachedComponentFields[idx];
 		const auto& properties = target.cachedComponentProperties.size() > idx ? target.cachedComponentProperties[idx] : std::vector<ComponentPropertyInfo>{};
 		const auto& methods = target.cachedComponentMethods.size() > idx ? target.cachedComponentMethods[idx] : std::vector<ComponentMethodInfo>{};
 
