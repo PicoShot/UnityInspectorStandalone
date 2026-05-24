@@ -12,28 +12,37 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Cache CMake build directory
-      uses: actions/cache@v4
-      with:
-        path: build
-        key: ${{ runner.os }}-cmake-release-${{ hashFiles('**/CMakeLists.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-cmake-release-
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Configure CMake
-      run: cmake -B build -S . -A x64
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
 
-    - name: Build project
-      run: cmake --build build --config Release -j 4
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
 
-    - name: Rename DLL to winhttp.dll
-      run: Rename-Item -Path "build\bin\Release\UnityInspector.dll" -NewName "winhttp.dll"
+      - name: Cache sccache directory
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Mozilla\sccache
+          key: ${{ runner.os }}-sccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: winhttp-dll
-        path: build\bin\Release\winhttp.dll
+      - name: Configure CMake
+        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build project
+        run: cmake --build build --config Release
+
+      - name: Rename DLL to winhttp.dll
+        run: Rename-Item -Path "build\bin\UnityInspector.dll" -NewName "winhttp.dll"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winhttp-dll
+          path: build\bin\winhttp.dll
