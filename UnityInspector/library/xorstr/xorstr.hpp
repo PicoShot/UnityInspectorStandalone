@@ -23,6 +23,10 @@
 #define XORSTR_FORCEINLINE __attribute__((always_inline)) inline
 #endif
 
+#ifndef JM_XORSTR_SEED
+    #define JM_XORSTR_SEED __TIME__
+#endif
+
 namespace jm {
 
     namespace detail {
@@ -37,7 +41,7 @@ namespace jm {
         XORSTR_FORCEINLINE constexpr std::uint32_t key4() noexcept
         {
             std::uint32_t value = Seed;
-            for (char c : __TIME__)
+            for (char c : JM_XORSTR_SEED)
                 value = static_cast<std::uint32_t>((value ^ c) * 16777619ull);
             return value;
         }

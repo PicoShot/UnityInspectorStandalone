@@ -81,4 +81,9 @@ endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
-# test
+
+if(DEFINED ENV{CI})
+    target_compile_definitions(UnityInspector PRIVATE JM_XORSTR_SEED="12:00:00")
+
+    message(STATUS "CI détectée : xorstr seed statique activée pour sccache.")
+endif()
