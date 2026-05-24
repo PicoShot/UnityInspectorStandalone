@@ -22,6 +22,7 @@ more screenshots at [Assets](Assets/)
 
 This fork will focus on IL2CPP object traversal & runtime lua interpreter.  
 CMake is also the default generator for this project now.
+Added CI for autonomous builds.
 
 ## Overview
 
