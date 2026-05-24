@@ -18,12 +18,6 @@ A powerful runtime inspector for Unity games with **Mono** and **IL2CPP** suppor
 more screenshots at [Assets](Assets/)
 
 ---
-## Fork
-
-This fork will focus on IL2CPP object traversal & runtime lua interpreter.  
-CMake is also the default generator for this project now.
-Added CI for autonomous builds.
-
 ## Overview
 
 UnityInspector is a single-DLL runtime inspection tool that allows you to explore and modify Unity games in real-time. Whether you're a game developer debugging your project or a researcher analyzing game mechanics, UnityInspector provides comprehensive access to Unity's internal structures.

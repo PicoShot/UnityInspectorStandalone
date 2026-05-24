@@ -85,6 +85,5 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 if(DEFINED ENV{CI})
     target_compile_definitions(UnityInspector PRIVATE JM_XORSTR_SEED="12:00:00")
 
-    message(STATUS "CI détectée : xorstr seed statique activée pour sccache.")
+    message(STATUS "CI detected: set static seed for xorstr (to avoid cache misses caused by __TIME__ computed at build time)")
 endif()
-#test
