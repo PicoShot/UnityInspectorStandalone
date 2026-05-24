@@ -51,6 +51,9 @@ namespace Helper
 	bool SafeSetStaticFieldDouble(void* fieldHandle, double value);
 	bool SafeGetStaticFieldVector3(void* fieldHandle, Vec3& outValue);
 	bool SafeSetStaticFieldVector3(void* fieldHandle, const Vec3& value);
+	bool SafeGetStaticFieldPointer(void* fieldHandle, void*& outValue);
+
+	void* SafeGetObjectClass(void* obj);
 
 	bool SafeInvokeGetter(void* obj, void* methodHandle, void* outValue, int valueSize);
 	bool SafeInvokeSetter(void* obj, void* methodHandle, void* value);

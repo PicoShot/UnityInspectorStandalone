@@ -503,24 +503,75 @@ namespace Helper
 		catch (...) { return false; }
 	}
 
-	bool SafeInvokeGetter(void* obj, void* methodHandle, void* outValue, int valueSize)
+	bool SafeGetStaticFieldPointer(void* fieldHandle, void*& outValue)
 	{
-		if (!methodHandle) return false;
+		if (!fieldHandle) return false;
 		try
 		{
-			void* result;
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
-				result = UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, nullptr, nullptr);
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, void**>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
 			{
-				result = UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, nullptr, nullptr);
+				UR::Invoke<void, void*, void**>("il2cpp_field_static_get_value", fieldHandle, &outValue);
 			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	__declspec(noinline) void* DoGetObjectClass(void* obj, bool isMono)
+	{
+		if (isMono)
+		{
+			return UR::Invoke<void*, void*>("mono_object_get_class", obj);
+		}
+		else
+		{
+			return UR::Invoke<void*, void*>("il2cpp_object_get_class", obj);
+		}
+	}
+
+	void* SafeGetObjectClass(void* obj)
+	{
+		if (!obj) return nullptr;
+		__try
+		{
+			return DoGetObjectClass(obj, Config::state.unityMode == UnityResolve::Mode::Mono);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+	}
+
+	__declspec(noinline) void* DoSafeInvokeGetter(void* obj, void* methodHandle)
+	{
+		if (Config::state.unityMode == UnityResolve::Mode::Mono)
+		{
+			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, nullptr, nullptr);
+		}
+		else
+		{
+			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, nullptr, nullptr);
+		}
+	}
+
+	__declspec(noinline) void* DoSafeUnbox(void* result)
+	{
+		return UR::Invoke<void*, void*>(
+			Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_object_unbox" : "il2cpp_object_unbox", result);
+	}
+
+	bool SafeInvokeGetter(void* obj, void* methodHandle, void* outValue, int valueSize)
+	{
+		if (!methodHandle) return false;
+		__try
+		{
+			void* result = DoSafeInvokeGetter(obj, methodHandle);
 			if (result && outValue)
 			{
-				void* unboxed = UR::Invoke<void*, void*>(
-					Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_object_unbox" : "il2cpp_object_unbox", result);
+				void* unboxed = DoSafeUnbox(result);
 				if (unboxed)
 				{
 					memcpy(outValue, unboxed, valueSize);
@@ -528,47 +579,56 @@ namespace Helper
 			}
 			return true;
 		}
-		catch (...) { return false; }
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	__declspec(noinline) void DoSafeInvokeSetter(void* obj, void* methodHandle, void* value)
+	{
+		void* params[1] = { value };
+		if (Config::state.unityMode == UnityResolve::Mode::Mono)
+		{
+			UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params, nullptr);
+		}
+		else
+		{
+			UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params, nullptr);
+		}
 	}
 
 	bool SafeInvokeSetter(void* obj, void* methodHandle, void* value)
 	{
 		if (!methodHandle || !value) return false;
-		try
+		__try
 		{
-			void* params[1] = { value };
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params, nullptr);
-			}
-			else
-			{
-				UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params, nullptr);
-			}
+			DoSafeInvokeSetter(obj, methodHandle, value);
 			return true;
 		}
-		catch (...) { return false; }
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	__declspec(noinline) void* DoSafeInvokeMethod(void* obj, void* methodHandle, void** params)
+	{
+		if (Config::state.unityMode == UnityResolve::Mode::Mono)
+		{
+			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params, nullptr);
+		}
+		else
+		{
+			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params, nullptr);
+		}
 	}
 
 	void* SafeInvokeMethod(void* obj, void* methodHandle, void** params, bool& success)
 	{
 		success = false;
 		if (!methodHandle) return nullptr;
-		try
+		__try
 		{
-			void* result;
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				result = UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params, nullptr);
-			}
-			else
-			{
-				result = UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params, nullptr);
-			}
+			void* result = DoSafeInvokeMethod(obj, methodHandle, params);
 			success = true;
 			return result;
 		}
-		catch (...)
+		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
 			success = false;
 			return nullptr;

@@ -187,6 +187,43 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
 		}
+		case EditableType::CustomObject:
+		{
+			void* instancePtr = nullptr;
+			bool isValid = Helper::SafeGetStaticFieldPointer(field.fieldHandle, instancePtr) && instancePtr != nullptr;
+
+			if (!isValid)
+			{
+				ImGui::TextDisabled("(null)");
+			}
+			else
+			{
+				ImGui::TextDisabled("[static Object]");
+				ImGui::SameLine();
+				if (ImGui::SmallButton("Enter"))
+				{
+					if (auto activeTab = GetActiveTab())
+					{
+						InspectionTarget nextTarget;
+						nextTarget.instance = instancePtr;
+						nextTarget.name = field.name;
+						nextTarget.classHandle = field.classHandle;
+						
+						nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+						nextTarget.cachedComponentNames.push_back(field.typeName);
+
+						void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
+
+						nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
+						nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
+						nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
+
+						activeTab->navigationStack.push_back(std::move(nextTarget));
+					}
+				}
+			}
+			break;
+		}
 		default:
 			ImGui::TextDisabled("[static]");
 			break;
@@ -350,6 +387,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
                 {
                     void* instancePtr = nullptr;
                     
+                    
                     if (Helper::SafeReadPointer(instance, field.offset, instancePtr) && instancePtr)
                     {
                         InspectionTarget nextTarget;
@@ -365,6 +403,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 
                         activeTab->navigationStack.push_back(std::move(nextTarget));
                     }
+
 
                 }
             }
@@ -1001,12 +1040,15 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 
 		std::string headerLabel = compName + "##comp";
 
-		if (ImGui::CollapsingHeader(headerLabel.c_str()))
+		int headerFlags = 0;
+		if (target.cachedComponents.size() == 1)
+			headerFlags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+		if (ImGui::CollapsingHeader(headerLabel.c_str(), headerFlags))
 		{
 			ImGui::Indent();
 
-			std::string fullName = GetComponentFullTypeName(comp);
-			ImGui::TextDisabled("Type: %s", fullName.c_str());
+			ImGui::TextDisabled("Type: %s", compName.c_str());
 			ImGui::Spacing();
 
 			std::string fieldsLabel = "Fields";
@@ -1195,6 +1237,7 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 		ImGui::EndChild();
 	}
 	
+	
 	else if (target.instance)
 	{
 		ImGui::TextDisabled("Inspecting nested object at %p", target.instance);
@@ -1205,5 +1248,6 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 		}
 		ImGui::EndChild();
 	}
+
 
 }

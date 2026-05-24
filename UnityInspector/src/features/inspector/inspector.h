@@ -140,10 +140,11 @@ private:
 	bool PassesMethodFilter(const ComponentMethodInfo& method, const char* pSearchBuffer, bool staticOnly, bool instanceOnly) const;
 
 	std::string GetComponentTypeName(UT::Component* component) const;
-	std::string GetComponentFullTypeName(UT::Component* component) const;
 	std::vector<ComponentFieldInfo> GetObjectFields(void* obj, void* klass) const;
 	std::vector<ComponentFieldInfo> GetComponentFields(UT::Component* component) const;
+	std::vector<ComponentPropertyInfo> GetObjectProperties(void* obj, void* klass) const;
 	std::vector<ComponentPropertyInfo> GetComponentProperties(UT::Component* component) const;
+	std::vector<ComponentMethodInfo> GetObjectMethods(void* obj, void* klass) const;
 	std::vector<ComponentMethodInfo> GetComponentMethods(UT::Component* component) const;
 
 	std::string BuildObjectPath(UT::Transform* transform) const;

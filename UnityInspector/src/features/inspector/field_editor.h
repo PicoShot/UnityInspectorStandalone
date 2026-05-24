@@ -14,7 +14,9 @@ struct ComponentFieldInfo final
 	int offset;
 	void* fieldHandle;
 	void* classHandle = nullptr;
+	void* typeClassHandle = nullptr;
 	bool isStatic = false;
+	bool isValueType = false;
 	EditableType editableType = EditableType::None;
 };
 
