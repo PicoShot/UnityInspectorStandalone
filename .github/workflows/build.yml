@@ -9,7 +9,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  SCCACHE_DIR: ~\AppData\Local\Mozilla\sccache
+  SCCACHE_DIR: ${{ github.workspace }}\.sccache
   SCCACHE_CACHE_SIZE: 2G
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
       - name: Cache sccache directory
         uses: actions/cache@v4
         with:
-          path: ~\AppData\Local\Mozilla\sccache
+          path: .sccache
           key: ${{ runner.os }}-sccache-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-sccache-
