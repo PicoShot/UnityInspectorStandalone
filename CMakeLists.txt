@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.25)
 project(UnityInspector)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -72,10 +72,19 @@ target_compile_definitions(UnityInspector PRIVATE
     _USRDLL
 )
 
-set_target_properties(UnityInspector PROPERTIES
-    PCH_HEADER "pch.h"
-    PCH_SOURCE "src/pch/pch.cpp"
-)
+if(MSVC)
+    cmake_policy(SET CMP0141 NEW)
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+endif()
+
+if(NOT CMAKE_CXX_COMPILER_LAUNCHER MATCHES "sccache")
+    set_target_properties(UnityInspector PROPERTIES
+            PCH_HEADER "pch.h"
+            PCH_SOURCE "src/pch/pch.cpp"
+    )
+else()
+    message(STATUS "sccache enabled : PCH disabled for cache hit")
+endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
