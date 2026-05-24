@@ -738,17 +738,62 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 		for (const auto* field : filteredFields)
 		{
 			ImGui::TableNextRow();
+            
+			bool isArray = field->typeName.find("[]") != std::string::npos;
+			bool isList = field->typeName.find("System.Collections.Generic.List") != std::string::npos;
+			bool isCollection = !field->isStatic && field->editableType == EditableType::None && (isArray || isList);
+
+			bool isExpanded = false;
+			void* collectionPtr = nullptr;
+			int collectionCount = 0;
+			void* arrayDataStart = nullptr;
 
 			ImGui::TableSetColumnIndex(0);
-			if (field->isStatic)
+			if (isCollection)
 			{
-				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));
-				ImGui::Text("[S] %s", field->name.c_str());
-				ImGui::PopStyleColor();
+				if (Helper::SafeReadPointer(instance, field->offset, collectionPtr) && collectionPtr)
+				{
+					if (isArray)
+					{
+						auto arr = reinterpret_cast<UT::Array<uintptr_t>*>(collectionPtr);
+						collectionCount = static_cast<int>(arr->max_length);
+						arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(arr) + 0x20);
+					}
+					else
+					{
+						auto list = reinterpret_cast<UT::List<uintptr_t>*>(collectionPtr);
+						collectionCount = list->size;
+						if (list->pList)
+						{
+							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(list->pList) + 0x20);
+						}
+					}
+					
+					collectionCount = std::max(0, std::min(collectionCount, 1000));
+
+					ImGui::PushID(field->fieldHandle);
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 1.0f, 1.0f));
+					isExpanded = ImGui::TreeNodeEx(field->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth, "%s [%d]", field->name.c_str(), collectionCount);
+					ImGui::PopStyleColor();
+					ImGui::PopID();
+				}
+				else
+				{
+					ImGui::TextUnformatted(field->name.c_str());
+				}
 			}
 			else
 			{
-				ImGui::TextUnformatted(field->name.c_str());
+				if (field->isStatic)
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));
+					ImGui::Text("[S] %s", field->name.c_str());
+					ImGui::PopStyleColor();
+				}
+				else
+				{
+					ImGui::TextUnformatted(field->name.c_str());
+				}
 			}
 
 			if (ImGui::IsItemHovered())
@@ -788,18 +833,94 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 							nextTarget.name = field->name;
 							nextTarget.classHandle = field->classHandle;
 							
+							void* targetKlass = field->isValueType ? field->typeClassHandle : nullptr;
+
 							nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
 							nextTarget.cachedComponentNames.push_back(field->typeName);
-							nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, nullptr));
-							nextTarget.cachedComponentProperties.push_back(GetComponentProperties(reinterpret_cast<UT::Component*>(instancePtr)));
-							nextTarget.cachedComponentMethods.push_back(GetComponentMethods(reinterpret_cast<UT::Component*>(instancePtr)));
+							nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
+							nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
+							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
 
 							activeTab->navigationStack.push_back(std::move(nextTarget));
 						}
-
 					}
 				}
 				ImGui::PopID();
+			}
+
+			if (isExpanded)
+			{
+				if (arrayDataStart)
+				{
+					std::string elementTypeName = "Element";
+					if (isArray)
+					{
+						size_t pos = field->typeName.find("[]");
+						if (pos != std::string::npos) elementTypeName = field->typeName.substr(0, pos);
+					}
+					else if (isList)
+					{
+						size_t start = field->typeName.find("<");
+						size_t end = field->typeName.rfind(">");
+						if (start != std::string::npos && end != std::string::npos && end > start)
+						{
+							elementTypeName = field->typeName.substr(start + 1, end - start - 1);
+						}
+					}
+
+					for (int i = 0; i < collectionCount; ++i)
+					{
+						ImGui::TableNextRow();
+						
+						ImGui::TableSetColumnIndex(0);
+						ImGui::Indent(15.0f);
+						ImGui::Text("[%d]", i);
+						ImGui::Unindent(15.0f);
+						
+						ImGui::TableSetColumnIndex(1);
+						ImGui::TextDisabled("%s", elementTypeName.c_str());
+					
+					void* elementPtr = nullptr;
+					Helper::SafeReadPointer(arrayDataStart, i * sizeof(void*), elementPtr);
+
+					ImGui::TableSetColumnIndex(2);
+					if (elementPtr)
+					{
+						ImGui::TextDisabled("0x%p", elementPtr);
+					}
+					else
+					{
+						ImGui::TextDisabled("(null)");
+					}
+
+					ImGui::TableSetColumnIndex(3);
+					if (elementPtr)
+					{
+						ImGui::PushID(reinterpret_cast<intptr_t>(arrayDataStart) + i);
+						if (ImGui::SmallButton("Enter"))
+						{
+							if (auto activeTab = GetActiveTab())
+							{
+								InspectionTarget nextTarget;
+								nextTarget.instance = elementPtr;
+								nextTarget.name = field->name + "[" + std::to_string(i) + "]";
+								nextTarget.classHandle = nullptr; 
+								
+								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(elementPtr));
+								nextTarget.cachedComponentNames.push_back(elementTypeName);
+
+								nextTarget.cachedComponentFields.push_back(GetObjectFields(elementPtr, nullptr));
+								nextTarget.cachedComponentProperties.push_back(GetObjectProperties(elementPtr, nullptr));
+								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(elementPtr, nullptr));
+
+								activeTab->navigationStack.push_back(std::move(nextTarget));
+							}
+						}
+						ImGui::PopID();
+					}
+				}
+				} // End of if (arrayDataStart)
+				ImGui::TreePop();
 			}
 		}
 
