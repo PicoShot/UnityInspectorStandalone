@@ -115,11 +115,8 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
         return EditableType::Quaternion;
     if (typeName == "UnityEngine.Color")
         return EditableType::Color;
-
     if (!typeName.starts_with("System.") && !typeName.starts_with("UnityEngine."))
-    {
         return EditableType::CustomObject;
-    }
 
     return EditableType::None;
 }
