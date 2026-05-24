@@ -49,8 +49,19 @@ add_library(UnityInspector SHARED
     "UnityInspector/src/pch/pch.cpp"
 )
 
+set_property(TARGET UnityInspector PROPERTY MSVC_RUNTIME_LIBRARY "$<IF:$<CONFIG:Debug>,MultiThreadedDebugDLL,MultiThreaded>")
+
 if(MSVC)
     target_compile_options(UnityInspector PRIVATE /bigobj)
+
+    target_compile_options(UnityInspector PRIVATE
+            $<$<CONFIG:RELEASE>:/O2>
+            $<$<CONFIG:RELEASE>:/GL>
+            $<$<CONFIG:RELEASE>:/GS->
+            $<$<CONFIG:RELEASE>:/GR->
+    )
+
+    target_link_options(UnityInspector PRIVATE $<$<CONFIG:RELEASE>:/OPT:NOICF>)
 endif()
 
 target_include_directories(UnityInspector PUBLIC
