@@ -83,7 +83,7 @@ if(NOT CMAKE_CXX_COMPILER_LAUNCHER MATCHES "sccache")
             PCH_SOURCE "src/pch/pch.cpp"
     )
 else()
-    message(STATUS "sccache enabled : PCH disabled for cache hit")
+    message(STATUS "CI / sccache enabled : PCH disabled for cache hit")
 endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
