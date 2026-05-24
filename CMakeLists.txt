@@ -87,3 +87,4 @@ if(DEFINED ENV{CI})
 
     message(STATUS "CI détectée : xorstr seed statique activée pour sccache.")
 endif()
+#test
