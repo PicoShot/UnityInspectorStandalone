@@ -38,6 +38,8 @@ namespace Helper
 	bool SafeReadColor(void* ptr, int offset, Color& outValue);
 	bool SafeWriteColor(void* ptr, int offset, const Color& value);
 	bool SafeReadStringPtr(void* ptr, int offset, UT::String*& outValue);
+	
+	bool SafeReadPointer(void* ptr, int offset, void*& outValue);
 
 	bool SafeGetStaticFieldInt(void* fieldHandle, int& outValue);
 	bool SafeSetStaticFieldInt(void* fieldHandle, int value);

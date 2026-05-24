@@ -287,6 +287,17 @@ namespace Helper
 		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 	}
 
+	bool SafeReadPointer(void* ptr, const int offset, void*& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
 	bool SafeGetStaticFieldInt(void* fieldHandle, int& outValue)
 	{
 		if (!fieldHandle) return false;

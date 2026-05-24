@@ -80,7 +80,7 @@ void Inspector::RenderMethodInvokePopup()
 
 		if (ImGui::Button("Invoke", ImVec2(100, 0)))
 		{
-			void* result = InvokeMethod(invokeState.targetComponent, invokeState.method, invokeState.parameterValues);
+			void* result = InvokeMethod(invokeState.targetInstance, invokeState.method, invokeState.parameterValues);
 
 			invokeState.hasResult = true;
 			if (result)

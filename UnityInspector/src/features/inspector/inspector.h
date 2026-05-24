@@ -28,7 +28,7 @@ struct ComponentMethodInfo final
 struct MethodInvokeState
 {
 	bool showPopup = false;
-	UT::Component* targetComponent = nullptr;
+	void* targetInstance = nullptr;
 	ComponentMethodInfo method;
 	std::vector<std::string> parameterValues;
 	std::string resultText;
@@ -45,12 +45,12 @@ struct HierarchyNode final
 	bool pendingExpandValue = false;
 };
 
-struct InspectedObjectTab final
+struct InspectionTarget
 {
 	UT::GameObject* gameObject = nullptr;
-	std::string tabName;
-	std::string objectPath;
-	bool isActive = false;
+	void* instance = nullptr;
+	void* classHandle = nullptr;
+	std::string name;
 
 	std::vector<UT::Component*> cachedComponents;
 	std::vector<std::string> cachedComponentNames;
@@ -62,6 +62,16 @@ struct InspectedObjectTab final
 	std::vector<std::array<char, 256>> fieldSearchBuffers;
 	std::vector<std::array<char, 256>> propertySearchBuffers;
 	std::vector<std::array<char, 256>> methodSearchBuffers;
+};
+
+struct InspectedObjectTab final
+{
+	UT::GameObject* gameObject = nullptr;
+	std::string tabName;
+	std::string objectPath;
+	bool isActive = false;
+
+	std::vector<InspectionTarget> navigationStack;
 
 	bool filterEditableOnly = false;
 	bool filterStaticOnly = false;
@@ -116,10 +126,10 @@ private:
 	void RenderTabBar();
 	void RenderTabContent(InspectedObjectTab& tab);
 	void RenderTransformSection(UT::Transform* transform, InspectedObjectTab& tab) const;
-	void RenderComponentsSection(InspectedObjectTab& tab);
-	void RenderFieldsSection(UT::Component* component, const std::vector<ComponentFieldInfo>& fields, InspectedObjectTab& tab, size_t componentIndex);
-	void RenderPropertiesSection(UT::Component* component, const std::vector<ComponentPropertyInfo>& properties, InspectedObjectTab& tab, size_t componentIndex) const;
-	void RenderMethodsSection(UT::Component* component, const std::vector<ComponentMethodInfo>& methods, InspectedObjectTab& tab, size_t componentIndex);
+	void RenderComponentsSection(InspectionTarget& target, InspectedObjectTab& tab);
+	void RenderFieldsSection(void* instance, const std::vector<ComponentFieldInfo>& fields, InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex);
+	void RenderPropertiesSection(void* instance, const std::vector<ComponentPropertyInfo>& properties, InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex) const;
+	void RenderMethodsSection(void* instance, const std::vector<ComponentMethodInfo>& methods, InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex);
 	void RenderMethodInvokePopup();
 	void DrawSelectedObjectBoundingBox() const;
 	void ProcessObjectPicker();
@@ -131,13 +141,14 @@ private:
 
 	std::string GetComponentTypeName(UT::Component* component) const;
 	std::string GetComponentFullTypeName(UT::Component* component) const;
+	std::vector<ComponentFieldInfo> GetObjectFields(void* obj, void* klass) const;
 	std::vector<ComponentFieldInfo> GetComponentFields(UT::Component* component) const;
 	std::vector<ComponentPropertyInfo> GetComponentProperties(UT::Component* component) const;
 	std::vector<ComponentMethodInfo> GetComponentMethods(UT::Component* component) const;
 
 	std::string BuildObjectPath(UT::Transform* transform) const;
-	void RenderEditableField(UT::Component* component, const ComponentFieldInfo& field);
-	void RenderEditableProperty(UT::Component* component, const ComponentPropertyInfo& prop) const;
-	void* InvokeMethod(UT::Component* component, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const;
+	void RenderEditableField(void* instance, const ComponentFieldInfo& field);
+	void RenderEditableProperty(void* instance, const ComponentPropertyInfo& prop) const;
+	void* InvokeMethod(void* instance, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const;
 
 };

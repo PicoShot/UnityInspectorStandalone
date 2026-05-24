@@ -43,14 +43,14 @@ std::string Inspector::GetComponentTypeName(UT::Component* component) const
 	return "Component";
 }
 
-std::vector<ComponentFieldInfo> Inspector::GetComponentFields(UT::Component* component) const
+std::vector<ComponentFieldInfo> Inspector::GetObjectFields(void* obj, void* klass) const
 {
 	std::vector<ComponentFieldInfo> fields;
-	if (!component) return fields;
-
 	const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
 
-	void* klass = UR::Invoke<void*, void*>(API("object_get_class"), component);
+	if (!klass && obj)
+		klass = UR::Invoke<void*, void*>(API("object_get_class"), obj);
+	
 	if (!klass) return fields;
 
 	void* currentClass = klass;
@@ -91,6 +91,11 @@ std::vector<ComponentFieldInfo> Inspector::GetComponentFields(UT::Component* com
 	}
 
 	return fields;
+}
+
+std::vector<ComponentFieldInfo> Inspector::GetComponentFields(UT::Component* component) const
+{
+	return GetObjectFields(component, nullptr);
 }
 
 std::vector<ComponentPropertyInfo> Inspector::GetComponentProperties(UT::Component* component) const
@@ -254,14 +259,14 @@ std::vector<ComponentMethodInfo> Inspector::GetComponentMethods(UT::Component* c
 
 #undef API
 
-void* Inspector::InvokeMethod(UT::Component* component, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const
+void* Inspector::InvokeMethod(void* instance, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const
 {
 	if (!method.methodHandle) return nullptr;
 
 	auto [params, buffers] = Helper::BuildInvokeParams(paramValues, method.parameterEditableTypes);
 
 	bool success = false;
-	void* obj = method.isStatic ? nullptr : component;
+	void* obj = method.isStatic ? nullptr : instance;
 	void* result = Helper::SafeInvokeMethod(obj, method.methodHandle,
 		params.empty() ? nullptr : params.data(), success);
 
@@ -392,11 +397,7 @@ void Inspector::RefreshHierarchy()
 
 void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 {
-	tab.cachedComponents.clear();
-	tab.cachedComponentNames.clear();
-	tab.cachedComponentFields.clear();
-	tab.cachedComponentProperties.clear();
-	tab.cachedComponentMethods.clear();
+	tab.navigationStack.clear();
 	tab.objectPath.clear();
 
 	if (!tab.gameObject || !Helper::SafeIsAlive(tab.gameObject)) return;
@@ -420,17 +421,23 @@ void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 		std::vector<UT::Component*> components;
 		if (!Helper::SafeGetComponents(tab.gameObject, componentClass, components)) return;
 
+		InspectionTarget rootTarget;
+		rootTarget.gameObject = tab.gameObject;
+		rootTarget.name = tab.tabName;
+
 		for (auto& comp : components)
 		{
 			if (comp && Helper::SafeIsAlive(comp))
 			{
-				tab.cachedComponents.push_back(comp);
-				tab.cachedComponentNames.push_back(GetComponentTypeName(comp));
-				tab.cachedComponentFields.push_back(GetComponentFields(comp));
-				tab.cachedComponentProperties.push_back(GetComponentProperties(comp));
-				tab.cachedComponentMethods.push_back(GetComponentMethods(comp));
+				rootTarget.cachedComponents.push_back(comp);
+				rootTarget.cachedComponentNames.push_back(GetComponentTypeName(comp));
+				rootTarget.cachedComponentFields.push_back(GetComponentFields(comp));
+				rootTarget.cachedComponentProperties.push_back(GetComponentProperties(comp));
+				rootTarget.cachedComponentMethods.push_back(GetComponentMethods(comp));
 			}
 		}
+		
+		tab.navigationStack.push_back(std::move(rootTarget));
 	}
 }
 
