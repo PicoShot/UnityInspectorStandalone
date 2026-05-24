@@ -1,0 +1,31 @@
+name: Build CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure CMake
+      run: cmake -B build -S . -A x64
+
+    - name: Build project
+      run: cmake --build build --config Release -j 4
+
+    - name: Rename DLL to winhttp.dll
+      run: Rename-Item -Path "build\bin\Release\UnityInspector.dll" -NewName "winhttp.dll"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: winhttp-dll
+        path: build\bin\Release\winhttp.dll

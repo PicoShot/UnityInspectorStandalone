@@ -18,6 +18,10 @@ A powerful runtime inspector for Unity games with **Mono** and **IL2CPP** suppor
 more screenshots at [Assets](Assets/)
 
 ---
+## Fork
+
+This fork will focus on IL2CPP object traversal & runtime lua interpreter.  
+CMake is also the default generator for this project now.
 
 ## Overview
 
