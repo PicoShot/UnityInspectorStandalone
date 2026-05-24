@@ -9,7 +9,8 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_DIR: ~\AppData\Local\Mozilla\sccache
+  SCCACHE_CACHE_SIZE: 2G
 
 jobs:
   build:
@@ -30,8 +31,16 @@ jobs:
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - name: Cache sccache directory
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Mozilla\sccache
+          key: ${{ runner.os }}-sccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-
+
       - name: Configure CMake
-        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
       - name: Build project
         run: cmake --build build --config Release

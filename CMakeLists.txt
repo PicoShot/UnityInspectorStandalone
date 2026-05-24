@@ -72,18 +72,11 @@ target_compile_definitions(UnityInspector PRIVATE
     _USRDLL
 )
 
-if(MSVC)
-    cmake_policy(SET CMP0141 NEW)
-    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
-endif()
-
 if(NOT CMAKE_CXX_COMPILER_LAUNCHER MATCHES "sccache")
     set_target_properties(UnityInspector PROPERTIES
             PCH_HEADER "pch.h"
             PCH_SOURCE "src/pch/pch.cpp"
     )
-else()
-    message(STATUS "CI / sccache enabled : PCH disabled for cache hit")
 endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
