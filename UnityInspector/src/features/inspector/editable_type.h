@@ -13,5 +13,6 @@ enum class EditableType
     Vector4,
     Quaternion,
     Color,
-    Enum
+    Enum,
+    CustomObject
 };

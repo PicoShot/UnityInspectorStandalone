@@ -136,7 +136,7 @@ private:
 	std::vector<ComponentMethodInfo> GetComponentMethods(UT::Component* component) const;
 
 	std::string BuildObjectPath(UT::Transform* transform) const;
-	void RenderEditableField(UT::Component* component, const ComponentFieldInfo& field) const;
+	void RenderEditableField(UT::Component* component, const ComponentFieldInfo& field);
 	void RenderEditableProperty(UT::Component* component, const ComponentPropertyInfo& prop) const;
 	void* InvokeMethod(UT::Component* component, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const;
 

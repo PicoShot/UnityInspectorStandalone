@@ -115,7 +115,7 @@ static void SectionLabel(const char* text, size_t count)
 		ImGui::TextDisabled("%s", text);
 }
 
-void Inspector::RenderEditableField(UT::Component* component, const ComponentFieldInfo& field) const
+void Inspector::RenderEditableField(UT::Component* component, const ComponentFieldInfo& field)
 {
 	if (!component || field.offset < 0) return;
 
@@ -340,6 +340,18 @@ void Inspector::RenderEditableField(UT::Component* component, const ComponentFie
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
 		}
+        case EditableType::CustomObject:
+        {
+            ImGui::TextDisabled("(Object)");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Inspect"))
+            {
+                if (!fieldEditor)
+                    fieldEditor = std::make_unique<FieldEditor>();
+                fieldEditor->OpenFieldEditor(field, component, "Inspect: " + field.name);
+            }
+            break;
+        }
 		default:
 			ImGui::TextDisabled("...");
 			break;

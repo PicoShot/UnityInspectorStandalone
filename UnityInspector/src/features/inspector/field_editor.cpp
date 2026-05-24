@@ -88,34 +88,40 @@ static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fie
 
 EditableType DetermineEditableType(const std::string& typeName, std::string* enumTypeNameOut)
 {
-	std::string effectiveTypeName = typeName;
-	CheckAndUpdateEnumType(effectiveTypeName, typeName, enumTypeNameOut);
+    std::string effectiveTypeName = typeName;
+    CheckAndUpdateEnumType(effectiveTypeName, typeName, enumTypeNameOut);
 
-	if (effectiveTypeName == "Enum") return EditableType::Enum;
+    if (effectiveTypeName == "Enum") return EditableType::Enum;
 
-	if (typeName == "System.Int16" || typeName == "System.Int32" || typeName == "System.Int64" ||
-		typeName == "System.UInt16" || typeName == "System.UInt32" || typeName == "System.UInt64" ||
-		typeName == "System.Byte" || typeName == "System.SByte")
-		return EditableType::Int;
-	if (typeName == "System.Single")
-		return EditableType::Float;
-	if (typeName == "System.Double")
-		return EditableType::Double;
-	if (typeName == "System.Boolean")
-		return EditableType::Bool;
-	if (typeName == "System.String")
-		return EditableType::String;
-	if (typeName == "UnityEngine.Vector2")
-		return EditableType::Vector2;
-	if (typeName == "UnityEngine.Vector3")
-		return EditableType::Vector3;
-	if (typeName == "UnityEngine.Vector4")
-		return EditableType::Vector4;
-	if (typeName == "UnityEngine.Quaternion")
-		return EditableType::Quaternion;
-	if (typeName == "UnityEngine.Color")
-		return EditableType::Color;
-	return EditableType::None;
+    if (typeName == "System.Int16" || typeName == "System.Int32" || typeName == "System.Int64" ||
+        typeName == "System.UInt16" || typeName == "System.UInt32" || typeName == "System.UInt64" ||
+        typeName == "System.Byte" || typeName == "System.SByte")
+        return EditableType::Int;
+    if (typeName == "System.Single")
+        return EditableType::Float;
+    if (typeName == "System.Double")
+        return EditableType::Double;
+    if (typeName == "System.Boolean")
+        return EditableType::Bool;
+    if (typeName == "System.String")
+        return EditableType::String;
+    if (typeName == "UnityEngine.Vector2")
+        return EditableType::Vector2;
+    if (typeName == "UnityEngine.Vector3")
+        return EditableType::Vector3;
+    if (typeName == "UnityEngine.Vector4")
+        return EditableType::Vector4;
+    if (typeName == "UnityEngine.Quaternion")
+        return EditableType::Quaternion;
+    if (typeName == "UnityEngine.Color")
+        return EditableType::Color;
+
+    if (!typeName.starts_with("System.") && !typeName.starts_with("UnityEngine."))
+    {
+        return EditableType::CustomObject;
+    }
+
+    return EditableType::None;
 }
 
 FieldEditor::FieldEditor() = default;
