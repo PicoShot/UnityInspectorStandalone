@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "menu.h"
-#include "info_tab/info_tab.h"
+#include "misc_tab/misc_tab.h"
 #include "debug_tab/debug_tab.h"
 #include "lua_tab/lua_tab.h"
 #include "config/config.h"
@@ -13,9 +13,9 @@ namespace Menu
 	void Init()
 	{
 		if (s_Initialized) return;
-		s_Tabs.push_back(std::make_unique<InfoTab>());
 		s_Tabs.push_back(std::make_unique<DebugTab>());
 		s_Tabs.push_back(std::make_unique<LuaConsoleTab>());
+		s_Tabs.push_back(std::make_unique<MiscTab>());
 		s_Initialized = true;
 	}
 

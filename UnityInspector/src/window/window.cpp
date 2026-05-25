@@ -6,10 +6,12 @@
 #include "input_forwarder.h"
 #include "external_overlay.h"
 #include "input.h"
+#include "config/config.h"
 
 namespace Window
 {
-	void SetMenuStyle() {
+	static void SetDarkPlusTheme()
+	{
 		auto& style = ImGui::GetStyle();
 		ImVec4* colors = style.Colors;
 		colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
@@ -69,6 +71,27 @@ namespace Window
 		style.WindowTitleAlign = ImVec2(0.5, 0.5);
 	}
 
+	void ApplyTheme()
+	{
+		switch (Config::settings.theme)
+		{
+		case Theme::Light:
+			ImGui::StyleColorsLight();
+			break;
+		case Theme::Dark:
+			ImGui::StyleColorsDark();
+			break;
+		case Theme::Classic:
+			ImGui::StyleColorsClassic();
+			break;
+		case Theme::DarkPlus:
+		default:
+			ImGui::StyleColorsDark();
+			SetDarkPlusTheme();
+			break;
+		}
+	}
+
 	void InitializeImGui(const HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context)
 	{
 		ImGui::CreateContext();
@@ -81,7 +104,7 @@ namespace Window
 		io.IniSavingRate = 0.f;
 		io.LogFilename = nullptr;
 		io.MouseDrawCursor = true;
-		SetMenuStyle();
+		ApplyTheme();
 
 		if (ImGui_ImplWin32_Init(hwnd) && ImGui_ImplDX11_Init(device, context))
 		{

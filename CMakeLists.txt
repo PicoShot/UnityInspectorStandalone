@@ -37,7 +37,7 @@ add_library(UnityInspector SHARED
     "UnityInspector/src/hooks/hooks.cpp"
     "UnityInspector/src/hooks/console_hooks/console_hooks.cpp"
     "UnityInspector/src/menu/menu.cpp"
-    "UnityInspector/src/menu/info_tab/info_tab.cpp"
+    "UnityInspector/src/menu/misc_tab/misc_tab.cpp"
     "UnityInspector/src/menu/debug_tab/debug_tab.cpp"
     "UnityInspector/src/menu/lua_tab/lua_tab.cpp"
     "UnityInspector/src/window/window.cpp"
@@ -53,7 +53,7 @@ set_property(TARGET UnityInspector PROPERTY MSVC_RUNTIME_LIBRARY "$<IF:$<CONFIG:
 
 if(MSVC)
     string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    
+
     target_compile_options(UnityInspector PRIVATE /bigobj /EHa)
 
     target_compile_options(UnityInspector PRIVATE

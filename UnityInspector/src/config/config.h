@@ -1,6 +1,14 @@
 #pragma once
 #include "pch.h"
 
+enum class Theme
+{
+	Light,
+	Dark,
+	Classic,
+	DarkPlus
+};
+
 struct RuntimeState
 {
 	bool showMenu = true;
@@ -33,6 +41,8 @@ struct UserSettings
 		bool showDebugConsole = false;
 		bool objectPickerEnabled = false;
 	} inspector;
+
+	Theme theme = Theme::DarkPlus;
 
 	void Load()
 	{

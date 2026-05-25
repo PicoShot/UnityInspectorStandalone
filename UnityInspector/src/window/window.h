@@ -11,5 +11,6 @@ namespace Window
     void RenderToExternalOverlay(ID3D11Device* device, ID3D11DeviceContext* context, ID3D11RenderTargetView* targetView, HWND hwnd);
 
     void UpdateExternalInput();
+    void ApplyTheme();
     inline bool g_ImGuiInitialized = false;
 }
