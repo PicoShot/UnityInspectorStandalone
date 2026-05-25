@@ -27,3 +27,4 @@ ipch/
 # Misc
 .DS_Store
 Thumbs.db
+/dist
