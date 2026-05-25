@@ -52,10 +52,11 @@ add_library(UnityInspector SHARED
 set_property(TARGET UnityInspector PROPERTY MSVC_RUNTIME_LIBRARY "$<IF:$<CONFIG:Debug>,MultiThreadedDebugDLL,MultiThreaded>")
 
 if(MSVC)
-    target_compile_options(UnityInspector PRIVATE /bigobj)
+    string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    
+    target_compile_options(UnityInspector PRIVATE /bigobj /EHa)
 
     target_compile_options(UnityInspector PRIVATE
-            /EHa
             $<$<CONFIG:RELEASE>:/O2>
             $<$<CONFIG:RELEASE>:/GL>
             $<$<CONFIG:RELEASE>:/GS->
