@@ -66,23 +66,18 @@ static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fie
 {
 	if (enumTypeNameOut) enumTypeNameOut->clear();
 
-	if (fieldTypeName == "System.Int32")
-	{
-		const size_t lastDot = typeName.rfind('.');
+	const size_t lastDot = typeName.rfind('.');
+	const std::string shortName = (lastDot != std::string::npos) ? typeName.substr(lastDot + 1) : typeName;
 
-		if (const std::string shortName = (lastDot != std::string::npos) ? typeName.substr(lastDot + 1) : typeName; IsEnumClass(shortName))
-		{
-			typeName = "Enum";
-			if (enumTypeNameOut) *enumTypeNameOut = shortName;
-		}
-		else if (lastDot != std::string::npos)
-		{
-			if (const std::string fullName = typeName.substr(lastDot + 1); IsEnumClass(fullName))
-			{
-				typeName = "Enum";
-				if (enumTypeNameOut) *enumTypeNameOut = fullName;
-			}
-		}
+	if (IsEnumClass(shortName))
+	{
+		typeName = "Enum";
+		if (enumTypeNameOut) *enumTypeNameOut = shortName;
+	}
+	else if (IsEnumClass(fieldTypeName))
+	{
+		typeName = "Enum";
+		if (enumTypeNameOut) *enumTypeNameOut = fieldTypeName;
 	}
 }
 
@@ -115,10 +110,8 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
         return EditableType::Quaternion;
     if (typeName == "UnityEngine.Color")
         return EditableType::Color;
-    if (!typeName.starts_with("System.") && !typeName.starts_with("UnityEngine."))
-        return EditableType::CustomObject;
 
-    return EditableType::None;
+    return EditableType::CustomObject;
 }
 
 FieldEditor::FieldEditor() = default;

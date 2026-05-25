@@ -45,6 +45,14 @@ struct HierarchyNode final
 	bool pendingExpandValue = false;
 };
 
+struct StaticInstanceNode
+{
+	void* instance = nullptr;
+	void* typeClassHandle = nullptr;
+	std::string fullName;
+	std::string name;
+};
+
 struct InspectionTarget
 {
 	UT::GameObject* gameObject = nullptr;
@@ -92,6 +100,10 @@ private:
 	std::vector<HierarchyNode> rootNodes;
 	char searchBuffer[256] = {};
 
+	std::vector<StaticInstanceNode> staticInstances;
+	char staticSearchBuffer[256] = {};
+	bool hasScannedStatic = false;
+
 	std::vector<InspectedObjectTab> openTabs;
 	int activeTabIndex = -1;
 	static constexpr int maxTabs = 10;
@@ -111,6 +123,8 @@ private:
 	void SetAllNodesExpanded(std::vector<HierarchyNode>& nodes, bool expanded);
 
 	void OpenObjectInNewTab(UT::GameObject* obj);
+	void OpenStaticInstanceInNewTab(const StaticInstanceNode& node);
+	void ScanStaticClasses();
 	void CloseTab(int tabIndex);
 	void SwitchToTab(int tabIndex);
 	InspectedObjectTab* GetActiveTab();

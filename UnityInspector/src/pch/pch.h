@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // Defines
 #define WIN32_LEAN_AND_MEAN
@@ -18,6 +18,7 @@
 #include <utility>
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 #include <format>
 #include <ranges>
 #include <deque>

@@ -55,6 +55,7 @@ if(MSVC)
     target_compile_options(UnityInspector PRIVATE /bigobj)
 
     target_compile_options(UnityInspector PRIVATE
+            /EHa
             $<$<CONFIG:RELEASE>:/O2>
             $<$<CONFIG:RELEASE>:/GL>
             $<$<CONFIG:RELEASE>:/GS->
@@ -98,3 +99,12 @@ if(DEFINED ENV{CI})
 
     message(STATUS "CI detected: set static seed for xorstr (to avoid cache misses caused by __TIME__ computed at build time)")
 endif()
+
+# Auto-install to /dist as winhttp.dll after building
+add_custom_command(TARGET UnityInspector POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/dist"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:UnityInspector>" "${CMAKE_SOURCE_DIR}/dist/winhttp.dll"
+    COMMAND powershell -NoProfile -Command "Copy-Item -Path '$<TARGET_PDB_FILE:UnityInspector>' -Destination '${CMAKE_SOURCE_DIR}/dist/winhttp.pdb' -Force -ErrorAction SilentlyContinue; exit 0"
+    COMMAND powershell -NoProfile -Command "Copy-Item -Path '$<TARGET_FILE_DIR:UnityInspector>/*.idb' -Destination '${CMAKE_SOURCE_DIR}/dist/' -Force -ErrorAction SilentlyContinue; exit 0"
+    COMMENT "Installing UnityInspector to dist/winhttp.dll..."
+)

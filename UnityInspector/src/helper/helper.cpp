@@ -503,24 +503,45 @@ namespace Helper
 		catch (...) { return false; }
 	}
 
+	bool IsValidReadPtr(void* ptr, size_t size = 8)
+	{
+		if (!ptr) return false;
+		MEMORY_BASIC_INFORMATION mbi;
+		if (VirtualQuery(ptr, &mbi, sizeof(mbi)) == 0) return false;
+		if (mbi.State != MEM_COMMIT) return false;
+		if (mbi.Protect == PAGE_NOACCESS || (mbi.Protect & PAGE_GUARD)) return false;
+		return true;
+	}
+
+	__declspec(noinline) void DoSafeGetStaticFieldPointer(void* fieldHandle, void*& outValue)
+	{
+		// Allocate a large buffer on the stack to prevent buffer overflows if the static field is a large struct (Value Type).
+		// il2cpp_field_static_get_value writes the entire struct into the provided pointer. If it's an object (Reference Type), it writes 8 bytes.
+		alignas(16) char safeBuffer[8192] = { 0 };
+
+		if (Config::state.unityMode == UnityResolve::Mode::Mono)
+		{
+			void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+			UR::Invoke<void, void*, void*, void*>("mono_field_static_get_value", vTable, fieldHandle, safeBuffer);
+		}
+		else
+		{
+			UR::Invoke<void, void*, void*>("il2cpp_field_static_get_value", fieldHandle, safeBuffer);
+		}
+
+		outValue = *(void**)safeBuffer;
+	}
+
 	bool SafeGetStaticFieldPointer(void* fieldHandle, void*& outValue)
 	{
 		if (!fieldHandle) return false;
-		try
+		__try
 		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, void**>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, void**>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
+			DoSafeGetStaticFieldPointer(fieldHandle, outValue);
 			return true;
 		}
-		catch (...) { return false; }
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 	}
 
 	__declspec(noinline) void* DoGetObjectClass(void* obj, bool isMono)
@@ -537,7 +558,7 @@ namespace Helper
 
 	void* SafeGetObjectClass(void* obj)
 	{
-		if (!obj) return nullptr;
+		if (!IsValidReadPtr(obj)) return nullptr;
 		__try
 		{
 			return DoGetObjectClass(obj, Config::state.unityMode == UnityResolve::Mode::Mono);

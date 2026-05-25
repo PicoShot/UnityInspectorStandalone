@@ -115,9 +115,72 @@ static void SectionLabel(const char* text, size_t count)
 		ImGui::TextDisabled("%s", text);
 }
 
+static std::string SimplifyTypeName(const std::string& typeName)
+{
+	static const std::unordered_map<std::string, std::string> primitiveMap = {
+		{"System.Int32", "int"}, {"System.Single", "float"}, {"System.Boolean", "bool"},
+		{"System.Double", "double"}, {"System.String", "string"}, {"System.Int64", "long"},
+		{"System.Int16", "short"}, {"System.Byte", "byte"}, {"System.UInt32", "uint"},
+		{"System.UInt64", "ulong"}, {"System.UInt16", "ushort"}, {"System.SByte", "sbyte"},
+		{"System.Void", "void"}, {"System.Object", "object"}
+	};
+
+	auto it = primitiveMap.find(typeName);
+	if (it != primitiveMap.end())
+		return it->second;
+
+	std::string result = typeName;
+
+	size_t angleBracketPos = result.find('<');
+	if (angleBracketPos != std::string::npos)
+	{
+		size_t lastAngle = result.rfind('>');
+		if (lastAngle != std::string::npos && lastAngle > angleBracketPos)
+		{
+			std::string outerPart = result.substr(0, angleBracketPos);
+			std::string innerPart = result.substr(angleBracketPos + 1, lastAngle - angleBracketPos - 1);
+
+			std::string simplifiedInner;
+			size_t start = 0;
+			int depth = 0;
+			for (size_t i = 0; i <= innerPart.size(); ++i)
+			{
+				if (i < innerPart.size() && innerPart[i] == '<') ++depth;
+				else if (i < innerPart.size() && innerPart[i] == '>') --depth;
+				else if ((i == innerPart.size() || innerPart[i] == ',') && depth == 0)
+				{
+					std::string token = innerPart.substr(start, i - start);
+					while (!token.empty() && token[0] == ' ') token.erase(token.begin());
+					while (!token.empty() && token.back() == ' ') token.pop_back();
+					if (!simplifiedInner.empty()) simplifiedInner += ", ";
+					simplifiedInner += SimplifyTypeName(token);
+					start = i + 1;
+				}
+			}
+
+			size_t lastDot = outerPart.rfind('.');
+			if (lastDot != std::string::npos)
+				outerPart = outerPart.substr(lastDot + 1);
+
+			size_t backtick = outerPart.find('`');
+			if (backtick != std::string::npos)
+				outerPart = outerPart.substr(0, backtick);
+
+			return outerPart + "<" + simplifiedInner + ">" + result.substr(lastAngle + 1);
+		}
+	}
+
+	size_t lastDot = result.rfind('.');
+	if (lastDot != std::string::npos)
+		return result.substr(lastDot + 1);
+
+	return result;
+}
+
+
 void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& field)
 {
-	if (!instance || field.offset < 0) return;
+	if (!instance) return;
 
 	ImGui::PushID(field.offset);
 
@@ -383,40 +446,124 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
 		}
+		case EditableType::Enum:
+		{
+			int val;
+			if (Helper::SafeReadInt(instance, field.offset, val))
+			{
+				const auto enumVals = GetEnumValues(field.enumTypeName);
+
+				const char* currentName = "Unknown";
+				for (const auto& pair : enumVals)
+				{
+					if (pair.second == val) { currentName = pair.first.c_str(); break; }
+				}
+				
+				ImGui::TextDisabled("%s", currentName);
+				ImGui::SameLine();
+				if (ImGui::SmallButton("Enter"))
+				{
+					if (auto activeTab = GetActiveTab())
+					{
+						void* instancePtr = nullptr;
+						if (field.isValueType)
+							instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+						else
+							Helper::SafeReadPointer(instance, field.offset, instancePtr);
+							
+						if (instancePtr)
+						{
+							InspectionTarget nextTarget;
+							nextTarget.instance = instancePtr;
+							nextTarget.name = field.name;
+							nextTarget.classHandle = field.classHandle;
+							nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+							nextTarget.cachedComponentNames.push_back(field.typeName);
+							void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
+							nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
+							nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
+							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
+							activeTab->navigationStack.push_back(std::move(nextTarget));
+						}
+					}
+				}
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
         case EditableType::CustomObject:
         {
-            ImGui::TextDisabled("(Object)");
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Enter"))
+            bool isNullable = field.typeName.find("System.Nullable") != std::string::npos;
+            if (isNullable && field.isValueType)
             {
-                if (auto activeTab = GetActiveTab())
+                void* nullablePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+                bool hasValue = false;
+                Helper::SafeReadBool(nullablePtr, 0, hasValue);
+                if (!hasValue)
                 {
-                    void* instancePtr = nullptr;
-                    if (field.isValueType)
+                    ImGui::TextDisabled("null");
+                }
+                else
+                {
+                    ImGui::TextDisabled("Nullable (has value)");
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Enter"))
                     {
-                        instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+                        if (auto activeTab = GetActiveTab())
+                        {
+                            InspectionTarget nextTarget;
+                            nextTarget.instance = nullablePtr;
+                            nextTarget.name = field.name;
+                            nextTarget.classHandle = field.classHandle;
+                            nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(nullablePtr));
+                            nextTarget.cachedComponentNames.push_back(field.typeName);
+                            nextTarget.cachedComponentFields.push_back(GetObjectFields(nullablePtr, field.typeClassHandle));
+                            nextTarget.cachedComponentProperties.push_back(GetObjectProperties(nullablePtr, field.typeClassHandle));
+                            nextTarget.cachedComponentMethods.push_back(GetObjectMethods(nullablePtr, field.typeClassHandle));
+                            activeTab->navigationStack.push_back(std::move(nextTarget));
+                        }
                     }
-                    else
+                }
+            }
+            else
+            {
+                void* instancePtr = nullptr;
+                if (field.isValueType)
+                {
+                    instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+                }
+                else
+                {
+                    Helper::SafeReadPointer(instance, field.offset, instancePtr);
+                }
+
+                if (!instancePtr)
+                {
+                    ImGui::TextDisabled("null");
+                }
+                else
+                {
+                    ImGui::TextDisabled("(Object) %p", instancePtr);
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Enter"))
                     {
-                        Helper::SafeReadPointer(instance, field.offset, instancePtr);
-                    }
+                        if (auto activeTab = GetActiveTab())
+                        {
+                            InspectionTarget nextTarget;
+                            nextTarget.instance = instancePtr;
+                            nextTarget.name = field.name;
+                            nextTarget.classHandle = field.classHandle;
+                            
+                            nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+                            nextTarget.cachedComponentNames.push_back(field.typeName);
+                            void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
 
-                    if (instancePtr)
-                    {
-                        InspectionTarget nextTarget;
-                        nextTarget.instance = instancePtr;
-                        nextTarget.name = field.name;
-                        nextTarget.classHandle = field.classHandle;
-                        
-                        nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
-                        nextTarget.cachedComponentNames.push_back(field.typeName);
-                        void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
+                            nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
+                            nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
+                            nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
 
-                        nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
-                        nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
-                        nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
-
-                        activeTab->navigationStack.push_back(std::move(nextTarget));
+                            activeTab->navigationStack.push_back(std::move(nextTarget));
+                        }
                     }
                 }
             }
@@ -754,7 +901,8 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
             
 			bool isArray = field->typeName.find("[]") != std::string::npos;
 			bool isList = field->typeName.find("System.Collections.Generic.List") != std::string::npos;
-			bool isCollection = !field->isStatic && field->editableType == EditableType::None && (isArray || isList);
+			bool isDictionary = field->typeName.find("System.Collections.Generic.Dictionary") != std::string::npos;
+			bool isCollection = !field->isStatic && (isArray || isList || isDictionary);
 
 			bool isExpanded = false;
 			void* collectionPtr = nullptr;
@@ -772,7 +920,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						collectionCount = static_cast<int>(arr->max_length);
 						arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(arr) + 0x20);
 					}
-					else
+					else if (isList)
 					{
 						auto list = reinterpret_cast<UT::List<uintptr_t>*>(collectionPtr);
 						collectionCount = list->size;
@@ -780,6 +928,14 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						{
 							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(list->pList) + 0x20);
 						}
+					}
+					else if (isDictionary)
+					{
+						Helper::SafeReadInt(collectionPtr, 0x20, collectionCount);
+						void* pEntries = nullptr;
+						Helper::SafeReadPointer(collectionPtr, 0x18, pEntries);
+						if (pEntries)
+							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(pEntries) + 0x20);
 					}
 					
 					collectionCount = std::max(0, std::min(collectionCount, 1000));
@@ -824,124 +980,146 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			}
 
 			ImGui::TableSetColumnIndex(1);
-			ImGui::TextUnformatted(field->typeName.c_str());
+			{
+				std::string shortType = SimplifyTypeName(field->typeName);
+				ImGui::TextUnformatted(shortType.c_str());
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::BeginTooltip();
+					ImGui::Text("%s", field->typeName.c_str());
+					ImGui::EndTooltip();
+				}
+			}
 
 			ImGui::TableSetColumnIndex(2);
 			RenderEditableField(instance, *field);
 
 			ImGui::TableSetColumnIndex(3);
-			if (!field->isStatic && field->editableType == EditableType::None && FieldEditor::IsPointerType(field->typeName))
-			{
-				ImGui::PushID(field->fieldHandle);
-				if (ImGui::SmallButton("Enter"))
-				{
-					if (auto activeTab = GetActiveTab())
-					{
-						void* instancePtr = nullptr;
-						
-						if (field->isValueType)
-						{
-							instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field->offset);
-						}
-						else
-						{
-							Helper::SafeReadPointer(instance, field->offset, instancePtr);
-						}
 
-						if (instancePtr)
-						{
-							InspectionTarget nextTarget;
-							nextTarget.instance = instancePtr;
-							nextTarget.name = field->name;
-							nextTarget.classHandle = field->classHandle;
-							
-							void* targetKlass = field->isValueType ? field->typeClassHandle : nullptr;
-
-							nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
-							nextTarget.cachedComponentNames.push_back(field->typeName);
-							nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
-							nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
-							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
-
-							activeTab->navigationStack.push_back(std::move(nextTarget));
-						}
-					}
-				}
-				ImGui::PopID();
-			}
 
 			if (isExpanded)
 			{
 				if (arrayDataStart)
 				{
-					std::string elementTypeName = "Element";
-					if (isArray)
+					if (isDictionary)
 					{
-						size_t pos = field->typeName.find("[]");
-						if (pos != std::string::npos) elementTypeName = field->typeName.substr(0, pos);
-					}
-					else if (isList)
-					{
-						size_t start = field->typeName.find("<");
-						size_t end = field->typeName.rfind(">");
-						if (start != std::string::npos && end != std::string::npos && end > start)
+						for (int i = 0; i < collectionCount; ++i)
 						{
-							elementTypeName = field->typeName.substr(start + 1, end - start - 1);
+							ImGui::TableNextRow();
+
+							ImGui::TableSetColumnIndex(0);
+							ImGui::Indent(15.0f);
+							ImGui::Text("[%d]", i);
+							ImGui::Unindent(15.0f);
+
+							void* entryKey = nullptr;
+							void* entryValue = nullptr;
+							Helper::SafeReadPointer(arrayDataStart, i * 24 + 8, entryKey);
+							Helper::SafeReadPointer(arrayDataStart, i * 24 + 16, entryValue);
+
+							ImGui::TableSetColumnIndex(1);
+							ImGui::TextDisabled("Entry");
+
+							ImGui::TableSetColumnIndex(2);
+							ImGui::Text("%p -> %p", entryKey, entryValue);
+
+							ImGui::TableSetColumnIndex(3);
+							if (entryValue)
+							{
+								ImGui::PushID(reinterpret_cast<intptr_t>(arrayDataStart) + i);
+								if (ImGui::SmallButton("Enter"))
+								{
+									if (auto activeTab = GetActiveTab())
+									{
+										InspectionTarget nextTarget;
+										nextTarget.instance = entryValue;
+										nextTarget.name = field->name + "[" + std::to_string(i) + "].Value";
+										nextTarget.classHandle = nullptr;
+
+										nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(entryValue));
+										nextTarget.cachedComponentNames.push_back("DictionaryValue");
+
+										nextTarget.cachedComponentFields.push_back(GetObjectFields(entryValue, nullptr));
+										nextTarget.cachedComponentProperties.push_back(GetObjectProperties(entryValue, nullptr));
+										nextTarget.cachedComponentMethods.push_back(GetObjectMethods(entryValue, nullptr));
+
+										activeTab->navigationStack.push_back(std::move(nextTarget));
+									}
+								}
+								ImGui::PopID();
+							}
 						}
-					}
-
-					for (int i = 0; i < collectionCount; ++i)
-					{
-						ImGui::TableNextRow();
-						
-						ImGui::TableSetColumnIndex(0);
-						ImGui::Indent(15.0f);
-						ImGui::Text("[%d]", i);
-						ImGui::Unindent(15.0f);
-						
-						ImGui::TableSetColumnIndex(1);
-						ImGui::TextDisabled("%s", elementTypeName.c_str());
-					
-					void* elementPtr = nullptr;
-					Helper::SafeReadPointer(arrayDataStart, i * sizeof(void*), elementPtr);
-
-					ImGui::TableSetColumnIndex(2);
-					if (elementPtr)
-					{
-						ImGui::TextDisabled("0x%p", elementPtr);
 					}
 					else
 					{
-						ImGui::TextDisabled("(null)");
-					}
-
-					ImGui::TableSetColumnIndex(3);
-					if (elementPtr)
-					{
-						ImGui::PushID(reinterpret_cast<intptr_t>(arrayDataStart) + i);
-						if (ImGui::SmallButton("Enter"))
+						std::string elementTypeName = "Element";
+						if (isArray)
 						{
-							if (auto activeTab = GetActiveTab())
+							size_t pos = field->typeName.find("[]");
+							if (pos != std::string::npos) elementTypeName = field->typeName.substr(0, pos);
+						}
+						else if (isList)
+						{
+							size_t start = field->typeName.find("<");
+							size_t end = field->typeName.rfind(">");
+							if (start != std::string::npos && end != std::string::npos && end > start)
 							{
-								InspectionTarget nextTarget;
-								nextTarget.instance = elementPtr;
-								nextTarget.name = field->name + "[" + std::to_string(i) + "]";
-								nextTarget.classHandle = nullptr; 
-								
-								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(elementPtr));
-								nextTarget.cachedComponentNames.push_back(elementTypeName);
-
-								nextTarget.cachedComponentFields.push_back(GetObjectFields(elementPtr, nullptr));
-								nextTarget.cachedComponentProperties.push_back(GetObjectProperties(elementPtr, nullptr));
-								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(elementPtr, nullptr));
-
-								activeTab->navigationStack.push_back(std::move(nextTarget));
+								elementTypeName = field->typeName.substr(start + 1, end - start - 1);
 							}
 						}
-						ImGui::PopID();
+
+						std::string shortElemType = SimplifyTypeName(elementTypeName);
+						ComponentFieldInfo elemInfo;
+						elemInfo.typeName = elementTypeName;
+						elemInfo.isStatic = false;
+						elemInfo.editableType = DetermineEditableType(elementTypeName, &elemInfo.enumTypeName);
+						
+						int elemSize = sizeof(void*);
+						elemInfo.isValueType = false;
+						
+						if (elemInfo.editableType == EditableType::Enum || elemInfo.editableType == EditableType::Int) {
+							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64") elemSize = 8;
+							else if (elementTypeName == "System.Int16" || elementTypeName == "System.UInt16" || elementTypeName == "System.Char") elemSize = 2;
+							else if (elementTypeName == "System.Byte" || elementTypeName == "System.SByte" || elementTypeName == "System.Boolean") elemSize = 1;
+							else elemSize = 4;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Float) { elemSize = 4; elemInfo.isValueType = true; }
+						else if (elemInfo.editableType == EditableType::Double) { elemSize = 8; elemInfo.isValueType = true; }
+						else if (elemInfo.editableType == EditableType::Bool) { elemSize = 1; elemInfo.isValueType = true; }
+						else if (elemInfo.editableType == EditableType::Vector2) { elemSize = 8; elemInfo.isValueType = true; }
+						else if (elemInfo.editableType == EditableType::Vector3) { elemSize = 12; elemInfo.isValueType = true; }
+						else if (elemInfo.editableType == EditableType::Vector4 || elemInfo.editableType == EditableType::Quaternion || elemInfo.editableType == EditableType::Color) { elemSize = 16; elemInfo.isValueType = true; }
+
+						for (int i = 0; i < collectionCount; ++i)
+						{
+							ImGui::TableNextRow();
+
+							ImGui::TableSetColumnIndex(0);
+							ImGui::Indent(15.0f);
+							ImGui::Text("[%d]", i);
+							ImGui::Unindent(15.0f);
+
+							ImGui::TableSetColumnIndex(1);
+							ImGui::TextUnformatted(shortElemType.c_str());
+							if (ImGui::IsItemHovered())
+							{
+								ImGui::BeginTooltip();
+								ImGui::Text("%s", elementTypeName.c_str());
+								ImGui::EndTooltip();
+							}
+
+							ImGui::TableSetColumnIndex(2);
+							ImGui::PushID(reinterpret_cast<intptr_t>(arrayDataStart) + i);
+							elemInfo.name = "[" + std::to_string(i) + "]";
+							elemInfo.offset = i * elemSize;
+							RenderEditableField(arrayDataStart, elemInfo);
+							ImGui::PopID();
+
+							ImGui::TableSetColumnIndex(3);
+						}
 					}
 				}
-				} // End of if (arrayDataStart)
 				ImGui::TreePop();
 			}
 		}
@@ -1012,7 +1190,16 @@ void Inspector::RenderPropertiesSection(void* instance, const std::vector<Compon
 				ImGui::PopStyleColor();
 
 			ImGui::TableSetColumnIndex(1);
-			ImGui::TextUnformatted(prop->typeName.c_str());
+			{
+				std::string shortType = SimplifyTypeName(prop->typeName);
+				ImGui::TextUnformatted(shortType.c_str());
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::BeginTooltip();
+					ImGui::Text("%s", prop->typeName.c_str());
+					ImGui::EndTooltip();
+				}
+			}
 
 			ImGui::TableSetColumnIndex(2);
 			RenderEditableProperty(instance, *prop);
@@ -1264,7 +1451,7 @@ void Inspector::RenderTabBar()
 		{
 			auto& tab = openTabs[i];
 
-			if (!Helper::SafeIsAlive(tab.gameObject))
+			if (tab.gameObject && !Helper::SafeIsAlive(tab.gameObject))
 				continue;
 
 			bool tabOpen = true;
@@ -1298,7 +1485,7 @@ void Inspector::RenderTabBar()
 
 void Inspector::RenderTabContent(InspectedObjectTab& tab)
 {
-	if (!Helper::SafeIsAlive(tab.gameObject))
+	if (tab.gameObject && !Helper::SafeIsAlive(tab.gameObject))
 	{
 		ImGui::TextDisabled("Object has been destroyed");
 		ImGui::Spacing();
@@ -1391,6 +1578,16 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	else if (target.instance)
 	{
 		ImGui::TextDisabled("Inspecting nested object at %p", target.instance);
+		ImGui::Spacing();
+		if (ImGui::BeginChild("Content", ImVec2(0, 0), false))
+		{
+			RenderComponentsSection(target, tab);
+		}
+		ImGui::EndChild();
+	}
+	else if (target.classHandle && !target.instance && !target.gameObject)
+	{
+		ImGui::TextDisabled("Inspecting static class at %p", target.classHandle);
 		ImGui::Spacing();
 		if (ImGui::BeginChild("Content", ImVec2(0, 0), false))
 		{
