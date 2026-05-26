@@ -95,7 +95,11 @@ public:
 	void Update(float deltaTime) override;
 	void Render() override;
 
+	static Inspector* GetInstance() { return s_Instance; }
+	void InspectInstance(void* instance, void* classHandle, const std::string& name);
+
 private:
+	static inline Inspector* s_Instance = nullptr;
 	bool showDetailsWindow = false;
 	std::vector<HierarchyNode> rootNodes;
 	char searchBuffer[256] = {};

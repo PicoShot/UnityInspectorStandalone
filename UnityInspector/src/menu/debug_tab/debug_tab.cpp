@@ -26,5 +26,9 @@ void DebugTab::Render()
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	ImGui::Text("Memory Scanner");
+	ImGui::Checkbox("Show Memory Scanner", &Config::settings.memoryScanner.showWindow);
+	ImGui::Text("(not usable, under development)");
+
 	ImGui::EndChild();
 }

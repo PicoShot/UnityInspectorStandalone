@@ -42,6 +42,11 @@ struct UserSettings
 		bool objectPickerEnabled = false;
 	} inspector;
 
+	struct MemoryScannerSettings
+	{
+		bool showWindow = false;
+	} memoryScanner;
+
 	Theme theme = Theme::DarkPlus;
 
 	void Load()

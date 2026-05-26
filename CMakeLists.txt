@@ -29,6 +29,7 @@ add_library(UnityInspector SHARED
     "UnityInspector/src/features/inspector/field_editor.cpp"
     "UnityInspector/src/features/inspector/inspector.cpp"
     "UnityInspector/src/features/inspector/utils.cpp"
+    "UnityInspector/src/features/memory_scanner/memory_scanner.cpp"
     "UnityInspector/src/features/inspector/hierarchy_window.cpp"
     "UnityInspector/src/features/inspector/inspector_window.cpp"
     "UnityInspector/src/features/inspector/invoke_popup.cpp"

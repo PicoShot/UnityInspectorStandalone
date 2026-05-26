@@ -180,7 +180,7 @@ static std::string SimplifyTypeName(const std::string& typeName)
 
 void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& field)
 {
-	if (!instance) return;
+	if (!instance && !field.isStatic) return;
 
 	ImGui::PushID(field.offset);
 

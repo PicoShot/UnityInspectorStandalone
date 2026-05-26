@@ -5,6 +5,8 @@ REGISTER_FEATURE(Inspector)
 
 void Inspector::Update(const float deltaTime)
 {
+	s_Instance = this;
+
 	const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole, ObjectPickerEnabled] = Config::settings.inspector;
 	if (!Enabled || !Config::state.showMenu) return;
 
@@ -278,6 +280,50 @@ void Inspector::OpenStaticInstanceInNewTab(const StaticInstanceNode& node)
 	
 	newTab.navigationStack.push_back(std::move(rootTarget));
 
+	openTabs.push_back(std::move(newTab));
+	activeTabIndex = static_cast<int>(openTabs.size()) - 1;
+	showDetailsWindow = true;
+}
+
+void Inspector::InspectInstance(void* instance, void* classHandle, const std::string& name)
+{
+	if (openTabs.size() >= maxTabs) return;
+
+	const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+
+	InspectedObjectTab newTab;
+	newTab.gameObject = nullptr;
+	newTab.tabName = name;
+
+	InspectionTarget rootTarget;
+	rootTarget.gameObject = nullptr;
+	rootTarget.instance = instance;
+	rootTarget.classHandle = classHandle;
+	rootTarget.name = name;
+
+	if (instance)
+	{
+		rootTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instance));
+		std::string className = "(Unknown)";
+		if (const char* cn = UR::Invoke<const char*, void*>(mono ? "mono_class_get_name" : "il2cpp_class_get_name", classHandle))
+			className = cn;
+		rootTarget.cachedComponentNames.push_back(className);
+		rootTarget.cachedComponentFields.push_back(GetObjectFields(instance, classHandle));
+		rootTarget.cachedComponentProperties.push_back(GetObjectProperties(instance, classHandle));
+		rootTarget.cachedComponentMethods.push_back(GetObjectMethods(instance, classHandle));
+	}
+	else
+	{
+		std::string className = "(Unknown)";
+		if (const char* cn = UR::Invoke<const char*, void*>(mono ? "mono_class_get_name" : "il2cpp_class_get_name", classHandle))
+			className = cn;
+		rootTarget.cachedComponentNames.push_back(className + " (static)");
+		rootTarget.cachedComponentFields.push_back(GetObjectFields(nullptr, classHandle));
+		rootTarget.cachedComponentProperties.push_back(GetObjectProperties(nullptr, classHandle));
+		rootTarget.cachedComponentMethods.push_back(GetObjectMethods(nullptr, classHandle));
+	}
+
+	newTab.navigationStack.push_back(std::move(rootTarget));
 	openTabs.push_back(std::move(newTab));
 	activeTabIndex = static_cast<int>(openTabs.size()) - 1;
 	showDetailsWindow = true;
