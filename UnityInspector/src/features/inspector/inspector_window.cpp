@@ -193,13 +193,36 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 		{
 		case EditableType::Int:
 		{
-			int val;
-			if (Helper::SafeGetStaticFieldInt(field.fieldHandle, val))
+			if (field.typeName == "System.Int64")
 			{
-				if (ImGui::DragInt("##val", &val))
-					Helper::SafeSetStaticFieldInt(field.fieldHandle, val);
+				int64_t val;
+				if (Helper::SafeGetStaticFieldInt64(field.fieldHandle, val))
+				{
+					if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+						Helper::SafeSetStaticFieldInt64(field.fieldHandle, val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
 			}
-			else { ImGui::TextDisabled("ERROR"); }
+			else if (field.typeName == "System.UInt64")
+			{
+				uint64_t val;
+				if (Helper::SafeGetStaticFieldUInt64(field.fieldHandle, val))
+				{
+					if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+						Helper::SafeSetStaticFieldUInt64(field.fieldHandle, val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+			}
+			else
+			{
+				int val;
+				if (Helper::SafeGetStaticFieldInt(field.fieldHandle, val))
+				{
+					if (ImGui::DragInt("##val", &val))
+						Helper::SafeSetStaticFieldInt(field.fieldHandle, val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+			}
 			break;
 		}
 		case EditableType::Float:
@@ -304,33 +327,56 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 		{
 		case EditableType::Int:
 		{
-			int val;
-			if (Helper::SafeReadInt(instance, field.offset, val))
+			if (field.typeName == "System.Int64")
 			{
-				if (field.enumTypeName.empty())
+				int64_t val;
+				if (Helper::SafeReadInt64(instance, field.offset, val))
 				{
-					if (ImGui::DragInt("##val", &val))
-						Helper::SafeWriteInt(instance, field.offset, val);
+					if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+						Helper::SafeWriteInt64(instance, field.offset, val);
 				}
-				else
-				{
-					const auto enumVals = GetEnumValues(field.enumTypeName);
-					int currentIdx = 0;
-					for (size_t i = 0; i < enumVals.size(); i++)
-					{
-						if (enumVals[i].second == val) { currentIdx = static_cast<int>(i); break; }
-					}
-					std::vector<const char*> names;
-					for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
-					if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
-					{
-						Helper::SafeWriteInt(instance, field.offset, enumVals[currentIdx].second);
-					}
-					ImGui::SameLine();
-					ImGui::Text("%d", val);
-				}
+				else { ImGui::TextDisabled("ERROR"); }
 			}
-			else { ImGui::TextDisabled("ERROR"); }
+			else if (field.typeName == "System.UInt64")
+			{
+				uint64_t val;
+				if (Helper::SafeReadUInt64(instance, field.offset, val))
+				{
+					if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+						Helper::SafeWriteUInt64(instance, field.offset, val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+			}
+			else
+			{
+				int val;
+				if (Helper::SafeReadInt(instance, field.offset, val))
+				{
+					if (field.enumTypeName.empty())
+					{
+						if (ImGui::DragInt("##val", &val))
+							Helper::SafeWriteInt(instance, field.offset, val);
+					}
+					else
+					{
+						const auto enumVals = GetEnumValues(field.enumTypeName);
+						int currentIdx = 0;
+						for (size_t i = 0; i < enumVals.size(); i++)
+						{
+							if (enumVals[i].second == val) { currentIdx = static_cast<int>(i); break; }
+						}
+						std::vector<const char*> names;
+						for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
+						if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
+						{
+							Helper::SafeWriteInt(instance, field.offset, enumVals[currentIdx].second);
+						}
+						ImGui::SameLine();
+						ImGui::Text("%d", val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+			}
 			break;
 		}
 		case EditableType::Float:
@@ -598,15 +644,42 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 	{
 	case EditableType::Int:
 	{
-		int val = 0;
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int)))
+		if (prop.typeName == "System.Int64")
 		{
-			if (prop.canWrite && ImGui::DragInt("##val", &val))
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
-			else if (!prop.canWrite)
-				ImGui::Text("%d", val);
+			int64_t val = 0;
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int64_t)))
+			{
+				if (prop.canWrite && ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				else if (!prop.canWrite)
+					ImGui::Text("%lld", val);
+			}
+			else { ImGui::TextDisabled("ERROR"); }
 		}
-		else { ImGui::TextDisabled("ERROR"); }
+		else if (prop.typeName == "System.UInt64")
+		{
+			uint64_t val = 0;
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(uint64_t)))
+			{
+				if (prop.canWrite && ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				else if (!prop.canWrite)
+					ImGui::Text("%llu", val);
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+		}
+		else
+		{
+			int val = 0;
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int)))
+			{
+				if (prop.canWrite && ImGui::DragInt("##val", &val))
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				else if (!prop.canWrite)
+					ImGui::Text("%d", val);
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+		}
 		break;
 	}
 	case EditableType::Float:

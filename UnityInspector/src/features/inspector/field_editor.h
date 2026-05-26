@@ -36,7 +36,7 @@ struct FieldEditorState
 	bool isValueType = false;
 
 	char stringBuffer[1024] = {};
-	int intValue = 0;
+	long long intValue = 0;
 	float floatValue = 0.0f;
 	bool boolValue = false;
 
@@ -74,7 +74,7 @@ private:
 	static UR::Class* GetPointerClass(const std::string& typeName);
 	void ReadFieldValue();
 	void WriteFieldValue();
-	void RenderIntEditor();
+	void RenderIntEditor(const std::string& typeName);
 	void RenderFloatEditor();
 	void RenderBoolEditor();
 	void RenderStringEditor();

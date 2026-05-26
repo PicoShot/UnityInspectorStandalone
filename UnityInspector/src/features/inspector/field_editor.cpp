@@ -282,7 +282,7 @@ void FieldEditor::Render()
 			}
 			else
 			{
-				RenderIntEditor();
+				RenderIntEditor(typeName);
 			}
 		}
 		else
@@ -428,15 +428,15 @@ void FieldEditor::ReadValueFromAddress(void* addr, const std::string& typeName, 
 	}
 	else if (typeName == "System.Int64" || typeName == "System.UInt64")
 	{
-		state.intValue = static_cast<int>(*static_cast<int64_t*>(addr));
+		state.intValue = *static_cast<int64_t*>(addr);
 	}
 	else if (typeName == "System.Int16" || typeName == "System.UInt16")
 	{
-		state.intValue = static_cast<int>(*static_cast<int16_t*>(addr));
+		state.intValue = *static_cast<int16_t*>(addr);
 	}
 	else if (typeName == "System.Byte" || typeName == "System.SByte")
 	{
-		state.intValue = static_cast<int>(*static_cast<uint8_t*>(addr));
+		state.intValue = *static_cast<uint8_t*>(addr);
 	}
 	else
 	{
@@ -572,7 +572,7 @@ void FieldEditor::ReadFieldValue()
 			{
 				int64_t val = 0;
 				field->GetStaticValue(&val);
-				state.intValue = static_cast<int>(val);
+				state.intValue = val;
 			}
 		}
 		else if (state.targetInstance)
@@ -660,10 +660,13 @@ void FieldEditor::WriteFieldValue()
 	catch (...) {}
 }
 
-void FieldEditor::RenderIntEditor()
+void FieldEditor::RenderIntEditor(const std::string& typeName)
 {
 	ImGui::Text("Value:");
-	ImGui::InputInt("##int_value", &state.intValue);
+	if (typeName == "System.UInt64")
+		ImGui::InputScalar("##int_value", ImGuiDataType_U64, reinterpret_cast<uint64_t*>(&state.intValue));
+	else
+		ImGui::InputScalar("##int_value", ImGuiDataType_S64, &state.intValue);
 }
 
 void FieldEditor::RenderFloatEditor()

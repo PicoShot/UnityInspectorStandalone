@@ -100,6 +100,50 @@ namespace Helper
 		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 	}
 
+	bool SafeReadInt64(void* ptr, const int offset, int64_t& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<int64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeWriteInt64(void* ptr, const int offset, const int64_t value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<int64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeReadUInt64(void* ptr, const int offset, uint64_t& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeWriteUInt64(void* ptr, const int offset, const uint64_t value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
 	bool SafeReadFloat(void* ptr, const int offset, float& outValue)
 	{
 		if (!ptr || offset < 0) return false;
@@ -332,6 +376,86 @@ namespace Helper
 			else
 			{
 				UR::Invoke<void, void*, int*>("il2cpp_field_static_set_value", fieldHandle, &value);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldInt64(void* fieldHandle, int64_t& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, int64_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, int64_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldInt64(void* fieldHandle, int64_t value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, int64_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, int64_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldUInt64(void* fieldHandle, uint64_t& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, uint64_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, uint64_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldUInt64(void* fieldHandle, uint64_t value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, uint64_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, uint64_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
 			}
 			return true;
 		}

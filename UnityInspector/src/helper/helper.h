@@ -21,6 +21,10 @@ namespace Helper
 
 	bool SafeReadInt(void* ptr, int offset, int& outValue);
 	bool SafeWriteInt(void* ptr, int offset, int value);
+	bool SafeReadInt64(void* ptr, int offset, int64_t& outValue);
+	bool SafeWriteInt64(void* ptr, int offset, int64_t value);
+	bool SafeReadUInt64(void* ptr, int offset, uint64_t& outValue);
+	bool SafeWriteUInt64(void* ptr, int offset, uint64_t value);
 	bool SafeReadFloat(void* ptr, int offset, float& outValue);
 	bool SafeWriteFloat(void* ptr, int offset, float value);
 	bool SafeReadDouble(void* ptr, int offset, double& outValue);
@@ -43,6 +47,10 @@ namespace Helper
 
 	bool SafeGetStaticFieldInt(void* fieldHandle, int& outValue);
 	bool SafeSetStaticFieldInt(void* fieldHandle, int value);
+	bool SafeGetStaticFieldInt64(void* fieldHandle, int64_t& outValue);
+	bool SafeSetStaticFieldInt64(void* fieldHandle, int64_t value);
+	bool SafeGetStaticFieldUInt64(void* fieldHandle, uint64_t& outValue);
+	bool SafeSetStaticFieldUInt64(void* fieldHandle, uint64_t value);
 	bool SafeGetStaticFieldFloat(void* fieldHandle, float& outValue);
 	bool SafeSetStaticFieldFloat(void* fieldHandle, float value);
 	bool SafeGetStaticFieldBool(void* fieldHandle, bool& outValue);
