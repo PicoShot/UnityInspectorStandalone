@@ -64,6 +64,8 @@ struct FieldEditor final
 	static bool IsStringType(const std::string& typeName);
 	static bool IsPointerType(const std::string& typeName);
 
+	static std::string FormatFieldValue(void* addr, const std::string& typeName);
+
 private:
 	FieldEditorState state;
 	std::vector<std::unique_ptr<FieldEditor>> nestedEditors;
@@ -85,5 +87,4 @@ private:
 
 	static void ReadValueFromAddress(void* addr, const std::string& typeName, FieldEditorState& state);
 	static void WriteValueToAddress(void* addr, const std::string& typeName, const FieldEditorState& state);
-	static std::string FormatFieldValue(void* addr, const std::string& typeName);
 };

@@ -177,15 +177,104 @@ static std::string SimplifyTypeName(const std::string& typeName)
 	return result;
 }
 
+static int AlignUp(int value, int alignment)
+{
+	return (value + alignment - 1) & ~(alignment - 1);
+}
 
-void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& field)
+static int GetTypeSize(const std::string& typeName)
+{
+	if (typeName == "System.Boolean" || typeName == "System.Byte" || typeName == "System.SByte") return 1;
+	if (typeName == "System.Int16" || typeName == "System.UInt16" || typeName == "System.Char") return 2;
+	if (typeName == "System.Int32" || typeName == "System.UInt32" || typeName == "System.Single") return 4;
+	if (typeName == "System.Int64" || typeName == "System.UInt64" || typeName == "System.Double") return 8;
+	if (typeName == "UnityEngine.Vector2") return 8;
+	if (typeName == "UnityEngine.Vector3") return 12;
+	if (typeName == "UnityEngine.Vector4" || typeName == "UnityEngine.Quaternion" || typeName == "UnityEngine.Color")
+		return 16;
+	return static_cast<int>(sizeof(void*));
+}
+
+static int GetTypeAlignment(const std::string& typeName)
+{
+	if (typeName == "System.Boolean" || typeName == "System.Byte" || typeName == "System.SByte") return 1;
+	if (typeName == "System.Int16" || typeName == "System.UInt16" || typeName == "System.Char") return 2;
+	if (typeName == "System.Int32" || typeName == "System.UInt32" || typeName == "System.Single") return 4;
+	if (typeName == "System.Int64" || typeName == "System.UInt64" || typeName == "System.Double") return 8;
+	if (typeName == "UnityEngine.Vector2") return 4;
+	if (typeName == "UnityEngine.Vector3") return 4;
+	if (typeName == "UnityEngine.Vector4" || typeName == "UnityEngine.Quaternion" || typeName == "UnityEngine.Color")
+		return 4;
+	return static_cast<int>(sizeof(void*));
+}
+
+static bool IsDefinitelyValueType(const std::string& typeName)
+{
+	if (typeName == "System.String" || typeName == "System.Object") return false;
+	if (typeName.starts_with("System.")) return true;
+	if (typeName.starts_with("UnityEngine.Vector") || typeName == "UnityEngine.Quaternion" || typeName ==
+		"UnityEngine.Color") return true;
+	return false;
+}
+
+static bool ParseDictionaryTypes(const std::string& typeName, std::string& outKeyType, std::string& outValueType)
+{
+	size_t dictPos = typeName.find("Dictionary");
+	if (dictPos == std::string::npos) return false;
+
+	size_t angleStart = typeName.find('<', dictPos);
+	if (angleStart == std::string::npos)
+	{
+		// Try backtick format: Dictionary`2[TKey, TValue]
+		angleStart = typeName.find('[', dictPos);
+		if (angleStart == std::string::npos) return false;
+	}
+
+	char closeChar = (typeName[angleStart] == '<') ? '>' : ']';
+	size_t angleEnd = typeName.rfind(closeChar);
+	if (angleEnd == std::string::npos || angleEnd <= angleStart) return false;
+
+	std::string inner = typeName.substr(angleStart + 1, angleEnd - angleStart - 1);
+
+	int depth = 0;
+	size_t commaPos = std::string::npos;
+	for (size_t i = 0; i < inner.size(); ++i)
+	{
+		if (inner[i] == '<' || inner[i] == '[') depth++;
+		else if (inner[i] == '>' || inner[i] == ']') depth--;
+		else if (inner[i] == ',' && depth == 0)
+		{
+			commaPos = i;
+			break;
+		}
+	}
+
+	if (commaPos == std::string::npos) return false;
+
+	outKeyType = inner.substr(0, commaPos);
+	outValueType = inner.substr(commaPos + 1);
+
+	auto trim = [](std::string& s)
+	{
+		while (!s.empty() && s[0] == ' ') s.erase(s.begin());
+		while (!s.empty() && s.back() == ' ') s.pop_back();
+	};
+	trim(outKeyType);
+	trim(outValueType);
+
+	return true;
+}
+
+void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& field, const float itemWidth)
 {
 	if (!instance && !field.isStatic) return;
 
 	ImGui::PushID(field.offset);
 
-	const float availWidth = ImGui::GetContentRegionAvail().x;
-	ImGui::SetNextItemWidth(availWidth);
+	if (itemWidth > 0.0f)
+		ImGui::SetNextItemWidth(itemWidth);
+	else
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
 	if (field.isStatic)
 	{
@@ -1334,28 +1423,107 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 				{
 					if (isDictionary)
 					{
+						std::string dictKeyType, dictValueType;
+						bool hasDictTypes = ParseDictionaryTypes(field->typeName, dictKeyType, dictValueType);
+
+						int keyOffset = 8, valueOffset = 16, entryStride = 24;
+						bool valueIsReference = true;
+
+						if (hasDictTypes)
+						{
+							int keySize = GetTypeSize(dictKeyType);
+							int keyAlign = GetTypeAlignment(dictKeyType);
+							int valueSize = GetTypeSize(dictValueType);
+							int valueAlign = GetTypeAlignment(dictValueType);
+
+							keyOffset = AlignUp(8, keyAlign);
+							valueOffset = AlignUp(keyOffset + keySize, valueAlign);
+							int structAlign = std::max({4, keyAlign, valueAlign});
+							entryStride = AlignUp(valueOffset + valueSize, structAlign);
+							valueIsReference = !IsDefinitelyValueType(dictValueType);
+						}
+
 						for (int i = 0; i < collectionCount; ++i)
 						{
 							ImGui::TableNextRow();
+
+							void* entryAddr = nullptr;
+							if (hasDictTypes)
+							{
+								entryAddr = reinterpret_cast<void*>(
+									reinterpret_cast<uintptr_t>(arrayDataStart) + i * entryStride);
+							}
 
 							ImGui::TableSetColumnIndex(0);
 							ImGui::Indent(15.0f);
 							ImGui::Text("[%d]", i);
 							ImGui::Unindent(15.0f);
 
-							void* entryKey = nullptr;
-							void* entryValue = nullptr;
-							Helper::SafeReadPointer(arrayDataStart, i * 24 + 8, entryKey);
-							Helper::SafeReadPointer(arrayDataStart, i * 24 + 16, entryValue);
-
 							ImGui::TableSetColumnIndex(1);
-							ImGui::TextDisabled("Entry");
+							if (hasDictTypes)
+							{
+								std::string keyShort = SimplifyTypeName(dictKeyType);
+								std::string valueShort = SimplifyTypeName(dictValueType);
+								ImGui::TextDisabled("%s -> %s", keyShort.c_str(), valueShort.c_str());
+							}
+							else
+							{
+								ImGui::TextDisabled("Entry");
+							}
 
 							ImGui::TableSetColumnIndex(2);
-							ImGui::Text("%p -> %p", entryKey, entryValue);
+							if (hasDictTypes)
+							{
+								float availW = ImGui::GetContentRegionAvail().x;
+								float editorW = (availW - 30.0f) * 0.45f;
+
+								ComponentFieldInfo keyInfo;
+								keyInfo.typeName = dictKeyType;
+								keyInfo.offset = keyOffset;
+								keyInfo.isStatic = false;
+								keyInfo.editableType = DetermineEditableType(dictKeyType, &keyInfo.enumTypeName);
+
+								ComponentFieldInfo valueInfo;
+								valueInfo.typeName = dictValueType;
+								valueInfo.offset = valueOffset;
+								valueInfo.isStatic = false;
+								valueInfo.editableType = DetermineEditableType(dictValueType, &valueInfo.enumTypeName);
+
+								ImGui::PushID(i * 2);
+								RenderEditableField(entryAddr, keyInfo, editorW);
+								ImGui::PopID();
+
+								ImGui::SameLine();
+								ImGui::Text("->");
+								ImGui::SameLine();
+
+								ImGui::PushID(i * 2 + 1);
+								RenderEditableField(entryAddr, valueInfo, editorW);
+								ImGui::PopID();
+							}
+							else
+							{
+								void* entryKey = nullptr;
+								void* entryValue = nullptr;
+								Helper::SafeReadPointer(arrayDataStart, i * 24 + 8, entryKey);
+								Helper::SafeReadPointer(arrayDataStart, i * 24 + 16, entryValue);
+								ImGui::Text("%p -> %p", entryKey, entryValue);
+							}
 
 							ImGui::TableSetColumnIndex(3);
-							if (entryValue)
+							void* valuePtr = nullptr;
+							if (hasDictTypes)
+							{
+								if (valueIsReference)
+								{
+									Helper::SafeReadPointer(entryAddr, valueOffset, valuePtr);
+								}
+							}
+							else
+							{
+								Helper::SafeReadPointer(arrayDataStart, i * 24 + 16, valuePtr);
+							}
+							if (valuePtr)
 							{
 								ImGui::PushID(reinterpret_cast<intptr_t>(arrayDataStart) + i);
 								if (ImGui::SmallButton("Enter"))
@@ -1363,20 +1531,20 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 									if (auto activeTab = GetActiveTab())
 									{
 										InspectionTarget nextTarget;
-										nextTarget.instance = entryValue;
+										nextTarget.instance = valuePtr;
 										nextTarget.name = field->name + "[" + std::to_string(i) + "].Value";
 										nextTarget.classHandle = nullptr;
 
 										nextTarget.cachedComponents.push_back(
-											reinterpret_cast<UT::Component*>(entryValue));
+											reinterpret_cast<UT::Component*>(valuePtr));
 										nextTarget.cachedComponentNames.push_back("DictionaryValue");
 
 										nextTarget.cachedComponentFields.
-										           push_back(GetObjectFields(entryValue, nullptr));
+										           push_back(GetObjectFields(valuePtr, nullptr));
 										nextTarget.cachedComponentProperties.push_back(
-											GetObjectProperties(entryValue, nullptr));
+											GetObjectProperties(valuePtr, nullptr));
 										nextTarget.cachedComponentMethods.push_back(
-											GetObjectMethods(entryValue, nullptr));
+											GetObjectMethods(valuePtr, nullptr));
 
 										activeTab->navigationStack.push_back(std::move(nextTarget));
 									}

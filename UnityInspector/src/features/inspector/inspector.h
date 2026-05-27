@@ -145,17 +145,22 @@ private:
 	void RenderTabContent(InspectedObjectTab& tab);
 	void RenderTransformSection(UT::Transform* transform, InspectedObjectTab& tab) const;
 	void RenderComponentsSection(InspectionTarget& target, InspectedObjectTab& tab);
-	void RenderFieldsSection(void* instance, const std::vector<ComponentFieldInfo>& fields, InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex);
-	void RenderPropertiesSection(void* instance, const std::vector<ComponentPropertyInfo>& properties, InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex) const;
-	void RenderMethodsSection(void* instance, const std::vector<ComponentMethodInfo>& methods, InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex);
+	void RenderFieldsSection(void* instance, const std::vector<ComponentFieldInfo>& fields, InspectionTarget& target,
+	                         InspectedObjectTab& tab, size_t componentIndex);
+	void RenderPropertiesSection(void* instance, const std::vector<ComponentPropertyInfo>& properties,
+	                             InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex) const;
+	void RenderMethodsSection(void* instance, const std::vector<ComponentMethodInfo>& methods, InspectionTarget& target,
+	                          InspectedObjectTab& tab, size_t componentIndex);
 	void RenderMethodInvokePopup();
 	void DrawSelectedObjectBoundingBox() const;
 	void ProcessObjectPicker();
 
 	bool PassesComponentFilter(const std::string& componentName, const char* pSearchBuffer) const;
-	bool PassesFieldFilter(const ComponentFieldInfo& field, const char* pSearchBuffer, bool editableOnly, bool staticOnly, bool instanceOnly) const;
+	bool PassesFieldFilter(const ComponentFieldInfo& field, const char* pSearchBuffer, bool editableOnly,
+	                       bool staticOnly, bool instanceOnly) const;
 	bool PassesPropertyFilter(const ComponentPropertyInfo& prop, const char* pSearchBuffer, bool editableOnly) const;
-	bool PassesMethodFilter(const ComponentMethodInfo& method, const char* pSearchBuffer, bool staticOnly, bool instanceOnly) const;
+	bool PassesMethodFilter(const ComponentMethodInfo& method, const char* pSearchBuffer, bool staticOnly,
+	                        bool instanceOnly) const;
 
 	std::string GetComponentTypeName(UT::Component* component) const;
 	std::vector<ComponentFieldInfo> GetObjectFields(void* obj, void* klass) const;
@@ -166,8 +171,8 @@ private:
 	std::vector<ComponentMethodInfo> GetComponentMethods(UT::Component* component) const;
 
 	std::string BuildObjectPath(UT::Transform* transform) const;
-	void RenderEditableField(void* instance, const ComponentFieldInfo& field);
+	void RenderEditableField(void* instance, const ComponentFieldInfo& field, float itemWidth = -1.0f);
 	void RenderEditableProperty(void* instance, const ComponentPropertyInfo& prop) const;
-	void* InvokeMethod(void* instance, const ComponentMethodInfo& method, const std::vector<std::string>& paramValues) const;
-
+	void* InvokeMethod(void* instance, const ComponentMethodInfo& method,
+	                   const std::vector<std::string>& paramValues) const;
 };
