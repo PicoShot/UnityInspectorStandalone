@@ -36,7 +36,7 @@ std::string DebugConsole::GetCallingSource()
 	static auto* stackTraceClass = unityCore->Get("StackTrace", "System.Diagnostics");
 	if (!stackTraceClass) return "";
 
-	auto* mGetFrame = stackTraceClass->Get<UR::Method>("GetFrame", { "System.Int32" });
+	auto* mGetFrame = stackTraceClass->Get<UR::Method>("GetFrame", {"System.Int32"});
 	if (!mGetFrame) return "";
 
 	auto* frame = mGetFrame->Invoke<void*, int>(0);
@@ -76,7 +76,8 @@ std::string DebugConsole::GetCallingSource()
 			{
 				if (auto* mGetFullName = typeClass->Get<UR::Method>("get_FullName"))
 				{
-					if (const auto* fullNameStr = mGetFullName->Invoke<UT::String*, void*>(type)) className = fullNameStr->ToString();
+					if (const auto* fullNameStr = mGetFullName->Invoke<UT::String*, void*>(type)) className =
+						fullNameStr->ToString();
 				}
 			}
 		}
@@ -94,7 +95,8 @@ void DebugConsole::Render()
 	RenderConsoleWindow();
 }
 
-void DebugConsole::AddLog(const std::string& message, LogType type, const std::string& stackTrace, const std::string& source)
+void DebugConsole::AddLog(const std::string& message, LogType type, const std::string& stackTrace,
+                          const std::string& source)
 {
 	std::scoped_lock lock(logMutex);
 
@@ -156,15 +158,15 @@ bool DebugConsole::PassesFilter(const LogEntry& entry) const
 	if (filterBuffer[0] == '\0') return true;
 
 	std::string filter = filterBuffer;
-	std::ranges::transform(filter, filter.begin(), ::tolower);
+	std::ranges::transform(filter, filter.begin(), tolower);
 
 	std::string message = entry.message;
-	std::ranges::transform(message, message.begin(), ::tolower);
+	std::ranges::transform(message, message.begin(), tolower);
 
 	if (message.find(filter) != std::string::npos) return true;
 
 	std::string source = entry.source;
-	std::ranges::transform(source, source.begin(), ::tolower);
+	std::ranges::transform(source, source.begin(), tolower);
 
 	return source.find(filter) != std::string::npos;
 }
@@ -209,7 +211,8 @@ void DebugConsole::RenderConsoleWindow()
 	ImGui::SetNextWindowSize(ImVec2(900, 500), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
 
-	if (constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar; !ImGui::Begin("Debug Console", &Config::settings.inspector.showDebugConsole, windowFlags))
+	if (constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar; !ImGui::Begin(
+		"Debug Console", &Config::settings.inspector.showDebugConsole, windowFlags))
 	{
 		ImGui::End();
 		return;

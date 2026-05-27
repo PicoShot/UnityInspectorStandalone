@@ -56,14 +56,14 @@ void Inspector::RenderMethodInvokePopup()
 					}
 					break;
 				case EditableType::Bool:
-				{
-					bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
-					if (ImGui::Checkbox("##param", &val))
 					{
-						invokeState.parameterValues[i] = val ? "true" : "false";
+						bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
+						if (ImGui::Checkbox("##param", &val))
+						{
+							invokeState.parameterValues[i] = val ? "true" : "false";
+						}
+						break;
 					}
-					break;
-				}
 				default:
 					if (ImGui::InputText("##param", buf, sizeof(buf)))
 					{
@@ -93,7 +93,9 @@ void Inspector::RenderMethodInvokePopup()
 				{
 					const EditableType retType = DetermineEditableType(invokeState.method.returnTypeName);
 					void* unboxed = UR::Invoke<void*, void*>(
-						Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_object_unbox" : "il2cpp_object_unbox", result);
+						Config::state.unityMode == UnityResolve::Mode::Mono
+							? "mono_object_unbox"
+							: "il2cpp_object_unbox", result);
 
 					if (unboxed)
 					{
@@ -112,7 +114,8 @@ void Inspector::RenderMethodInvokePopup()
 							invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
 							break;
 						default:
-							invokeState.resultText = std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
+							invokeState.resultText = std::format("(object: 0x{:X})",
+							                                     reinterpret_cast<uintptr_t>(result));
 							break;
 						}
 					}

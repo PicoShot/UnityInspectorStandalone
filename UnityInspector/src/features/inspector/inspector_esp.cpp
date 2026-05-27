@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "inspector.h"
+#include "helper/helper.h"
 
 void Inspector::DrawSelectedObjectBoundingBox() const
 {
@@ -46,7 +47,7 @@ void Inspector::ProcessObjectPicker()
 		if (ImGui::GetIO().WantCaptureMouse) return;
 
 		const ImVec2 mousePos = io.MousePos;
-		const Vec2 screenPos = { mousePos.x, mousePos.y };
+		const Vec2 screenPos = {mousePos.x, mousePos.y};
 
 		if (GameObject* hitObj = Helper::RaycastPick(screenPos))
 		{

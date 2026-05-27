@@ -1,10 +1,5 @@
 #pragma once
 #include "config/config.h"
-#include "helper/helper.h"
-
-#include <vector>
-#include <memory>
-#include <functional>
 
 class IFeature
 {
@@ -18,6 +13,7 @@ public:
 namespace Features
 {
 	using Factory = std::function<std::unique_ptr<IFeature>()>;
+
 	inline std::vector<Factory>& GetRegistry()
 	{
 		static std::vector<Factory> registry;

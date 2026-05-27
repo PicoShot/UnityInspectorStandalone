@@ -963,7 +963,7 @@ namespace Helper
 		catch (...) { return false; }
 	}
 
-	bool IsValidReadPtr(void* ptr, size_t size = 8)
+	bool IsValidReadPtr(const void* ptr)
 	{
 		if (!ptr) return false;
 		MEMORY_BASIC_INFORMATION mbi;
@@ -977,7 +977,7 @@ namespace Helper
 	{
 		// Allocate a large buffer on the stack to prevent buffer overflows if the static field is a large struct (Value Type).
 		// il2cpp_field_static_get_value writes the entire struct into the provided pointer. If it's an object (Reference Type), it writes 8 bytes.
-		alignas(16) char safeBuffer[8192] = {0};
+		alignas(16) char safeBuffer[8192] = {};
 
 		if (Config::state.unityMode == UnityResolve::Mode::Mono)
 		{
@@ -991,7 +991,7 @@ namespace Helper
 			UR::Invoke<void, void*, void*>("il2cpp_field_static_get_value", fieldHandle, safeBuffer);
 		}
 
-		outValue = *(void**)safeBuffer;
+		outValue = *reinterpret_cast<void**>(safeBuffer);
 	}
 
 	bool SafeGetStaticFieldPointer(void* fieldHandle, void*& outValue)
@@ -1011,10 +1011,7 @@ namespace Helper
 		{
 			return UR::Invoke<void*, void*>("mono_object_get_class", obj);
 		}
-		else
-		{
-			return UR::Invoke<void*, void*>("il2cpp_object_get_class", obj);
-		}
+		return UR::Invoke<void*, void*>("il2cpp_object_get_class", obj);
 	}
 
 	void* SafeGetObjectClass(void* obj)
@@ -1034,11 +1031,8 @@ namespace Helper
 			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, nullptr,
 			                                                      nullptr);
 		}
-		else
-		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, nullptr,
-			                                                      nullptr);
-		}
+		return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, nullptr,
+		                                                      nullptr);
 	}
 
 	__declspec(noinline) void* DoSafeUnbox(void* result)
@@ -1052,11 +1046,9 @@ namespace Helper
 		if (!methodHandle) return false;
 		__try
 		{
-			void* result = DoSafeInvokeGetter(obj, methodHandle);
-			if (result && outValue)
+			if (void* result = DoSafeInvokeGetter(obj, methodHandle); result && outValue)
 			{
-				void* unboxed = DoSafeUnbox(result);
-				if (unboxed)
+				if (void* unboxed = DoSafeUnbox(result))
 				{
 					memcpy(outValue, unboxed, valueSize);
 				}
@@ -1097,11 +1089,8 @@ namespace Helper
 			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params,
 			                                                      nullptr);
 		}
-		else
-		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params,
-			                                                      nullptr);
-		}
+		return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params,
+		                                                      nullptr);
 	}
 
 	void* SafeInvokeMethod(void* obj, void* methodHandle, void** params, bool& success)
@@ -1433,11 +1422,11 @@ namespace Helper
 		}
 	}
 
-	static bool SafePhysicsRaycast(const Ray& ray, const RaycastHit* hit, float maxDist)
+	static bool SafePhysicsRaycast(const Ray& ray, const RaycastHit* hit)
 	{
 		__try
 		{
-			return Physics::Raycast(ray, hit, maxDist);
+			return Physics::Raycast(ray, hit, 1000000000.f);
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
@@ -1468,7 +1457,7 @@ namespace Helper
 		const Ray ray = camera->ScreenPointToRay(unityScreenPos);
 
 		RaycastHit hit{};
-		if (!SafePhysicsRaycast(ray, &hit, 1000.0f)) return nullptr;
+		if (!SafePhysicsRaycast(ray, &hit)) return nullptr;
 		if (hit.m_Collider == 0) return nullptr;
 
 		auto* obj = SafeFindObjectFromInstanceID(hit.m_Collider);

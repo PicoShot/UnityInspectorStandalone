@@ -19,28 +19,28 @@ namespace Input
 		switch (action)
 		{
 		case InputAction::ToggleMenu:
-		{
-			auto& showMenu = Config::state.showMenu;
-			showMenu = !showMenu;
-			ImGui::GetIO().MouseDrawCursor = showMenu;
-			ClipCursor(nullptr);
+			{
+				auto& showMenu = Config::state.showMenu;
+				showMenu = !showMenu;
+				ImGui::GetIO().MouseDrawCursor = showMenu;
+				ClipCursor(nullptr);
 
-			if (Config::settings.ini.external_overlay)
-				ExternalOverlay::SetInputCapture(showMenu);
-			break;
-		}
+				if (Config::settings.ini.external_overlay)
+					ExternalOverlay::SetInputCapture(showMenu);
+				break;
+			}
 		case InputAction::ToggleCursor:
-		{
-			auto& showCursor = Config::state.showCursor;
-			showCursor = !showCursor;
-			showCursor ? ShowCursor(TRUE) : ShowCursor(FALSE);
-			break;
-		}
+			{
+				auto& showCursor = Config::state.showCursor;
+				showCursor = !showCursor;
+				showCursor ? ShowCursor(TRUE) : ShowCursor(FALSE);
+				break;
+			}
 		case InputAction::UnlockCursor:
-		{
-			ClipCursor(nullptr);
-			break;
-		}
+			{
+				ClipCursor(nullptr);
+				break;
+			}
 		}
 	}
 
@@ -50,9 +50,12 @@ namespace Input
 		{
 			switch (wParam)
 			{
-			case VK_INSERT: TriggerAction(InputAction::ToggleMenu); return true;
-			case VK_F5:     TriggerAction(InputAction::ToggleCursor); return true;
-			case VK_F6:     TriggerAction(InputAction::UnlockCursor); return true;
+			case VK_INSERT: TriggerAction(InputAction::ToggleMenu);
+				return true;
+			case VK_F5: TriggerAction(InputAction::ToggleCursor);
+				return true;
+			case VK_F6: TriggerAction(InputAction::UnlockCursor);
+				return true;
 			default: break;
 			}
 		}
@@ -61,7 +64,7 @@ namespace Input
 
 	void ProcessExternal()
 	{
-		if (InputForwarder::IsMenuTogglePressed())   TriggerAction(InputAction::ToggleMenu);
+		if (InputForwarder::IsMenuTogglePressed()) TriggerAction(InputAction::ToggleMenu);
 		if (InputForwarder::IsCursorTogglePressed()) TriggerAction(InputAction::ToggleCursor);
 		if (InputForwarder::IsCursorUnlockPressed()) TriggerAction(InputAction::UnlockCursor);
 	}

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "inspector.h"
+#include "helper/helper.h"
 
 static void QuaternionToEuler(float x, float y, float z, float w, float outEuler[3])
 {
@@ -125,17 +126,14 @@ static std::string SimplifyTypeName(const std::string& typeName)
 		{"System.Char", "char"}, {"System.Void", "void"}, {"System.Object", "object"}
 	};
 
-	auto it = primitiveMap.find(typeName);
-	if (it != primitiveMap.end())
+	if (auto it = primitiveMap.find(typeName); it != primitiveMap.end())
 		return it->second;
 
 	std::string result = typeName;
 
-	size_t angleBracketPos = result.find('<');
-	if (angleBracketPos != std::string::npos)
+	if (size_t angleBracketPos = result.find('<'); angleBracketPos != std::string::npos)
 	{
-		size_t lastAngle = result.rfind('>');
-		if (lastAngle != std::string::npos && lastAngle > angleBracketPos)
+		if (size_t lastAngle = result.rfind('>'); lastAngle != std::string::npos && lastAngle > angleBracketPos)
 		{
 			std::string outerPart = result.substr(0, angleBracketPos);
 			std::string innerPart = result.substr(angleBracketPos + 1, lastAngle - angleBracketPos - 1);
@@ -158,20 +156,17 @@ static std::string SimplifyTypeName(const std::string& typeName)
 				}
 			}
 
-			size_t lastDot = outerPart.rfind('.');
-			if (lastDot != std::string::npos)
+			if (size_t lastDot = outerPart.rfind('.'); lastDot != std::string::npos)
 				outerPart = outerPart.substr(lastDot + 1);
 
-			size_t backtick = outerPart.find('`');
-			if (backtick != std::string::npos)
+			if (size_t backtick = outerPart.find('`'); backtick != std::string::npos)
 				outerPart = outerPart.substr(0, backtick);
 
 			return outerPart + "<" + simplifiedInner + ">" + result.substr(lastAngle + 1);
 		}
 	}
 
-	size_t lastDot = result.rfind('.');
-	if (lastDot != std::string::npos)
+	if (size_t lastDot = result.rfind('.'); lastDot != std::string::npos)
 		return result.substr(lastDot + 1);
 
 	return result;
@@ -192,7 +187,7 @@ static int GetTypeSize(const std::string& typeName)
 	if (typeName == "UnityEngine.Vector3") return 12;
 	if (typeName == "UnityEngine.Vector4" || typeName == "UnityEngine.Quaternion" || typeName == "UnityEngine.Color")
 		return 16;
-	return static_cast<int>(sizeof(void*));
+	return sizeof(void*);
 }
 
 static int GetTypeAlignment(const std::string& typeName)
@@ -205,7 +200,7 @@ static int GetTypeAlignment(const std::string& typeName)
 	if (typeName == "UnityEngine.Vector3") return 4;
 	if (typeName == "UnityEngine.Vector4" || typeName == "UnityEngine.Quaternion" || typeName == "UnityEngine.Color")
 		return 4;
-	return static_cast<int>(sizeof(void*));
+	return sizeof(void*);
 }
 
 static bool IsDefinitelyValueType(const std::string& typeName)
@@ -213,7 +208,8 @@ static bool IsDefinitelyValueType(const std::string& typeName)
 	if (typeName == "System.String" || typeName == "System.Object") return false;
 	if (typeName.starts_with("System.")) return true;
 	if (typeName.starts_with("UnityEngine.Vector") || typeName == "UnityEngine.Quaternion" || typeName ==
-		"UnityEngine.Color") return true;
+		"UnityEngine.Color")
+		return true;
 	return false;
 }
 
@@ -304,10 +300,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.Byte")
 				{
-					uint8_t val;
-					if (Helper::SafeGetStaticFieldByte(field.fieldHandle, val))
+					if (uint8_t val; Helper::SafeGetStaticFieldByte(field.fieldHandle, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeSetStaticFieldByte(field.fieldHandle, static_cast<uint8_t>(iv));
 					}
@@ -315,10 +310,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.SByte")
 				{
-					int8_t val;
-					if (Helper::SafeGetStaticFieldSByte(field.fieldHandle, val))
+					if (int8_t val; Helper::SafeGetStaticFieldSByte(field.fieldHandle, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeSetStaticFieldSByte(field.fieldHandle, static_cast<int8_t>(iv));
 					}
@@ -326,10 +320,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.Int16" || field.typeName == "System.Short")
 				{
-					int16_t val;
-					if (Helper::SafeGetStaticFieldInt16(field.fieldHandle, val))
+					if (int16_t val; Helper::SafeGetStaticFieldInt16(field.fieldHandle, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeSetStaticFieldInt16(field.fieldHandle, static_cast<int16_t>(iv));
 					}
@@ -337,10 +330,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.UInt16" || field.typeName == "System.UShort")
 				{
-					uint16_t val;
-					if (Helper::SafeGetStaticFieldUInt16(field.fieldHandle, val))
+					if (uint16_t val; Helper::SafeGetStaticFieldUInt16(field.fieldHandle, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeSetStaticFieldUInt16(field.fieldHandle, static_cast<uint16_t>(iv));
 					}
@@ -348,10 +340,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.Char")
 				{
-					char16_t val;
-					if (Helper::SafeGetStaticFieldChar(field.fieldHandle, val))
+					if (char16_t val; Helper::SafeGetStaticFieldChar(field.fieldHandle, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeSetStaticFieldChar(field.fieldHandle, static_cast<char16_t>(iv));
 						ImGui::SameLine();
@@ -391,7 +382,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				{
 					float fVal = static_cast<float>(val);
 					if (ImGui::DragFloat("##val", &fVal, 0.01f))
-						Helper::SafeSetStaticFieldDouble(field.fieldHandle, static_cast<double>(fVal));
+						Helper::SafeSetStaticFieldDouble(field.fieldHandle, fVal);
 				}
 				else { ImGui::TextDisabled("ERROR"); }
 				break;
@@ -409,8 +400,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 			}
 		case EditableType::Vector3:
 			{
-				UT::Vector3 val;
-				if (Helper::SafeGetStaticFieldVector3(field.fieldHandle, val))
+				if (UT::Vector3 val; Helper::SafeGetStaticFieldVector3(field.fieldHandle, val))
 				{
 					float arr[3] = {val.x, val.y, val.z};
 					if (DragVector3Compact("##val", arr, 0.1f))
@@ -426,14 +416,14 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 			}
 		case EditableType::CustomObject:
 			{
-				void* instancePtr = nullptr;
-				bool isValid = false;
 				if (field.isValueType)
 				{
 					ImGui::TextDisabled("[static ValueType]");
 				}
 				else
 				{
+					bool isValid = false;
+					void* instancePtr = nullptr;
 					isValid = Helper::SafeGetStaticFieldPointer(field.fieldHandle, instancePtr) && instancePtr !=
 						nullptr;
 
@@ -454,7 +444,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 								nextTarget.name = field.name;
 								nextTarget.classHandle = field.classHandle;
 
-								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+								nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(instancePtr));
 								nextTarget.cachedComponentNames.push_back(field.typeName);
 
 								nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, nullptr));
@@ -502,10 +492,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.Byte")
 				{
-					uint8_t val;
-					if (Helper::SafeReadByte(instance, field.offset, val))
+					if (uint8_t val; Helper::SafeReadByte(instance, field.offset, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeWriteByte(instance, field.offset, static_cast<uint8_t>(iv));
 					}
@@ -513,10 +502,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.SByte")
 				{
-					int8_t val;
-					if (Helper::SafeReadSByte(instance, field.offset, val))
+					if (int8_t val; Helper::SafeReadSByte(instance, field.offset, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeWriteSByte(instance, field.offset, static_cast<int8_t>(iv));
 					}
@@ -524,10 +512,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.Int16" || field.typeName == "System.Short")
 				{
-					int16_t val;
-					if (Helper::SafeReadInt16(instance, field.offset, val))
+					if (int16_t val; Helper::SafeReadInt16(instance, field.offset, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeWriteInt16(instance, field.offset, static_cast<int16_t>(iv));
 					}
@@ -535,10 +522,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.UInt16" || field.typeName == "System.UShort")
 				{
-					uint16_t val;
-					if (Helper::SafeReadUInt16(instance, field.offset, val))
+					if (uint16_t val; Helper::SafeReadUInt16(instance, field.offset, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeWriteUInt16(instance, field.offset, static_cast<uint16_t>(iv));
 					}
@@ -546,10 +532,9 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 				else if (field.typeName == "System.Char")
 				{
-					char16_t val;
-					if (Helper::SafeReadChar(instance, field.offset, val))
+					if (char16_t val; Helper::SafeReadChar(instance, field.offset, val))
 					{
-						int iv = static_cast<int>(val);
+						int iv = val;
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeWriteChar(instance, field.offset, static_cast<char16_t>(iv));
 						ImGui::SameLine();
@@ -613,7 +598,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				{
 					float fVal = static_cast<float>(val);
 					if (ImGui::DragFloat("##val", &fVal, 0.01f))
-						Helper::SafeWriteDouble(instance, field.offset, static_cast<double>(fVal));
+						Helper::SafeWriteDouble(instance, field.offset, fVal);
 				}
 				else { ImGui::TextDisabled("ERROR"); }
 				break;
@@ -723,17 +708,16 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 			}
 		case EditableType::Enum:
 			{
-				int val;
-				if (Helper::SafeReadInt(instance, field.offset, val))
+				if (int val; Helper::SafeReadInt(instance, field.offset, val))
 				{
 					const auto enumVals = GetEnumValues(field.enumTypeName);
 
-					const char* currentName = "Unknown";
-					for (const auto& pair : enumVals)
+					auto currentName = "Unknown";
+					for (const auto& [fst, snd] : enumVals)
 					{
-						if (pair.second == val)
+						if (snd == val)
 						{
-							currentName = pair.first.c_str();
+							currentName = fst.c_str();
 							break;
 						}
 					}
@@ -757,7 +741,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 								nextTarget.instance = instancePtr;
 								nextTarget.name = field.name;
 								nextTarget.classHandle = field.classHandle;
-								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+								nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(instancePtr));
 								nextTarget.cachedComponentNames.push_back(field.typeName);
 								void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
 								nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
@@ -774,10 +758,10 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 			}
 		case EditableType::CustomObject:
 			{
-				bool isNullable = field.typeName.find("System.Nullable") != std::string::npos;
-				if (isNullable && field.isValueType)
+				if (bool isNullable = field.typeName.find("System.Nullable") != std::string::npos; isNullable && field.
+					isValueType)
 				{
-					void* nullablePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+					auto nullablePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
 					bool hasValue = false;
 					Helper::SafeReadBool(nullablePtr, 0, hasValue);
 					if (!hasValue)
@@ -796,7 +780,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 								nextTarget.instance = nullablePtr;
 								nextTarget.name = field.name;
 								nextTarget.classHandle = field.classHandle;
-								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(nullablePtr));
+								nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(nullablePtr));
 								nextTarget.cachedComponentNames.push_back(field.typeName);
 								nextTarget.cachedComponentFields.push_back(
 									GetObjectFields(nullablePtr, field.typeClassHandle));
@@ -838,7 +822,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 								nextTarget.name = field.name;
 								nextTarget.classHandle = field.classHandle;
 
-								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+								nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(instancePtr));
 								nextTarget.cachedComponentNames.push_back(field.typeName);
 								void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
 
@@ -912,7 +896,7 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 				uint8_t val = 0;
 				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(uint8_t)))
 				{
-					int iv = static_cast<int>(val);
+					int iv = val;
 					if (prop.canWrite && ImGui::DragInt("##val", &iv))
 					{
 						uint8_t nv = static_cast<uint8_t>(iv);
@@ -928,7 +912,7 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 				int8_t val = 0;
 				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int8_t)))
 				{
-					int iv = static_cast<int>(val);
+					int iv = val;
 					if (prop.canWrite && ImGui::DragInt("##val", &iv))
 					{
 						int8_t nv = static_cast<int8_t>(iv);
@@ -944,7 +928,7 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 				int16_t val = 0;
 				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int16_t)))
 				{
-					int iv = static_cast<int>(val);
+					int iv = val;
 					if (prop.canWrite && ImGui::DragInt("##val", &iv))
 					{
 						int16_t nv = static_cast<int16_t>(iv);
@@ -960,7 +944,7 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 				uint16_t val = 0;
 				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(uint16_t)))
 				{
-					int iv = static_cast<int>(val);
+					int iv = val;
 					if (prop.canWrite && ImGui::DragInt("##val", &iv))
 					{
 						uint16_t nv = static_cast<uint16_t>(iv);
@@ -976,7 +960,7 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 				char16_t val = 0;
 				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(char16_t)))
 				{
-					int iv = static_cast<int>(val);
+					int iv = val;
 					if (prop.canWrite && ImGui::DragInt("##val", &iv))
 					{
 						char16_t nv = static_cast<char16_t>(iv);
@@ -1324,24 +1308,24 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			bool isCollection = !field->isStatic && (isArray || isList || isDictionary);
 
 			bool isExpanded = false;
-			void* collectionPtr = nullptr;
 			int collectionCount = 0;
 			void* arrayDataStart = nullptr;
 
 			ImGui::TableSetColumnIndex(0);
 			if (isCollection)
 			{
-				if (Helper::SafeReadPointer(instance, field->offset, collectionPtr) && collectionPtr)
+				if (void* collectionPtr = nullptr; Helper::SafeReadPointer(instance, field->offset, collectionPtr) &&
+					collectionPtr)
 				{
 					if (isArray)
 					{
-						auto arr = reinterpret_cast<UT::Array<uintptr_t>*>(collectionPtr);
+						auto arr = static_cast<UT::Array<uintptr_t>*>(collectionPtr);
 						collectionCount = static_cast<int>(arr->max_length);
 						arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(arr) + 0x20);
 					}
 					else if (isList)
 					{
-						auto list = reinterpret_cast<UT::List<uintptr_t>*>(collectionPtr);
+						auto list = static_cast<UT::List<uintptr_t>*>(collectionPtr);
 						collectionCount = list->size;
 						if (list->pList)
 						{
@@ -1536,7 +1520,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 										nextTarget.classHandle = nullptr;
 
 										nextTarget.cachedComponents.push_back(
-											reinterpret_cast<UT::Component*>(valuePtr));
+											static_cast<UT::Component*>(valuePtr));
 										nextTarget.cachedComponentNames.push_back("DictionaryValue");
 
 										nextTarget.cachedComponentFields.
@@ -1558,14 +1542,14 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						std::string elementTypeName = "Element";
 						if (isArray)
 						{
-							size_t pos = field->typeName.find("[]");
-							if (pos != std::string::npos) elementTypeName = field->typeName.substr(0, pos);
+							if (size_t pos = field->typeName.find("[]"); pos != std::string::npos) elementTypeName =
+								field->typeName.substr(0, pos);
 						}
 						else if (isList)
 						{
 							size_t start = field->typeName.find("<");
-							size_t end = field->typeName.rfind(">");
-							if (start != std::string::npos && end != std::string::npos && end > start)
+							if (size_t end = field->typeName.rfind(">"); start != std::string::npos && end !=
+								std::string::npos && end > start)
 							{
 								elementTypeName = field->typeName.substr(start + 1, end - start - 1);
 							}
@@ -1883,8 +1867,8 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 	{
 		if (i >= target.cachedComponentNames.size())
 			continue;
-		const std::string& compName = target.cachedComponentNames[i];
-		if (PassesComponentFilter(compName, target.componentSearchBuffer))
+		if (const std::string& compName = target.cachedComponentNames[i]; PassesComponentFilter(
+			compName, target.componentSearchBuffer))
 			filteredComponentIndices.push_back(i);
 	}
 
@@ -2058,9 +2042,7 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	ImGui::PopStyleVar();
 	ImGui::Separator();
 
-	auto& target = tab.navigationStack.back();
-
-	if (target.gameObject)
+	if (auto& target = tab.navigationStack.back(); target.gameObject)
 	{
 		std::string objectName = "(Unknown)";
 		UT::String* name = nullptr;

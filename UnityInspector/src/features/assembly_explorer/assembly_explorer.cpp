@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "assembly_explorer.h"
 #include "features/inspector/field_editor.h"
+#include "helper/helper.h"
 
 REGISTER_FEATURE(AssemblyExplorer)
 
@@ -903,8 +904,7 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo) const
 
 	try
 	{
-		const auto objects = classInfo->classHandle->FindObjectsOfType<void*>();
-		for (auto* obj : objects)
+		for (const auto objects = classInfo->classHandle->FindObjectsOfType<void*>(); auto* obj : objects)
 		{
 			if (!obj) continue;
 
@@ -1119,8 +1119,7 @@ void AssemblyExplorer::RenderFieldRow(const UR::Field* field, void* instance) co
 			}
 			else if (typeName == "System.Char")
 			{
-				const char16_t value = *static_cast<char16_t*>(fieldAddr);
-				if (value >= 32 && value < 127)
+				if (const char16_t value = *static_cast<char16_t*>(fieldAddr); value >= 32 && value < 127)
 					ImGui::Text("'%c'", static_cast<char>(value));
 				else
 					ImGui::Text("'\\u%04X'", static_cast<int>(value));

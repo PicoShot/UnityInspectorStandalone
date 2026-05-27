@@ -1,5 +1,4 @@
 #pragma once
-#include "pch.h"
 #include "hooks/hooks.h"
 
 class ConsoleHooks : public IHook

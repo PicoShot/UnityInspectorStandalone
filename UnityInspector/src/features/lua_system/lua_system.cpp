@@ -3,7 +3,6 @@
 #include "lua_plugin.h"
 #include "lua_bindings.h"
 #include "features/debug_console/debug_console.h"
-#include "config/config.h"
 
 REGISTER_FEATURE(LuaSystem)
 
@@ -74,18 +73,18 @@ void LuaSystem::CheckHotReload()
 			std::string pathStr = entry.path().string();
 			foundFiles.insert(pathStr);
 
-			auto it = std::find_if(plugins.begin(), plugins.end(), [&](const auto& p) {
+			auto it = std::ranges::find_if(plugins, [&](const auto& p)
+			{
 				return p->GetFilePath() == entry.path();
-				});
+			});
 
 			if (it != plugins.end())
 			{
 				try
 				{
 					auto currentWriteTime = std::filesystem::last_write_time(entry.path());
-					auto storedWriteTime = (*it)->GetStoredWriteTime();
 
-					if (currentWriteTime != storedWriteTime)
+					if (auto storedWriteTime = (*it)->GetStoredWriteTime(); currentWriteTime != storedWriteTime)
 					{
 						LOG_INFO("Hot-reloading plugin: {}", (*it)->GetName());
 						(*it)->Reload();
@@ -105,15 +104,15 @@ void LuaSystem::CheckHotReload()
 			}
 		}
 
-		std::erase_if(plugins, [&](const auto& p) {
-			std::string pathStr = p->GetFilePath().string();
-			if (!foundFiles.contains(pathStr))
+		std::erase_if(plugins, [&](const auto& p)
+		{
+			if (std::string pathStr = p->GetFilePath().string(); !foundFiles.contains(pathStr))
 			{
 				LOG_INFO("Unloaded removed plugin: {}", p->GetName());
 				return true;
 			}
 			return false;
-			});
+		});
 	}
 	catch (const std::exception& e)
 	{
@@ -162,8 +161,7 @@ void LuaSystem::RenderLuaConsole()
 	{
 		if (ImGui::Button("Execute", ImVec2(100, 0)))
 		{
-			std::string code = textEditor.GetText();
-			if (!code.empty())
+			if (std::string code = textEditor.GetText(); !code.empty())
 			{
 				ExecuteString(code);
 			}
@@ -194,8 +192,7 @@ void LuaSystem::ExecuteString(const std::string& code)
 	try
 	{
 		UR::ThreadAttach();
-		sol::protected_function_result result = luaState.safe_script(code);
-		if (!result.valid())
+		if (sol::protected_function_result result = luaState.safe_script(code); !result.valid())
 		{
 			sol::error err = result;
 			DebugConsole::AddLog(std::format("Lua console error: {}", err.what()), LogType::Error);

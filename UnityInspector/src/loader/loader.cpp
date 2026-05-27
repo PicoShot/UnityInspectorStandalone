@@ -45,8 +45,7 @@ namespace Loader
 
 			LOG_INFO("Found game window: {}", reinterpret_cast<uint64_t>(gameHwnd));
 
-			const auto externalOverlay = ExternalOverlay::Create(gameHwnd);
-			if (!externalOverlay)
+			if (const auto externalOverlay = ExternalOverlay::Create(gameHwnd); !externalOverlay)
 			{
 				LOG_ERROR("Failed to create external overlay!");
 			}
@@ -84,7 +83,8 @@ namespace Loader
 			}
 
 			Sleep(100);
-		} while (true);
+		}
+		while (true);
 
 		if (Config::settings.ini.debug_console) console::StartConsole("Pico Debug Console", false);
 		LOG_INFO("loaded, initializing...");

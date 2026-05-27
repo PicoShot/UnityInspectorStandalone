@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "inspector.h"
+#include "helper/helper.h"
 
 REGISTER_FEATURE(Inspector)
 
@@ -152,8 +153,8 @@ void Inspector::Render()
 							{
 								std::string lowerFullName = node.fullName;
 								std::string lowerSearch = staticSearchBuffer;
-								std::ranges::transform(lowerFullName, lowerFullName.begin(), ::tolower);
-								std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+								std::ranges::transform(lowerFullName, lowerFullName.begin(), tolower);
+								std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
 
 								if (lowerFullName.find(lowerSearch) == std::string::npos)
 									continue;
@@ -216,9 +217,8 @@ void Inspector::ScanStaticClasses()
 						
 						if (Config::state.unityMode == UnityResolve::Mode::Il2Cpp)
 						{
-							void* static_fields_ptr = *(void**)((uintptr_t)klass->address + 0xB8);
-							if (static_fields_ptr) {
-								instance = *(void**)((uintptr_t)static_fields_ptr + field->offset);
+							if (void* static_fields_ptr = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(klass->address) + 0xB8)) {
+								instance = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(static_fields_ptr) + field->offset);
 							}
 						}
 						else 
@@ -271,7 +271,7 @@ void Inspector::OpenStaticInstanceInNewTab(const StaticInstanceNode& node)
 	rootTarget.classHandle = node.typeClassHandle;
 	rootTarget.name = node.name;
 	
-	rootTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(node.instance));
+	rootTarget.cachedComponents.push_back(static_cast<UT::Component*>(node.instance));
 	rootTarget.cachedComponentNames.push_back(node.fullName);
 	
 	rootTarget.cachedComponentFields.push_back(GetObjectFields(node.instance, node.typeClassHandle));
@@ -303,7 +303,7 @@ void Inspector::InspectInstance(void* instance, void* classHandle, const std::st
 
 	if (instance)
 	{
-		rootTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instance));
+		rootTarget.cachedComponents.push_back(static_cast<UT::Component*>(instance));
 		std::string className = "(Unknown)";
 		if (const char* cn = UR::Invoke<const char*, void*>(mono ? "mono_class_get_name" : "il2cpp_class_get_name", classHandle))
 			className = cn;

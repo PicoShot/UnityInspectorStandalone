@@ -28,8 +28,7 @@ bool LuaPlugin::LoadFile()
 		}
 
 		sol::protected_function script = result;
-		sol::protected_function_result pfr = script();
-		if (!pfr.valid())
+		if (sol::protected_function_result pfr = script(); !pfr.valid())
 		{
 			sol::error err = pfr;
 			lastError = std::format("[{}] Runtime error: {}", name, err.what());
@@ -48,10 +47,9 @@ bool LuaPlugin::LoadFile()
 	}
 }
 
-void LuaPlugin::CaptureGlobalFunction(const char* funcName, sol::protected_function& out)
+void LuaPlugin::CaptureGlobalFunction(const char* funcName, sol::protected_function& out) const
 {
-	sol::object obj = luaState[funcName];
-	if (obj.is<sol::protected_function>())
+	if (sol::object obj = luaState[funcName]; obj.is<sol::protected_function>())
 	{
 		out = obj.as<sol::protected_function>();
 		luaState[funcName] = sol::nil;
@@ -97,8 +95,7 @@ void LuaPlugin::Init()
 
 	if (onInit.valid())
 	{
-		sol::protected_function_result result = onInit();
-		if (!result.valid())
+		if (sol::protected_function_result result = onInit(); !result.valid())
 		{
 			sol::error err = result;
 			lastError = std::format("[{}] onInit error: {}", name, err.what());
@@ -112,8 +109,7 @@ void LuaPlugin::Update(float deltaTime)
 	if (!loaded || !enabled || !onUpdate.valid())
 		return;
 
-	sol::protected_function_result result = onUpdate(deltaTime);
-	if (!result.valid())
+	if (sol::protected_function_result result = onUpdate(deltaTime); !result.valid())
 	{
 		sol::error err = result;
 		lastError = std::format("[{}] onUpdate error: {}", name, err.what());
@@ -127,8 +123,7 @@ void LuaPlugin::Render()
 	if (!loaded || !enabled || !onRender.valid())
 		return;
 
-	sol::protected_function_result result = onRender();
-	if (!result.valid())
+	if (sol::protected_function_result result = onRender(); !result.valid())
 	{
 		sol::error err = result;
 		lastError = std::format("[{}] onRender error: {}", name, err.what());
@@ -141,8 +136,7 @@ void LuaPlugin::Unload()
 {
 	if (loaded && onUnload.valid())
 	{
-		sol::protected_function_result result = onUnload();
-		if (!result.valid())
+		if (sol::protected_function_result result = onUnload(); !result.valid())
 		{
 			sol::error err = result;
 			lastError = std::format("[{}] onUnload error: {}", name, err.what());

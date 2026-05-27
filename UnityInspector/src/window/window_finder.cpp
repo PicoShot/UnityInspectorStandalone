@@ -14,7 +14,7 @@ namespace WindowFinder
 	{
 		const DWORD currentProcessId = GetCurrentProcessId();
 		const HWND consoleHwnd = GetConsoleWindow();
-		EnumData data{ currentProcessId, consoleHwnd, nullptr };
+		EnumData data{currentProcessId, consoleHwnd, nullptr};
 
 		EnumWindows(EnumWindowsCallback, reinterpret_cast<LPARAM>(&data));
 
@@ -46,8 +46,7 @@ namespace WindowFinder
 		RECT rect;
 		GetWindowRect(hwnd, &rect);
 
-		constexpr int MIN_WINDOW_SIZE = 100;
-		if ((rect.right - rect.left) < MIN_WINDOW_SIZE || (rect.bottom - rect.top) < MIN_WINDOW_SIZE) return false;
+		if (constexpr int MIN_WINDOW_SIZE = 100; (rect.right - rect.left) < MIN_WINDOW_SIZE || (rect.bottom - rect.top) < MIN_WINDOW_SIZE) return false;
 
 		return true;
 	}

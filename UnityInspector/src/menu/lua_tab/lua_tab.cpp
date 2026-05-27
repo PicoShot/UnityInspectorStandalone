@@ -2,7 +2,6 @@
 #include "lua_tab.h"
 #include "features/lua_system/lua_system.h"
 #include "features/lua_system/lua_plugin.h"
-#include "config/config.h"
 
 void LuaConsoleTab::Render()
 {

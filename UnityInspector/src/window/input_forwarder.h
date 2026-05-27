@@ -10,4 +10,4 @@ namespace InputForwarder
 	bool IsMenuTogglePressed() noexcept;
 	bool IsCursorTogglePressed() noexcept;
 	bool IsCursorUnlockPressed() noexcept;
-};
+}

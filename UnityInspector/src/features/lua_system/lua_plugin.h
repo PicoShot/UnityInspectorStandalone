@@ -41,5 +41,5 @@ private:
 
 	bool LoadFile();
 	void ClearFunctions();
-	void CaptureGlobalFunction(const char* funcName, sol::protected_function& out);
+	void CaptureGlobalFunction(const char* funcName, sol::protected_function& out) const;
 };

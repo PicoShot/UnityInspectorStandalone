@@ -1,8 +1,13 @@
 #include "pch.h"
 #include "features.h"
 
-void IFeature::Init() {}
-void IFeature::Render() {}
+void IFeature::Init()
+{
+}
+
+void IFeature::Render()
+{
+}
 
 namespace Features
 {

@@ -1,8 +1,5 @@
 #pragma once
 #include "pch.h"
-#include <vector>
-#include <memory>
-#include <functional>
 
 class IHook
 {
@@ -17,6 +14,7 @@ public:
 	static void Init();
 
 	using Factory = std::function<std::unique_ptr<IHook>()>;
+
 	static std::vector<Factory>& GetRegistry()
 	{
 		static std::vector<Factory> registry;

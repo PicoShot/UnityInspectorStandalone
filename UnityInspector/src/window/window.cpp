@@ -1,10 +1,7 @@
 #include "pch.h"
 #include "window.h"
 #include "features/features.h"
-#include "hooks/hooks.h"
 #include "menu/menu.h"
-#include "input_forwarder.h"
-#include "external_overlay.h"
 #include "input.h"
 #include "config/config.h"
 
@@ -123,6 +120,7 @@ namespace Window
 
 	void RenderFrame(ID3D11DeviceContext* context, ID3D11RenderTargetView* targetView)
 	{
+		if (!context) return;
 		ImGui_ImplDX11_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
@@ -150,7 +148,8 @@ namespace Window
 		RenderFrame(context, *targetView);
 	}
 
-	void RenderToExternalOverlay(ID3D11Device* device, ID3D11DeviceContext* context, ID3D11RenderTargetView* targetView, const HWND hwnd)
+	void RenderToExternalOverlay(ID3D11Device* device, ID3D11DeviceContext* context, ID3D11RenderTargetView* targetView,
+	                             const HWND hwnd)
 	{
 		if (!g_ImGuiInitialized) InitializeImGui(hwnd, device, context);
 
@@ -172,7 +171,8 @@ namespace Window
 
 			if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureMouseUnlessPopupClose)
 			{
-				switch (uMsg) {
+				switch (uMsg)
+				{
 				case WM_LBUTTONDOWN:
 				case WM_LBUTTONUP:
 				case WM_RBUTTONDOWN:
@@ -191,13 +191,11 @@ namespace Window
 				case WM_NCMOUSELEAVE:
 				case WM_NCMOUSEMOVE:
 					return 2;
+				default:
+					if (Input::ProcessMessage(uMsg, wParam)) return 2;
 				}
 			}
 		}
-
-		if (Input::ProcessMessage(uMsg, wParam))
-			return 2;
-
 		return 1;
 	}
 }

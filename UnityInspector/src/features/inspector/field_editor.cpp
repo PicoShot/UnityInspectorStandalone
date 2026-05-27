@@ -13,8 +13,7 @@ bool IsEnumClass(const std::string& typeName)
 			if (!klass) continue;
 			if (klass->name == typeName)
 			{
-				void* klassPtr = klass.get();
-				if (UR::Invoke<bool, void*>(API("class_is_enum"), klassPtr))
+				if (void* klassPtr = klass.get(); UR::Invoke<bool, void*>(API("class_is_enum"), klassPtr))
 					return true;
 			}
 		}
@@ -68,9 +67,9 @@ static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fie
 	if (enumTypeNameOut) enumTypeNameOut->clear();
 
 	const size_t lastDot = typeName.rfind('.');
-	const std::string shortName = (lastDot != std::string::npos) ? typeName.substr(lastDot + 1) : typeName;
 
-	if (IsEnumClass(shortName))
+	if (const std::string shortName = (lastDot != std::string::npos) ? typeName.substr(lastDot + 1) : typeName;
+		IsEnumClass(shortName))
 	{
 		typeName = "Enum";
 		if (enumTypeNameOut) *enumTypeNameOut = shortName;
@@ -730,14 +729,13 @@ void FieldEditor::RenderIntEditor(const std::string& typeName)
 {
 	ImGui::Text("Value:");
 	if (typeName == "System.UInt64")
-		ImGui::InputScalar("##int_value", ImGuiDataType_U64, reinterpret_cast<uint64_t*>(&state.intValue));
+		ImGui::InputScalar("##int_value", ImGuiDataType_U64, &state.intValue);
 	else
 		ImGui::InputScalar("##int_value", ImGuiDataType_S64, &state.intValue);
 	if (typeName == "System.Char")
 	{
 		ImGui::SameLine();
-		char16_t val = static_cast<char16_t>(state.intValue);
-		if (val >= 32 && val < 127)
+		if (char16_t val = static_cast<char16_t>(state.intValue); val >= 32 && val < 127)
 			ImGui::Text("'%c'", static_cast<char>(val));
 		else
 			ImGui::Text("'\\u%04X'", static_cast<int>(val));

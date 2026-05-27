@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "inspector.h"
+#include "helper/helper.h"
 
 static bool CaseInsensitiveFind(const std::string& haystack, const char* needle)
 {

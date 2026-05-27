@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "external_overlay.h"
 #include "window.h"
-#include "input_forwarder.h"
 
 namespace ExternalOverlay
 {
@@ -13,7 +12,7 @@ namespace ExternalOverlay
 	ID3D11DeviceContext* m_context = nullptr;
 	IDXGISwapChain* m_swapChain = nullptr;
 	ID3D11RenderTargetView* m_targetView = nullptr;
-	std::atomic<bool> m_running = false;
+	std::atomic m_running = false;
 
 	LRESULT CALLBACK WndProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 	{
@@ -36,7 +35,7 @@ namespace ExternalOverlay
 
 	bool CreateOverlayWindow()
 	{
-		const wchar_t className[] = L"UnityInspectorOverlay";
+		constexpr wchar_t className[] = L"UnityInspectorOverlay";
 
 		WNDCLASSEXW wc = {};
 		wc.cbSize = sizeof(wc);
@@ -162,11 +161,10 @@ namespace ExternalOverlay
 		const int gameWidth = gameRect.right - gameRect.left;
 		const int gameHeight = gameRect.bottom - gameRect.top;
 		const int overlayWidth = overlayRect.right - overlayRect.left;
-		const int overlayHeight = overlayRect.bottom - overlayRect.top;
 
-		if (gameRect.left != overlayRect.left || gameRect.top != overlayRect.top ||
-			gameWidth != overlayWidth || gameHeight != overlayHeight) {
-
+		if (const int overlayHeight = overlayRect.bottom - overlayRect.top; gameRect.left != overlayRect.left || gameRect.top != overlayRect.top ||
+			gameWidth != overlayWidth || gameHeight != overlayHeight)
+		{
 			SetWindowPos(
 				m_overlayHwnd,
 				HWND_TOPMOST,
@@ -185,8 +183,10 @@ namespace ExternalOverlay
 				if (SUCCEEDED(m_swapChain->ResizeBuffers(0, gameWidth, gameHeight, DXGI_FORMAT_UNKNOWN, 0)))
 				{
 					ID3D11Texture2D* backBuffer = nullptr;
-					if (SUCCEEDED(m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer)))) {
-						m_device->CreateRenderTargetView(backBuffer, nullptr, &m_targetView);
+					if (SUCCEEDED(
+						m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer))))
+					{
+						SUCCEEDED(m_device->CreateRenderTargetView(backBuffer, nullptr, &m_targetView));
 						backBuffer->Release();
 					}
 				}
@@ -214,7 +214,7 @@ namespace ExternalOverlay
 
 		Window::UpdateExternalInput();
 
-		constexpr float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		constexpr float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 		m_context->ClearRenderTargetView(m_targetView, clearColor);
 
 		Window::RenderToExternalOverlay(m_device, m_context, m_targetView, m_overlayHwnd);
@@ -257,7 +257,8 @@ namespace ExternalOverlay
 			EnableWindow(m_gameHwnd, FALSE);
 
 			SetWindowLongPtr(m_overlayHwnd, GWL_EXSTYLE, WS_EX_LAYERED | WS_EX_TOPMOST);
-			SetWindowPos(m_overlayHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+			SetWindowPos(m_overlayHwnd, HWND_TOPMOST, 0, 0, 0, 0,
+			             SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 
 			RECT rect;
 			GetClientRect(m_overlayHwnd, &rect);
@@ -281,8 +282,10 @@ namespace ExternalOverlay
 			EnableWindow(m_gameHwnd, TRUE);
 			SetWindowRgn(m_overlayHwnd, nullptr, TRUE);
 
-			SetWindowLongPtr(m_overlayHwnd, GWL_EXSTYLE, WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
-			SetWindowPos(m_overlayHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+			SetWindowLongPtr(m_overlayHwnd, GWL_EXSTYLE,
+			                 WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
+			SetWindowPos(m_overlayHwnd, HWND_TOPMOST, 0, 0, 0, 0,
+			             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 
 			const DWORD foregroundThread = GetWindowThreadProcessId(GetForegroundWindow(), nullptr);
 			const DWORD gameThread = GetWindowThreadProcessId(m_gameHwnd, nullptr);
