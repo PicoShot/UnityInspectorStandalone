@@ -232,6 +232,28 @@ namespace Helper
 		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 	}
 
+	bool SafeReadChar(void* ptr, const int offset, char16_t& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<char16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeWriteChar(void* ptr, const int offset, const char16_t value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<char16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
 	bool SafeReadFloat(void* ptr, const int offset, float& outValue)
 	{
 		if (!ptr || offset < 0) return false;
@@ -720,6 +742,49 @@ namespace Helper
 			else
 			{
 				UR::Invoke<void, void*, uint16_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldChar(void* fieldHandle, char16_t& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, char16_t
+				           *>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, char16_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldChar(void* fieldHandle, char16_t value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, char16_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, char16_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
 			}
 			return true;
 		}

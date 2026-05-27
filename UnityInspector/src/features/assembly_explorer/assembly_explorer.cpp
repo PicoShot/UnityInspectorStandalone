@@ -1021,6 +1021,15 @@ void AssemblyExplorer::RenderFieldRow(const UR::Field* field, void* instance) co
 				field->GetStaticValue(&value);
 				ImGui::Text("%u", value);
 			}
+			else if (typeName == "System.Char")
+			{
+				char16_t value = 0;
+				field->GetStaticValue(&value);
+				if (value >= 32 && value < 127)
+					ImGui::Text("'%c'", static_cast<char>(value));
+				else
+					ImGui::Text("'\\u%04X'", static_cast<int>(value));
+			}
 			else if (typeName == "System.Byte")
 			{
 				uint8_t value = 0;
@@ -1107,6 +1116,14 @@ void AssemblyExplorer::RenderFieldRow(const UR::Field* field, void* instance) co
 			{
 				const uint16_t value = *static_cast<uint16_t*>(fieldAddr);
 				ImGui::Text("%u", value);
+			}
+			else if (typeName == "System.Char")
+			{
+				const char16_t value = *static_cast<char16_t*>(fieldAddr);
+				if (value >= 32 && value < 127)
+					ImGui::Text("'%c'", static_cast<char>(value));
+				else
+					ImGui::Text("'\\u%04X'", static_cast<int>(value));
 			}
 			else if (typeName == "System.Byte")
 			{

@@ -91,7 +91,7 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
 
 	if (typeName == "System.Int16" || typeName == "System.Int32" || typeName == "System.Int64" ||
 		typeName == "System.UInt16" || typeName == "System.UInt32" || typeName == "System.UInt64" ||
-		typeName == "System.Byte" || typeName == "System.SByte")
+		typeName == "System.Byte" || typeName == "System.SByte" || typeName == "System.Char")
 		return EditableType::Int;
 	if (typeName == "System.Single")
 		return EditableType::Float;
@@ -345,7 +345,8 @@ bool FieldEditor::IsIntegerType(const std::string& typeName)
 		typeName == "System.Int64" || typeName == "System.UInt64" ||
 		typeName == "System.Long" || typeName == "System.ULong" ||
 		typeName == "System.Byte" || typeName == "System.SByte" ||
-		typeName == "System.Short" || typeName == "System.UShort";
+		typeName == "System.Short" || typeName == "System.UShort" ||
+		typeName == "System.Char";
 }
 
 bool FieldEditor::IsFloatType(const std::string& typeName)
@@ -441,6 +442,10 @@ void FieldEditor::ReadValueFromAddress(void* addr, const std::string& typeName, 
 	{
 		state.intValue = static_cast<long long>(*static_cast<uint16_t*>(addr));
 	}
+	else if (typeName == "System.Char")
+	{
+		state.intValue = static_cast<long long>(*static_cast<char16_t*>(addr));
+	}
 	else if (typeName == "System.Byte")
 	{
 		state.intValue = static_cast<long long>(*static_cast<uint8_t*>(addr));
@@ -489,6 +494,10 @@ void FieldEditor::WriteValueToAddress(void* addr, const std::string& typeName, c
 	{
 		*static_cast<uint16_t*>(addr) = static_cast<uint16_t>(state.intValue);
 	}
+	else if (typeName == "System.Char")
+	{
+		*static_cast<char16_t*>(addr) = static_cast<char16_t>(state.intValue);
+	}
 	else if (typeName == "System.Byte")
 	{
 		*static_cast<uint8_t*>(addr) = static_cast<uint8_t>(state.intValue);
@@ -529,6 +538,13 @@ std::string FieldEditor::FormatFieldValue(void* addr, const std::string& typeNam
 		return std::to_string(*static_cast<int16_t*>(addr));
 	if (typeName == "System.UInt16")
 		return std::to_string(*static_cast<uint16_t*>(addr));
+	if (typeName == "System.Char")
+	{
+		char16_t val = *static_cast<char16_t*>(addr);
+		if (val >= 32 && val < 127)
+			return std::format("'{}'", static_cast<char>(val));
+		return std::format("'\\u{:04X}'", static_cast<int>(val));
+	}
 	if (typeName == "System.Byte")
 		return std::to_string(*static_cast<uint8_t*>(addr));
 	if (typeName == "System.SByte")
@@ -603,6 +619,12 @@ void FieldEditor::ReadFieldValue()
 				field->GetStaticValue(&val);
 				state.intValue = static_cast<long long>(val);
 			}
+			else if (typeName == "System.Char")
+			{
+				char16_t val = 0;
+				field->GetStaticValue(&val);
+				state.intValue = static_cast<long long>(val);
+			}
 			else
 			{
 				int64_t val = 0;
@@ -671,6 +693,11 @@ void FieldEditor::WriteFieldValue()
 				uint16_t val = static_cast<uint16_t>(state.intValue);
 				field->SetStaticValue(&val);
 			}
+			else if (typeName == "System.Char")
+			{
+				char16_t val = static_cast<char16_t>(state.intValue);
+				field->SetStaticValue(&val);
+			}
 			else if (typeName == "System.Byte")
 			{
 				uint8_t val = static_cast<uint8_t>(state.intValue);
@@ -706,6 +733,15 @@ void FieldEditor::RenderIntEditor(const std::string& typeName)
 		ImGui::InputScalar("##int_value", ImGuiDataType_U64, reinterpret_cast<uint64_t*>(&state.intValue));
 	else
 		ImGui::InputScalar("##int_value", ImGuiDataType_S64, &state.intValue);
+	if (typeName == "System.Char")
+	{
+		ImGui::SameLine();
+		char16_t val = static_cast<char16_t>(state.intValue);
+		if (val >= 32 && val < 127)
+			ImGui::Text("'%c'", static_cast<char>(val));
+		else
+			ImGui::Text("'\\u%04X'", static_cast<int>(val));
+	}
 }
 
 void FieldEditor::RenderFloatEditor()

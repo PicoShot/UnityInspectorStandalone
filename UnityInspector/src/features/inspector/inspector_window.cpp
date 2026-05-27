@@ -122,7 +122,7 @@ static std::string SimplifyTypeName(const std::string& typeName)
 		{"System.Double", "double"}, {"System.String", "string"}, {"System.Int64", "long"},
 		{"System.Int16", "short"}, {"System.Byte", "byte"}, {"System.UInt32", "uint"},
 		{"System.UInt64", "ulong"}, {"System.UInt16", "ushort"}, {"System.SByte", "sbyte"},
-		{"System.Void", "void"}, {"System.Object", "object"}
+		{"System.Char", "char"}, {"System.Void", "void"}, {"System.Object", "object"}
 	};
 
 	auto it = primitiveMap.find(typeName);
@@ -254,6 +254,22 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 						int iv = static_cast<int>(val);
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeSetStaticFieldUInt16(field.fieldHandle, static_cast<uint16_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.Char")
+				{
+					char16_t val;
+					if (Helper::SafeGetStaticFieldChar(field.fieldHandle, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeSetStaticFieldChar(field.fieldHandle, static_cast<char16_t>(iv));
+						ImGui::SameLine();
+						if (val >= 32 && val < 127)
+							ImGui::Text("'%c'", static_cast<char>(val));
+						else
+							ImGui::Text("'\\u%04X'", static_cast<int>(val));
 					}
 					else { ImGui::TextDisabled("ERROR"); }
 				}
@@ -436,6 +452,22 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 						int iv = static_cast<int>(val);
 						if (ImGui::DragInt("##val", &iv))
 							Helper::SafeWriteUInt16(instance, field.offset, static_cast<uint16_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.Char")
+				{
+					char16_t val;
+					if (Helper::SafeReadChar(instance, field.offset, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeWriteChar(instance, field.offset, static_cast<char16_t>(iv));
+						ImGui::SameLine();
+						if (val >= 32 && val < 127)
+							ImGui::Text("'%c'", static_cast<char>(val));
+						else
+							ImGui::Text("'\\u%04X'", static_cast<int>(val));
 					}
 					else { ImGui::TextDisabled("ERROR"); }
 				}
@@ -847,6 +879,32 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 					}
 					else if (!prop.canWrite)
 						ImGui::Text("%u", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+			}
+			else if (prop.typeName == "System.Char")
+			{
+				char16_t val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(char16_t)))
+				{
+					int iv = static_cast<int>(val);
+					if (prop.canWrite && ImGui::DragInt("##val", &iv))
+					{
+						char16_t nv = static_cast<char16_t>(iv);
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &nv);
+					}
+					else if (!prop.canWrite)
+					{
+						if (val >= 32 && val < 127)
+							ImGui::Text("'%c'", static_cast<char>(val));
+						else
+							ImGui::Text("'\\u%04X'", static_cast<int>(val));
+					}
+					ImGui::SameLine();
+					if (val >= 32 && val < 127)
+						ImGui::Text("'%c'", static_cast<char>(val));
+					else
+						ImGui::Text("'\\u%04X'", static_cast<int>(val));
 				}
 				else { ImGui::TextDisabled("ERROR"); }
 			}
@@ -1358,9 +1416,11 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						{
 							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64") elemSize = 8;
 							else if (elementTypeName == "System.Int16" || elementTypeName == "System.UInt16" ||
-								elementTypeName == "System.Char") elemSize = 2;
+								elementTypeName == "System.Char")
+								elemSize = 2;
 							else if (elementTypeName == "System.Byte" || elementTypeName == "System.SByte" ||
-								elementTypeName == "System.Boolean") elemSize = 1;
+								elementTypeName == "System.Boolean")
+								elemSize = 1;
 							else elemSize = 4;
 							elemInfo.isValueType = true;
 						}
