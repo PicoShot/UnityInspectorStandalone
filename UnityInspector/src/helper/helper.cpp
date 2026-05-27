@@ -144,6 +144,94 @@ namespace Helper
 		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 	}
 
+	bool SafeReadByte(void* ptr, const int offset, uint8_t& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeWriteByte(void* ptr, const int offset, const uint8_t value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeReadSByte(void* ptr, const int offset, int8_t& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<int8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeWriteSByte(void* ptr, const int offset, const int8_t value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<int8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeReadInt16(void* ptr, const int offset, int16_t& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<int16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeWriteInt16(void* ptr, const int offset, const int16_t value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<int16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeReadUInt16(void* ptr, const int offset, uint16_t& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<uint16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
+	bool SafeWriteUInt16(void* ptr, const int offset, const uint16_t value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<uint16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
 	bool SafeReadFloat(void* ptr, const int offset, float& outValue)
 	{
 		if (!ptr || offset < 0) return false;
@@ -350,7 +438,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, int*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
@@ -370,7 +459,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, int*>("mono_field_static_set_value", vTable, fieldHandle, &value);
 			}
 			else
@@ -390,7 +480,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, int64_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
@@ -410,7 +501,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, int64_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
 			}
 			else
@@ -430,8 +522,10 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, uint64_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, uint64_t
+				           *>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
 			{
@@ -450,12 +544,182 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, uint64_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
 			}
 			else
 			{
 				UR::Invoke<void, void*, uint64_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldByte(void* fieldHandle, uint8_t& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, uint8_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, uint8_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldByte(void* fieldHandle, uint8_t value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, uint8_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, uint8_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldSByte(void* fieldHandle, int8_t& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, int8_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, int8_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldSByte(void* fieldHandle, int8_t value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, int8_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, int8_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldInt16(void* fieldHandle, int16_t& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, int16_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, int16_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldInt16(void* fieldHandle, int16_t value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, int16_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, int16_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldUInt16(void* fieldHandle, uint16_t& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, uint16_t
+				           *>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, uint16_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldUInt16(void* fieldHandle, uint16_t value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, uint16_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, uint16_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
 			}
 			return true;
 		}
@@ -470,7 +734,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, float*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
@@ -487,11 +752,11 @@ namespace Helper
 		if (!fieldHandle) return false;
 		try
 		{
-
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, float*>("mono_field_static_set_value", vTable, fieldHandle, &value);
 			}
 			else
@@ -514,7 +779,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, bool*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
@@ -534,7 +800,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, bool*>("mono_field_static_set_value", vTable, fieldHandle, &value);
 			}
 			else
@@ -554,7 +821,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, double*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
@@ -574,7 +842,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, double*>("mono_field_static_set_value", vTable, fieldHandle, &value);
 			}
 			else
@@ -594,7 +863,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, Vec3*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
 			}
 			else
@@ -615,7 +885,8 @@ namespace Helper
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
 				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-					UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
 				UR::Invoke<void, void*, void*, Vec3*>("mono_field_static_set_value", vTable, fieldHandle, &v);
 			}
 			else
@@ -641,12 +912,13 @@ namespace Helper
 	{
 		// Allocate a large buffer on the stack to prevent buffer overflows if the static field is a large struct (Value Type).
 		// il2cpp_field_static_get_value writes the entire struct into the provided pointer. If it's an object (Reference Type), it writes 8 bytes.
-		alignas(16) char safeBuffer[8192] = { 0 };
+		alignas(16) char safeBuffer[8192] = {0};
 
 		if (Config::state.unityMode == UnityResolve::Mode::Mono)
 		{
 			void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
-				UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+			                                               UR::Invoke<void*, void*>(
+				                                               "mono_field_get_parent", fieldHandle));
 			UR::Invoke<void, void*, void*, void*>("mono_field_static_get_value", vTable, fieldHandle, safeBuffer);
 		}
 		else
@@ -694,11 +966,13 @@ namespace Helper
 	{
 		if (Config::state.unityMode == UnityResolve::Mode::Mono)
 		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, nullptr, nullptr);
+			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, nullptr,
+			                                                      nullptr);
 		}
 		else
 		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, nullptr, nullptr);
+			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, nullptr,
+			                                                      nullptr);
 		}
 	}
 
@@ -729,7 +1003,7 @@ namespace Helper
 
 	__declspec(noinline) void DoSafeInvokeSetter(void* obj, void* methodHandle, void* value)
 	{
-		void* params[1] = { value };
+		void* params[1] = {value};
 		if (Config::state.unityMode == UnityResolve::Mode::Mono)
 		{
 			UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params, nullptr);
@@ -755,11 +1029,13 @@ namespace Helper
 	{
 		if (Config::state.unityMode == UnityResolve::Mode::Mono)
 		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params, nullptr);
+			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params,
+			                                                      nullptr);
 		}
 		else
 		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params, nullptr);
+			return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params,
+			                                                      nullptr);
 		}
 	}
 
@@ -781,7 +1057,7 @@ namespace Helper
 	}
 
 	InvokeParamBuffers BuildInvokeParams(const std::vector<std::string>& paramValues,
-		const std::vector<EditableType>& paramTypes)
+	                                     const std::vector<EditableType>& paramTypes)
 	{
 		InvokeParamBuffers result;
 		for (size_t i = 0; i < paramValues.size() && i < paramTypes.size(); i++)
@@ -790,46 +1066,46 @@ namespace Helper
 			switch (paramTypes[i])
 			{
 			case EditableType::Int:
-			{
-				auto buf = std::make_unique<char[]>(sizeof(int));
-				*reinterpret_cast<int*>(buf.get()) = std::stoi(valueStr);
-				result.params.push_back(buf.get());
-				result.buffers.push_back(std::move(buf));
-				break;
-			}
+				{
+					auto buf = std::make_unique<char[]>(sizeof(int));
+					*reinterpret_cast<int*>(buf.get()) = std::stoi(valueStr);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
 			case EditableType::Float:
-			{
-				auto buf = std::make_unique<char[]>(sizeof(float));
-				*reinterpret_cast<float*>(buf.get()) = std::stof(valueStr);
-				result.params.push_back(buf.get());
-				result.buffers.push_back(std::move(buf));
-				break;
-			}
+				{
+					auto buf = std::make_unique<char[]>(sizeof(float));
+					*reinterpret_cast<float*>(buf.get()) = std::stof(valueStr);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
 			case EditableType::Double:
-			{
-				auto buf = std::make_unique<char[]>(sizeof(double));
-				*reinterpret_cast<double*>(buf.get()) = std::stod(valueStr);
-				result.params.push_back(buf.get());
-				result.buffers.push_back(std::move(buf));
-				break;
-			}
+				{
+					auto buf = std::make_unique<char[]>(sizeof(double));
+					*reinterpret_cast<double*>(buf.get()) = std::stod(valueStr);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
 			case EditableType::Bool:
-			{
-				auto buf = std::make_unique<char[]>(sizeof(bool));
-				*reinterpret_cast<bool*>(buf.get()) = (valueStr == "true" || valueStr == "1");
-				result.params.push_back(buf.get());
-				result.buffers.push_back(std::move(buf));
-				break;
-			}
+				{
+					auto buf = std::make_unique<char[]>(sizeof(bool));
+					*reinterpret_cast<bool*>(buf.get()) = (valueStr == "true" || valueStr == "1");
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
 			case EditableType::String:
-			{
-				UT::String* str = UT::String::New(valueStr);
-				auto buf = std::make_unique<char[]>(sizeof(void*));
-				*reinterpret_cast<void**>(buf.get()) = str;
-				result.params.push_back(buf.get());
-				result.buffers.push_back(std::move(buf));
-				break;
-			}
+				{
+					UT::String* str = UT::String::New(valueStr);
+					auto buf = std::make_unique<char[]>(sizeof(void*));
+					*reinterpret_cast<void**>(buf.get()) = str;
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
 			default:
 				result.params.push_back(nullptr);
 				break;
@@ -1071,7 +1347,8 @@ namespace Helper
 
 			screenPos = Vec2(pos.x, screen_size.y - pos.y);
 
-			return true;//(screenPos.x >= 0 && screenPos.x <= screen_size.x && screenPos.y >= 0 && screenPos.y <= screen_size.y);
+			return true;
+			//(screenPos.x >= 0 && screenPos.x <= screen_size.x && screenPos.y >= 0 && screenPos.y <= screen_size.y);
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
@@ -1121,7 +1398,7 @@ namespace Helper
 		if (!camera) return nullptr;
 
 		const ImVec2 screenSize = ImGui::GetIO().DisplaySize;
-		const Vec2 unityScreenPos = { screenPos.x, screenSize.y - screenPos.y };
+		const Vec2 unityScreenPos = {screenPos.x, screenSize.y - screenPos.y};
 
 		const Ray ray = camera->ScreenPointToRay(unityScreenPos);
 

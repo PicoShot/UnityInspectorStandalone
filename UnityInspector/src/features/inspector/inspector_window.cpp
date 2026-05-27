@@ -192,130 +192,178 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 		switch (field.editableType)
 		{
 		case EditableType::Int:
-		{
-			if (field.typeName == "System.Int64")
 			{
-				int64_t val;
-				if (Helper::SafeGetStaticFieldInt64(field.fieldHandle, val))
+				if (field.typeName == "System.Int64")
 				{
-					if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
-						Helper::SafeSetStaticFieldInt64(field.fieldHandle, val);
+					int64_t val;
+					if (Helper::SafeGetStaticFieldInt64(field.fieldHandle, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+							Helper::SafeSetStaticFieldInt64(field.fieldHandle, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
 				}
-				else { ImGui::TextDisabled("ERROR"); }
-			}
-			else if (field.typeName == "System.UInt64")
-			{
-				uint64_t val;
-				if (Helper::SafeGetStaticFieldUInt64(field.fieldHandle, val))
+				else if (field.typeName == "System.UInt64")
 				{
-					if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
-						Helper::SafeSetStaticFieldUInt64(field.fieldHandle, val);
+					uint64_t val;
+					if (Helper::SafeGetStaticFieldUInt64(field.fieldHandle, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+							Helper::SafeSetStaticFieldUInt64(field.fieldHandle, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
 				}
-				else { ImGui::TextDisabled("ERROR"); }
-			}
-			else
-			{
-				int val;
-				if (Helper::SafeGetStaticFieldInt(field.fieldHandle, val))
+				else if (field.typeName == "System.Byte")
 				{
-					if (ImGui::DragInt("##val", &val))
-						Helper::SafeSetStaticFieldInt(field.fieldHandle, val);
+					uint8_t val;
+					if (Helper::SafeGetStaticFieldByte(field.fieldHandle, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeSetStaticFieldByte(field.fieldHandle, static_cast<uint8_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
 				}
-				else { ImGui::TextDisabled("ERROR"); }
+				else if (field.typeName == "System.SByte")
+				{
+					int8_t val;
+					if (Helper::SafeGetStaticFieldSByte(field.fieldHandle, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeSetStaticFieldSByte(field.fieldHandle, static_cast<int8_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.Int16" || field.typeName == "System.Short")
+				{
+					int16_t val;
+					if (Helper::SafeGetStaticFieldInt16(field.fieldHandle, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeSetStaticFieldInt16(field.fieldHandle, static_cast<int16_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.UInt16" || field.typeName == "System.UShort")
+				{
+					uint16_t val;
+					if (Helper::SafeGetStaticFieldUInt16(field.fieldHandle, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeSetStaticFieldUInt16(field.fieldHandle, static_cast<uint16_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else
+				{
+					int val;
+					if (Helper::SafeGetStaticFieldInt(field.fieldHandle, val))
+					{
+						if (ImGui::DragInt("##val", &val))
+							Helper::SafeSetStaticFieldInt(field.fieldHandle, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				break;
 			}
-			break;
-		}
 		case EditableType::Float:
-		{
-			float val;
-			if (Helper::SafeGetStaticFieldFloat(field.fieldHandle, val))
 			{
-				if (ImGui::DragFloat("##val", &val, 0.1f))
-					Helper::SafeSetStaticFieldFloat(field.fieldHandle, val);
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Double:
-		{
-			if (double val; Helper::SafeGetStaticFieldDouble(field.fieldHandle, val))
-			{
-				float fVal = static_cast<float>(val);
-				if (ImGui::DragFloat("##val", &fVal, 0.01f))
-					Helper::SafeSetStaticFieldDouble(field.fieldHandle, static_cast<double>(fVal));
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Bool:
-		{
-			bool val;
-			if (Helper::SafeGetStaticFieldBool(field.fieldHandle, val))
-			{
-				if (ImGui::Checkbox("##val", &val))
-					Helper::SafeSetStaticFieldBool(field.fieldHandle, val);
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Vector3:
-		{
-			UT::Vector3 val;
-			if (Helper::SafeGetStaticFieldVector3(field.fieldHandle, val))
-			{
-				float arr[3] = { val.x, val.y, val.z };
-				if (DragVector3Compact("##val", arr, 0.1f))
+				float val;
+				if (Helper::SafeGetStaticFieldFloat(field.fieldHandle, val))
 				{
-					val.x = arr[0]; val.y = arr[1]; val.z = arr[2];
-					Helper::SafeSetStaticFieldVector3(field.fieldHandle, val);
+					if (ImGui::DragFloat("##val", &val, 0.1f))
+						Helper::SafeSetStaticFieldFloat(field.fieldHandle, val);
 				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
 			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-        case EditableType::CustomObject:
-        {
-            void* instancePtr = nullptr;
-            bool isValid = false;
-            if (field.isValueType)
-            {
-                ImGui::TextDisabled("[static ValueType]");
-            }
-            else
-            {
-                isValid = Helper::SafeGetStaticFieldPointer(field.fieldHandle, instancePtr) && instancePtr != nullptr;
+		case EditableType::Double:
+			{
+				if (double val; Helper::SafeGetStaticFieldDouble(field.fieldHandle, val))
+				{
+					float fVal = static_cast<float>(val);
+					if (ImGui::DragFloat("##val", &fVal, 0.01f))
+						Helper::SafeSetStaticFieldDouble(field.fieldHandle, static_cast<double>(fVal));
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Bool:
+			{
+				bool val;
+				if (Helper::SafeGetStaticFieldBool(field.fieldHandle, val))
+				{
+					if (ImGui::Checkbox("##val", &val))
+						Helper::SafeSetStaticFieldBool(field.fieldHandle, val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Vector3:
+			{
+				UT::Vector3 val;
+				if (Helper::SafeGetStaticFieldVector3(field.fieldHandle, val))
+				{
+					float arr[3] = {val.x, val.y, val.z};
+					if (DragVector3Compact("##val", arr, 0.1f))
+					{
+						val.x = arr[0];
+						val.y = arr[1];
+						val.z = arr[2];
+						Helper::SafeSetStaticFieldVector3(field.fieldHandle, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::CustomObject:
+			{
+				void* instancePtr = nullptr;
+				bool isValid = false;
+				if (field.isValueType)
+				{
+					ImGui::TextDisabled("[static ValueType]");
+				}
+				else
+				{
+					isValid = Helper::SafeGetStaticFieldPointer(field.fieldHandle, instancePtr) && instancePtr !=
+						nullptr;
 
-                if (!isValid)
-                {
-                    ImGui::TextDisabled("(null)");
-                }
-                else
-                {
-                    ImGui::TextDisabled("[static Object]");
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton("Enter"))
-                    {
-                        if (auto activeTab = GetActiveTab())
-                        {
-                            InspectionTarget nextTarget;
-                            nextTarget.instance = instancePtr;
-                            nextTarget.name = field.name;
-                            nextTarget.classHandle = field.classHandle;
-                            
-                            nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
-                            nextTarget.cachedComponentNames.push_back(field.typeName);
+					if (!isValid)
+					{
+						ImGui::TextDisabled("(null)");
+					}
+					else
+					{
+						ImGui::TextDisabled("[static Object]");
+						ImGui::SameLine();
+						if (ImGui::SmallButton("Enter"))
+						{
+							if (auto activeTab = GetActiveTab())
+							{
+								InspectionTarget nextTarget;
+								nextTarget.instance = instancePtr;
+								nextTarget.name = field.name;
+								nextTarget.classHandle = field.classHandle;
 
-                            nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, nullptr));
-                            nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, nullptr));
-                            nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, nullptr));
+								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+								nextTarget.cachedComponentNames.push_back(field.typeName);
 
-                            activeTab->navigationStack.push_back(std::move(nextTarget));
-                        }
-                    }
-                }
-            }
-            break;
-        }
+								nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, nullptr));
+								nextTarget.cachedComponentProperties.push_back(
+									GetObjectProperties(instancePtr, nullptr));
+								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, nullptr));
+
+								activeTab->navigationStack.push_back(std::move(nextTarget));
+							}
+						}
+					}
+				}
+				break;
+			}
 		default:
 			ImGui::TextDisabled("[static]");
 			break;
@@ -326,295 +374,365 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 		switch (field.editableType)
 		{
 		case EditableType::Int:
-		{
-			if (field.typeName == "System.Int64")
 			{
-				int64_t val;
-				if (Helper::SafeReadInt64(instance, field.offset, val))
+				if (field.typeName == "System.Int64")
 				{
-					if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
-						Helper::SafeWriteInt64(instance, field.offset, val);
+					int64_t val;
+					if (Helper::SafeReadInt64(instance, field.offset, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+							Helper::SafeWriteInt64(instance, field.offset, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.UInt64")
+				{
+					uint64_t val;
+					if (Helper::SafeReadUInt64(instance, field.offset, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+							Helper::SafeWriteUInt64(instance, field.offset, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.Byte")
+				{
+					uint8_t val;
+					if (Helper::SafeReadByte(instance, field.offset, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeWriteByte(instance, field.offset, static_cast<uint8_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.SByte")
+				{
+					int8_t val;
+					if (Helper::SafeReadSByte(instance, field.offset, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeWriteSByte(instance, field.offset, static_cast<int8_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.Int16" || field.typeName == "System.Short")
+				{
+					int16_t val;
+					if (Helper::SafeReadInt16(instance, field.offset, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeWriteInt16(instance, field.offset, static_cast<int16_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.UInt16" || field.typeName == "System.UShort")
+				{
+					uint16_t val;
+					if (Helper::SafeReadUInt16(instance, field.offset, val))
+					{
+						int iv = static_cast<int>(val);
+						if (ImGui::DragInt("##val", &iv))
+							Helper::SafeWriteUInt16(instance, field.offset, static_cast<uint16_t>(iv));
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else
+				{
+					int val;
+					if (Helper::SafeReadInt(instance, field.offset, val))
+					{
+						if (field.enumTypeName.empty())
+						{
+							if (ImGui::DragInt("##val", &val))
+								Helper::SafeWriteInt(instance, field.offset, val);
+						}
+						else
+						{
+							const auto enumVals = GetEnumValues(field.enumTypeName);
+							int currentIdx = 0;
+							for (size_t i = 0; i < enumVals.size(); i++)
+							{
+								if (enumVals[i].second == val)
+								{
+									currentIdx = static_cast<int>(i);
+									break;
+								}
+							}
+							std::vector<const char*> names;
+							for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
+							if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
+							{
+								Helper::SafeWriteInt(instance, field.offset, enumVals[currentIdx].second);
+							}
+							ImGui::SameLine();
+							ImGui::Text("%d", val);
+						}
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				break;
+			}
+		case EditableType::Float:
+			{
+				float val;
+				if (Helper::SafeReadFloat(instance, field.offset, val))
+				{
+					if (ImGui::DragFloat("##val", &val, 0.1f))
+						Helper::SafeWriteFloat(instance, field.offset, val);
 				}
 				else { ImGui::TextDisabled("ERROR"); }
+				break;
 			}
-			else if (field.typeName == "System.UInt64")
+		case EditableType::Double:
 			{
-				uint64_t val;
-				if (Helper::SafeReadUInt64(instance, field.offset, val))
+				if (double val; Helper::SafeReadDouble(instance, field.offset, val))
 				{
-					if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
-						Helper::SafeWriteUInt64(instance, field.offset, val);
+					float fVal = static_cast<float>(val);
+					if (ImGui::DragFloat("##val", &fVal, 0.01f))
+						Helper::SafeWriteDouble(instance, field.offset, static_cast<double>(fVal));
 				}
 				else { ImGui::TextDisabled("ERROR"); }
+				break;
 			}
-			else
+		case EditableType::Bool:
+			{
+				bool val;
+				if (Helper::SafeReadBool(instance, field.offset, val))
+				{
+					if (ImGui::Checkbox("##val", &val))
+						Helper::SafeWriteBool(instance, field.offset, val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::String:
+			{
+				if (UT::String* strPtr = nullptr; Helper::SafeReadStringPtr(instance, field.offset, strPtr))
+				{
+					const std::string currentStr = strPtr ? strPtr->ToString() : "(null)";
+					ImGui::TextDisabled("\"%s\"", currentStr.c_str());
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Vector2:
+			{
+				if (UT::Vector2 val; Helper::SafeReadVector2(instance, field.offset, val))
+				{
+					float arr[2] = {val.x, val.y};
+					if (ImGui::DragFloat2("##val", arr, 0.1f))
+					{
+						val.x = arr[0];
+						val.y = arr[1];
+						Helper::SafeWriteVector2(instance, field.offset, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Vector3:
+			{
+				if (UT::Vector3 val; Helper::SafeReadVector3(instance, field.offset, val))
+				{
+					float arr[3] = {val.x, val.y, val.z};
+					if (DragVector3Compact("##val", arr, 0.1f))
+					{
+						val.x = arr[0];
+						val.y = arr[1];
+						val.z = arr[2];
+						Helper::SafeWriteVector3(instance, field.offset, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Vector4:
+			{
+				if (UT::Vector4 val; Helper::SafeReadVector4(instance, field.offset, val))
+				{
+					float arr[4] = {val.x, val.y, val.z, val.w};
+					if (ImGui::DragFloat4("##val", arr, 0.1f))
+					{
+						val.x = arr[0];
+						val.y = arr[1];
+						val.z = arr[2];
+						val.w = arr[3];
+						Helper::SafeWriteVector4(instance, field.offset, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Quaternion:
+			{
+				if (UT::Quaternion val; Helper::SafeReadQuaternion(instance, field.offset, val))
+				{
+					float arr[4] = {val.x, val.y, val.z, val.w};
+					if (DragVector4Compact("##val", arr, 0.01f))
+					{
+						val.x = arr[0];
+						val.y = arr[1];
+						val.z = arr[2];
+						val.w = arr[3];
+						Helper::SafeWriteQuaternion(instance, field.offset, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Color:
+			{
+				if (UT::Color val; Helper::SafeReadColor(instance, field.offset, val))
+				{
+					float arr[4] = {val.r, val.g, val.b, val.a};
+					if (ImGui::ColorEdit4("##val", arr, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar))
+					{
+						val.r = arr[0];
+						val.g = arr[1];
+						val.b = arr[2];
+						val.a = arr[3];
+						Helper::SafeWriteColor(instance, field.offset, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Enum:
 			{
 				int val;
 				if (Helper::SafeReadInt(instance, field.offset, val))
 				{
-					if (field.enumTypeName.empty())
+					const auto enumVals = GetEnumValues(field.enumTypeName);
+
+					const char* currentName = "Unknown";
+					for (const auto& pair : enumVals)
 					{
-						if (ImGui::DragInt("##val", &val))
-							Helper::SafeWriteInt(instance, field.offset, val);
+						if (pair.second == val)
+						{
+							currentName = pair.first.c_str();
+							break;
+						}
 					}
-					else
+
+					ImGui::TextDisabled("%s", currentName);
+					ImGui::SameLine();
+					if (ImGui::SmallButton("Enter"))
 					{
-						const auto enumVals = GetEnumValues(field.enumTypeName);
-						int currentIdx = 0;
-						for (size_t i = 0; i < enumVals.size(); i++)
+						if (auto activeTab = GetActiveTab())
 						{
-							if (enumVals[i].second == val) { currentIdx = static_cast<int>(i); break; }
+							void* instancePtr = nullptr;
+							if (field.isValueType)
+								instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.
+									offset);
+							else
+								Helper::SafeReadPointer(instance, field.offset, instancePtr);
+
+							if (instancePtr)
+							{
+								InspectionTarget nextTarget;
+								nextTarget.instance = instancePtr;
+								nextTarget.name = field.name;
+								nextTarget.classHandle = field.classHandle;
+								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+								nextTarget.cachedComponentNames.push_back(field.typeName);
+								void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
+								nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
+								nextTarget.cachedComponentProperties.push_back(
+									GetObjectProperties(instancePtr, targetKlass));
+								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
+								activeTab->navigationStack.push_back(std::move(nextTarget));
+							}
 						}
-						std::vector<const char*> names;
-						for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
-						if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
-						{
-							Helper::SafeWriteInt(instance, field.offset, enumVals[currentIdx].second);
-						}
-						ImGui::SameLine();
-						ImGui::Text("%d", val);
 					}
 				}
 				else { ImGui::TextDisabled("ERROR"); }
+				break;
 			}
-			break;
-		}
-		case EditableType::Float:
-		{
-			float val;
-			if (Helper::SafeReadFloat(instance, field.offset, val))
+		case EditableType::CustomObject:
 			{
-				if (ImGui::DragFloat("##val", &val, 0.1f))
-					Helper::SafeWriteFloat(instance, field.offset, val);
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Double:
-		{
-			if (double val; Helper::SafeReadDouble(instance, field.offset, val))
-			{
-				float fVal = static_cast<float>(val);
-				if (ImGui::DragFloat("##val", &fVal, 0.01f))
-					Helper::SafeWriteDouble(instance, field.offset, static_cast<double>(fVal));
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Bool:
-		{
-			bool val;
-			if (Helper::SafeReadBool(instance, field.offset, val))
-			{
-				if (ImGui::Checkbox("##val", &val))
-					Helper::SafeWriteBool(instance, field.offset, val);
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::String:
-		{
-			if (UT::String* strPtr = nullptr; Helper::SafeReadStringPtr(instance, field.offset, strPtr))
-			{
-				const std::string currentStr = strPtr ? strPtr->ToString() : "(null)";
-				ImGui::TextDisabled("\"%s\"", currentStr.c_str());
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Vector2:
-		{
-			if (UT::Vector2 val; Helper::SafeReadVector2(instance, field.offset, val))
-			{
-				float arr[2] = { val.x, val.y };
-				if (ImGui::DragFloat2("##val", arr, 0.1f))
+				bool isNullable = field.typeName.find("System.Nullable") != std::string::npos;
+				if (isNullable && field.isValueType)
 				{
-					val.x = arr[0]; val.y = arr[1];
-					Helper::SafeWriteVector2(instance, field.offset, val);
-				}
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Vector3:
-		{
-			if (UT::Vector3 val; Helper::SafeReadVector3(instance, field.offset, val))
-			{
-				float arr[3] = { val.x, val.y, val.z };
-				if (DragVector3Compact("##val", arr, 0.1f))
-				{
-					val.x = arr[0]; val.y = arr[1]; val.z = arr[2];
-					Helper::SafeWriteVector3(instance, field.offset, val);
-				}
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Vector4:
-		{
-			if (UT::Vector4 val; Helper::SafeReadVector4(instance, field.offset, val))
-			{
-				float arr[4] = { val.x, val.y, val.z, val.w };
-				if (ImGui::DragFloat4("##val", arr, 0.1f))
-				{
-					val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
-					Helper::SafeWriteVector4(instance, field.offset, val);
-				}
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Quaternion:
-		{
-			if (UT::Quaternion val; Helper::SafeReadQuaternion(instance, field.offset, val))
-			{
-				float arr[4] = { val.x, val.y, val.z, val.w };
-				if (DragVector4Compact("##val", arr, 0.01f))
-				{
-					val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
-					Helper::SafeWriteQuaternion(instance, field.offset, val);
-				}
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Color:
-		{
-			if (UT::Color val; Helper::SafeReadColor(instance, field.offset, val))
-			{
-				float arr[4] = { val.r, val.g, val.b, val.a };
-				if (ImGui::ColorEdit4("##val", arr, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar))
-				{
-					val.r = arr[0]; val.g = arr[1]; val.b = arr[2]; val.a = arr[3];
-					Helper::SafeWriteColor(instance, field.offset, val);
-				}
-			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-		case EditableType::Enum:
-		{
-			int val;
-			if (Helper::SafeReadInt(instance, field.offset, val))
-			{
-				const auto enumVals = GetEnumValues(field.enumTypeName);
-
-				const char* currentName = "Unknown";
-				for (const auto& pair : enumVals)
-				{
-					if (pair.second == val) { currentName = pair.first.c_str(); break; }
-				}
-				
-				ImGui::TextDisabled("%s", currentName);
-				ImGui::SameLine();
-				if (ImGui::SmallButton("Enter"))
-				{
-					if (auto activeTab = GetActiveTab())
+					void* nullablePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+					bool hasValue = false;
+					Helper::SafeReadBool(nullablePtr, 0, hasValue);
+					if (!hasValue)
 					{
-						void* instancePtr = nullptr;
-						if (field.isValueType)
-							instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
-						else
-							Helper::SafeReadPointer(instance, field.offset, instancePtr);
-							
-						if (instancePtr)
+						ImGui::TextDisabled("null");
+					}
+					else
+					{
+						ImGui::TextDisabled("Nullable (has value)");
+						ImGui::SameLine();
+						if (ImGui::SmallButton("Enter"))
 						{
-							InspectionTarget nextTarget;
-							nextTarget.instance = instancePtr;
-							nextTarget.name = field.name;
-							nextTarget.classHandle = field.classHandle;
-							nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
-							nextTarget.cachedComponentNames.push_back(field.typeName);
-							void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
-							nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
-							nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
-							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
-							activeTab->navigationStack.push_back(std::move(nextTarget));
+							if (auto activeTab = GetActiveTab())
+							{
+								InspectionTarget nextTarget;
+								nextTarget.instance = nullablePtr;
+								nextTarget.name = field.name;
+								nextTarget.classHandle = field.classHandle;
+								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(nullablePtr));
+								nextTarget.cachedComponentNames.push_back(field.typeName);
+								nextTarget.cachedComponentFields.push_back(
+									GetObjectFields(nullablePtr, field.typeClassHandle));
+								nextTarget.cachedComponentProperties.push_back(
+									GetObjectProperties(nullablePtr, field.typeClassHandle));
+								nextTarget.cachedComponentMethods.push_back(
+									GetObjectMethods(nullablePtr, field.typeClassHandle));
+								activeTab->navigationStack.push_back(std::move(nextTarget));
+							}
 						}
 					}
 				}
+				else
+				{
+					void* instancePtr = nullptr;
+					if (field.isValueType)
+					{
+						instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+					}
+					else
+					{
+						Helper::SafeReadPointer(instance, field.offset, instancePtr);
+					}
+
+					if (!instancePtr)
+					{
+						ImGui::TextDisabled("null");
+					}
+					else
+					{
+						ImGui::TextDisabled("(Object) %p", instancePtr);
+						ImGui::SameLine();
+						if (ImGui::SmallButton("Enter"))
+						{
+							if (auto activeTab = GetActiveTab())
+							{
+								InspectionTarget nextTarget;
+								nextTarget.instance = instancePtr;
+								nextTarget.name = field.name;
+								nextTarget.classHandle = field.classHandle;
+
+								nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
+								nextTarget.cachedComponentNames.push_back(field.typeName);
+								void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
+
+								nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
+								nextTarget.cachedComponentProperties.push_back(
+									GetObjectProperties(instancePtr, targetKlass));
+								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
+
+								activeTab->navigationStack.push_back(std::move(nextTarget));
+							}
+						}
+					}
+				}
+				break;
 			}
-			else { ImGui::TextDisabled("ERROR"); }
-			break;
-		}
-        case EditableType::CustomObject:
-        {
-            bool isNullable = field.typeName.find("System.Nullable") != std::string::npos;
-            if (isNullable && field.isValueType)
-            {
-                void* nullablePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
-                bool hasValue = false;
-                Helper::SafeReadBool(nullablePtr, 0, hasValue);
-                if (!hasValue)
-                {
-                    ImGui::TextDisabled("null");
-                }
-                else
-                {
-                    ImGui::TextDisabled("Nullable (has value)");
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton("Enter"))
-                    {
-                        if (auto activeTab = GetActiveTab())
-                        {
-                            InspectionTarget nextTarget;
-                            nextTarget.instance = nullablePtr;
-                            nextTarget.name = field.name;
-                            nextTarget.classHandle = field.classHandle;
-                            nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(nullablePtr));
-                            nextTarget.cachedComponentNames.push_back(field.typeName);
-                            nextTarget.cachedComponentFields.push_back(GetObjectFields(nullablePtr, field.typeClassHandle));
-                            nextTarget.cachedComponentProperties.push_back(GetObjectProperties(nullablePtr, field.typeClassHandle));
-                            nextTarget.cachedComponentMethods.push_back(GetObjectMethods(nullablePtr, field.typeClassHandle));
-                            activeTab->navigationStack.push_back(std::move(nextTarget));
-                        }
-                    }
-                }
-            }
-            else
-            {
-                void* instancePtr = nullptr;
-                if (field.isValueType)
-                {
-                    instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
-                }
-                else
-                {
-                    Helper::SafeReadPointer(instance, field.offset, instancePtr);
-                }
-
-                if (!instancePtr)
-                {
-                    ImGui::TextDisabled("null");
-                }
-                else
-                {
-                    ImGui::TextDisabled("(Object) %p", instancePtr);
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton("Enter"))
-                    {
-                        if (auto activeTab = GetActiveTab())
-                        {
-                            InspectionTarget nextTarget;
-                            nextTarget.instance = instancePtr;
-                            nextTarget.name = field.name;
-                            nextTarget.classHandle = field.classHandle;
-                            
-                            nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(instancePtr));
-                            nextTarget.cachedComponentNames.push_back(field.typeName);
-                            void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
-
-                            nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
-                            nextTarget.cachedComponentProperties.push_back(GetObjectProperties(instancePtr, targetKlass));
-                            nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
-
-                            activeTab->navigationStack.push_back(std::move(nextTarget));
-                        }
-                    }
-                }
-            }
-            break;
-        }
 		default:
 			ImGui::TextDisabled("...");
 			break;
@@ -643,179 +761,256 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 	switch (prop.editableType)
 	{
 	case EditableType::Int:
-	{
-		if (prop.typeName == "System.Int64")
 		{
-			int64_t val = 0;
-			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int64_t)))
+			if (prop.typeName == "System.Int64")
 			{
-				if (prop.canWrite && ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
-					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
-				else if (!prop.canWrite)
-					ImGui::Text("%lld", val);
+				int64_t val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int64_t)))
+				{
+					if (prop.canWrite && ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+					else if (!prop.canWrite)
+						ImGui::Text("%lld", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
 			}
-			else { ImGui::TextDisabled("ERROR"); }
-		}
-		else if (prop.typeName == "System.UInt64")
-		{
-			uint64_t val = 0;
-			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(uint64_t)))
+			else if (prop.typeName == "System.UInt64")
 			{
-				if (prop.canWrite && ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
-					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
-				else if (!prop.canWrite)
-					ImGui::Text("%llu", val);
+				uint64_t val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(uint64_t)))
+				{
+					if (prop.canWrite && ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+					else if (!prop.canWrite)
+						ImGui::Text("%llu", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
 			}
-			else { ImGui::TextDisabled("ERROR"); }
-		}
-		else
-		{
-			int val = 0;
-			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int)))
+			else if (prop.typeName == "System.Byte")
 			{
-				if (prop.canWrite && ImGui::DragInt("##val", &val))
-					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
-				else if (!prop.canWrite)
-					ImGui::Text("%d", val);
+				uint8_t val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(uint8_t)))
+				{
+					int iv = static_cast<int>(val);
+					if (prop.canWrite && ImGui::DragInt("##val", &iv))
+					{
+						uint8_t nv = static_cast<uint8_t>(iv);
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &nv);
+					}
+					else if (!prop.canWrite)
+						ImGui::Text("%u", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
 			}
-			else { ImGui::TextDisabled("ERROR"); }
-		}
-		break;
-	}
-	case EditableType::Float:
-	{
-		float val = 0;
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(float)))
-		{
-			if (prop.canWrite && ImGui::DragFloat("##val", &val, 0.1f))
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
-			else if (!prop.canWrite)
-				ImGui::Text("%.3f", val);
-		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
-	case EditableType::Double:
-	{
-		double val = 0;
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(double)))
-		{
-			float fVal = static_cast<float>(val);
-			if (prop.canWrite && ImGui::DragFloat("##val", &fVal, 0.01f))
+			else if (prop.typeName == "System.SByte")
 			{
-				val = static_cast<double>(fVal);
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				int8_t val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int8_t)))
+				{
+					int iv = static_cast<int>(val);
+					if (prop.canWrite && ImGui::DragInt("##val", &iv))
+					{
+						int8_t nv = static_cast<int8_t>(iv);
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &nv);
+					}
+					else if (!prop.canWrite)
+						ImGui::Text("%d", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
 			}
-			else if (!prop.canWrite)
-				ImGui::Text("%.6f", val);
-		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
-	case EditableType::Bool:
-	{
-		bool val = false;
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(bool)))
-		{
-			if (prop.canWrite)
+			else if (prop.typeName == "System.Int16" || prop.typeName == "System.Short")
 			{
-				if (ImGui::Checkbox("##val", &val))
-					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				int16_t val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int16_t)))
+				{
+					int iv = static_cast<int>(val);
+					if (prop.canWrite && ImGui::DragInt("##val", &iv))
+					{
+						int16_t nv = static_cast<int16_t>(iv);
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &nv);
+					}
+					else if (!prop.canWrite)
+						ImGui::Text("%d", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+			}
+			else if (prop.typeName == "System.UInt16" || prop.typeName == "System.UShort")
+			{
+				uint16_t val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(uint16_t)))
+				{
+					int iv = static_cast<int>(val);
+					if (prop.canWrite && ImGui::DragInt("##val", &iv))
+					{
+						uint16_t nv = static_cast<uint16_t>(iv);
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &nv);
+					}
+					else if (!prop.canWrite)
+						ImGui::Text("%u", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
 			}
 			else
-				ImGui::Text("%s", val ? "true" : "false");
+			{
+				int val = 0;
+				if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int)))
+				{
+					if (prop.canWrite && ImGui::DragInt("##val", &val))
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+					else if (!prop.canWrite)
+						ImGui::Text("%d", val);
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+			}
+			break;
 		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
+	case EditableType::Float:
+		{
+			float val = 0;
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(float)))
+			{
+				if (prop.canWrite && ImGui::DragFloat("##val", &val, 0.1f))
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				else if (!prop.canWrite)
+					ImGui::Text("%.3f", val);
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
+	case EditableType::Double:
+		{
+			double val = 0;
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(double)))
+			{
+				float fVal = static_cast<float>(val);
+				if (prop.canWrite && ImGui::DragFloat("##val", &fVal, 0.01f))
+				{
+					val = static_cast<double>(fVal);
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				}
+				else if (!prop.canWrite)
+					ImGui::Text("%.6f", val);
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
+	case EditableType::Bool:
+		{
+			bool val = false;
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(bool)))
+			{
+				if (prop.canWrite)
+				{
+					if (ImGui::Checkbox("##val", &val))
+						Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				}
+				else
+					ImGui::Text("%s", val ? "true" : "false");
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
 	case EditableType::Vector2:
-	{
-		UT::Vector2 val = {};
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Vector2)))
 		{
-			float arr[2] = { val.x, val.y };
-			if (prop.canWrite && ImGui::DragFloat2("##val", arr, 0.1f))
+			UT::Vector2 val = {};
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Vector2)))
 			{
-				val.x = arr[0]; val.y = arr[1];
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				float arr[2] = {val.x, val.y};
+				if (prop.canWrite && ImGui::DragFloat2("##val", arr, 0.1f))
+				{
+					val.x = arr[0];
+					val.y = arr[1];
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				}
+				else if (!prop.canWrite)
+					ImGui::Text("(%.2f, %.2f)", val.x, val.y);
 			}
-			else if (!prop.canWrite)
-				ImGui::Text("(%.2f, %.2f)", val.x, val.y);
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
 		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
 	case EditableType::Vector3:
-	{
-		UT::Vector3 val = {};
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Vector3)))
 		{
-			float arr[3] = { val.x, val.y, val.z };
-			if (prop.canWrite && DragVector3Compact("##val", arr, 0.1f))
+			UT::Vector3 val = {};
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Vector3)))
 			{
-				val.x = arr[0]; val.y = arr[1]; val.z = arr[2];
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				float arr[3] = {val.x, val.y, val.z};
+				if (prop.canWrite && DragVector3Compact("##val", arr, 0.1f))
+				{
+					val.x = arr[0];
+					val.y = arr[1];
+					val.z = arr[2];
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				}
+				else if (!prop.canWrite)
+					ImGui::Text("(%.2f, %.2f, %.2f)", val.x, val.y, val.z);
 			}
-			else if (!prop.canWrite)
-				ImGui::Text("(%.2f, %.2f, %.2f)", val.x, val.y, val.z);
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
 		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
 	case EditableType::Vector4:
-	{
-		UT::Vector4 val = {};
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Vector4)))
 		{
-			float arr[4] = { val.x, val.y, val.z, val.w };
-			if (prop.canWrite && ImGui::DragFloat4("##val", arr, 0.1f))
+			UT::Vector4 val = {};
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Vector4)))
 			{
-				val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				float arr[4] = {val.x, val.y, val.z, val.w};
+				if (prop.canWrite && ImGui::DragFloat4("##val", arr, 0.1f))
+				{
+					val.x = arr[0];
+					val.y = arr[1];
+					val.z = arr[2];
+					val.w = arr[3];
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				}
+				else if (!prop.canWrite)
+					ImGui::Text("(%.2f, %.2f, %.2f, %.2f)", val.x, val.y, val.z, val.w);
 			}
-			else if (!prop.canWrite)
-				ImGui::Text("(%.2f, %.2f, %.2f, %.2f)", val.x, val.y, val.z, val.w);
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
 		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
 	case EditableType::Quaternion:
-	{
-		UT::Quaternion val = {};
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Quaternion)))
 		{
-			float arr[4] = { val.x, val.y, val.z, val.w };
-			if (prop.canWrite && DragVector4Compact("##val", arr, 0.01f))
+			UT::Quaternion val = {};
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Quaternion)))
 			{
-				val.x = arr[0]; val.y = arr[1]; val.z = arr[2]; val.w = arr[3];
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				float arr[4] = {val.x, val.y, val.z, val.w};
+				if (prop.canWrite && DragVector4Compact("##val", arr, 0.01f))
+				{
+					val.x = arr[0];
+					val.y = arr[1];
+					val.z = arr[2];
+					val.w = arr[3];
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				}
+				else if (!prop.canWrite)
+					ImGui::Text("(%.3f, %.3f, %.3f, %.3f)", val.x, val.y, val.z, val.w);
 			}
-			else if (!prop.canWrite)
-				ImGui::Text("(%.3f, %.3f, %.3f, %.3f)", val.x, val.y, val.z, val.w);
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
 		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
 	case EditableType::Color:
-	{
-		UT::Color val = {};
-		if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Color)))
 		{
-			float arr[4] = { val.r, val.g, val.b, val.a };
-			if (prop.canWrite && ImGui::ColorEdit4("##val", arr, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar))
+			UT::Color val = {};
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(UT::Color)))
 			{
-				val.r = arr[0]; val.g = arr[1]; val.b = arr[2]; val.a = arr[3];
-				Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				float arr[4] = {val.r, val.g, val.b, val.a};
+				if (prop.canWrite && ImGui::ColorEdit4("##val", arr,
+				                                       ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar))
+				{
+					val.r = arr[0];
+					val.g = arr[1];
+					val.b = arr[2];
+					val.a = arr[3];
+					Helper::SafeInvokeSetter(instance, prop.setterHandle, &val);
+				}
+				else if (!prop.canWrite)
+				{
+					const ImVec4 col(val.r, val.g, val.b, val.a);
+					ImGui::ColorButton("##preview", col, ImGuiColorEditFlags_NoTooltip, ImVec2(20, 14));
+				}
 			}
-			else if (!prop.canWrite)
-			{
-				const ImVec4 col(val.r, val.g, val.b, val.a);
-				ImGui::ColorButton("##preview", col, ImGuiColorEditFlags_NoTooltip, ImVec2(20, 14));
-			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
 		}
-		else { ImGui::TextDisabled("ERROR"); }
-		break;
-	}
 	default:
 		ImGui::TextDisabled("...");
 		break;
@@ -852,13 +1047,14 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 	if (tab.showWorldTransform)
 	{
 		if (showBoth)
-			ImGui::BeginChild("WorldTransform", ImVec2(childWidth, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
+			ImGui::BeginChild("WorldTransform", ImVec2(childWidth, 0),
+			                  ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
 
 		ImGui::TextDisabled("World Position");
 		const auto pos = transform->GetPosition();
-		float posArr[3] = { pos.x, pos.y, pos.z };
+		float posArr[3] = {pos.x, pos.y, pos.z};
 		if (DragVector3Compact("WorldPos", posArr, 0.1f))
-			transform->SetPosition({ posArr[0], posArr[1], posArr[2] });
+			transform->SetPosition({posArr[0], posArr[1], posArr[2]});
 
 		ImGui::Spacing();
 		ImGui::TextDisabled("World Rotation (Euler)");
@@ -869,7 +1065,7 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 		{
 			float q[4];
 			EulerToQuaternion(euler[0], euler[1], euler[2], q);
-			transform->SetRotation({ q[0], q[1], q[2], q[3] });
+			transform->SetRotation({q[0], q[1], q[2], q[3]});
 		}
 
 		if (showBoth)
@@ -882,13 +1078,14 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 	if (tab.showLocalTransform)
 	{
 		if (showBoth)
-			ImGui::BeginChild("LocalTransform", ImVec2(childWidth, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
+			ImGui::BeginChild("LocalTransform", ImVec2(childWidth, 0),
+			                  ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
 
 		ImGui::TextDisabled("Local Position");
 		const auto localPos = transform->GetLocalPosition();
-		float localPosArr[3] = { localPos.x, localPos.y, localPos.z };
+		float localPosArr[3] = {localPos.x, localPos.y, localPos.z};
 		if (DragVector3Compact("LocalPos", localPosArr, 0.1f))
-			transform->SetLocalPosition({ localPosArr[0], localPosArr[1], localPosArr[2] });
+			transform->SetLocalPosition({localPosArr[0], localPosArr[1], localPosArr[2]});
 
 		ImGui::Spacing();
 		ImGui::TextDisabled("Local Rotation (Euler)");
@@ -899,15 +1096,15 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 		{
 			float q[4];
 			EulerToQuaternion(localEuler[0], localEuler[1], localEuler[2], q);
-			transform->SetLocalRotation({ q[0], q[1], q[2], q[3] });
+			transform->SetLocalRotation({q[0], q[1], q[2], q[3]});
 		}
 
 		ImGui::Spacing();
 		ImGui::TextDisabled("Local Scale");
 		const auto scale = transform->GetLocalScale();
-		float scaleArr[3] = { scale.x, scale.y, scale.z };
+		float scaleArr[3] = {scale.x, scale.y, scale.z};
 		if (DragVector3Compact("LocalScale", scaleArr, 0.1f))
-			transform->SetLocalScale({ scaleArr[0], scaleArr[1], scaleArr[2] });
+			transform->SetLocalScale({scaleArr[0], scaleArr[1], scaleArr[2]});
 
 		if (showBoth)
 			ImGui::EndChild();
@@ -917,7 +1114,8 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 	ImGui::Spacing();
 }
 
-void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentFieldInfo>& fields, InspectionTarget& target, InspectedObjectTab& tab, const size_t componentIndex)
+void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentFieldInfo>& fields,
+                                    InspectionTarget& target, InspectedObjectTab& tab, const size_t componentIndex)
 {
 	if (fields.empty())
 	{
@@ -942,7 +1140,8 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 	std::vector<const ComponentFieldInfo*> filteredFields;
 	for (const auto& field : fields)
 	{
-		if (PassesFieldFilter(field, lSearchBuffer, tab.filterEditableOnly, tab.filterStaticOnly, tab.filterInstanceOnly))
+		if (PassesFieldFilter(field, lSearchBuffer, tab.filterEditableOnly, tab.filterStaticOnly,
+		                      tab.filterInstanceOnly))
 			filteredFields.push_back(&field);
 	}
 
@@ -956,11 +1155,11 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 	ImGui::Spacing();
 
 	if (ImGui::BeginTable("FieldsTable", 4,
-		ImGuiTableFlags_Resizable |
-		ImGuiTableFlags_BordersInnerV |
-		ImGuiTableFlags_SizingFixedFit |
-		ImGuiTableFlags_RowBg |
-		ImGuiTableFlags_Sortable))
+	                      ImGuiTableFlags_Resizable |
+	                      ImGuiTableFlags_BordersInnerV |
+	                      ImGuiTableFlags_SizingFixedFit |
+	                      ImGuiTableFlags_RowBg |
+	                      ImGuiTableFlags_Sortable))
 	{
 		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 150.0f);
 		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 140.0f);
@@ -971,7 +1170,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 		for (const auto* field : filteredFields)
 		{
 			ImGui::TableNextRow();
-            
+
 			bool isArray = field->typeName.find("[]") != std::string::npos;
 			bool isList = field->typeName.find("System.Collections.Generic.List") != std::string::npos;
 			bool isDictionary = field->typeName.find("System.Collections.Generic.Dictionary") != std::string::npos;
@@ -1010,12 +1209,13 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						if (pEntries)
 							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(pEntries) + 0x20);
 					}
-					
+
 					collectionCount = std::max(0, std::min(collectionCount, 1000));
 
 					ImGui::PushID(field->fieldHandle);
 					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 1.0f, 1.0f));
-					isExpanded = ImGui::TreeNodeEx(field->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth, "%s [%d]", field->name.c_str(), collectionCount);
+					isExpanded = ImGui::TreeNodeEx(field->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth, "%s [%d]",
+					                               field->name.c_str(), collectionCount);
 					ImGui::PopStyleColor();
 					ImGui::PopID();
 				}
@@ -1109,12 +1309,16 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 										nextTarget.name = field->name + "[" + std::to_string(i) + "].Value";
 										nextTarget.classHandle = nullptr;
 
-										nextTarget.cachedComponents.push_back(reinterpret_cast<UT::Component*>(entryValue));
+										nextTarget.cachedComponents.push_back(
+											reinterpret_cast<UT::Component*>(entryValue));
 										nextTarget.cachedComponentNames.push_back("DictionaryValue");
 
-										nextTarget.cachedComponentFields.push_back(GetObjectFields(entryValue, nullptr));
-										nextTarget.cachedComponentProperties.push_back(GetObjectProperties(entryValue, nullptr));
-										nextTarget.cachedComponentMethods.push_back(GetObjectMethods(entryValue, nullptr));
+										nextTarget.cachedComponentFields.
+										           push_back(GetObjectFields(entryValue, nullptr));
+										nextTarget.cachedComponentProperties.push_back(
+											GetObjectProperties(entryValue, nullptr));
+										nextTarget.cachedComponentMethods.push_back(
+											GetObjectMethods(entryValue, nullptr));
 
 										activeTab->navigationStack.push_back(std::move(nextTarget));
 									}
@@ -1146,23 +1350,51 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						elemInfo.typeName = elementTypeName;
 						elemInfo.isStatic = false;
 						elemInfo.editableType = DetermineEditableType(elementTypeName, &elemInfo.enumTypeName);
-						
+
 						int elemSize = sizeof(void*);
 						elemInfo.isValueType = false;
-						
-						if (elemInfo.editableType == EditableType::Enum || elemInfo.editableType == EditableType::Int) {
+
+						if (elemInfo.editableType == EditableType::Enum || elemInfo.editableType == EditableType::Int)
+						{
 							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64") elemSize = 8;
-							else if (elementTypeName == "System.Int16" || elementTypeName == "System.UInt16" || elementTypeName == "System.Char") elemSize = 2;
-							else if (elementTypeName == "System.Byte" || elementTypeName == "System.SByte" || elementTypeName == "System.Boolean") elemSize = 1;
+							else if (elementTypeName == "System.Int16" || elementTypeName == "System.UInt16" ||
+								elementTypeName == "System.Char") elemSize = 2;
+							else if (elementTypeName == "System.Byte" || elementTypeName == "System.SByte" ||
+								elementTypeName == "System.Boolean") elemSize = 1;
 							else elemSize = 4;
 							elemInfo.isValueType = true;
 						}
-						else if (elemInfo.editableType == EditableType::Float) { elemSize = 4; elemInfo.isValueType = true; }
-						else if (elemInfo.editableType == EditableType::Double) { elemSize = 8; elemInfo.isValueType = true; }
-						else if (elemInfo.editableType == EditableType::Bool) { elemSize = 1; elemInfo.isValueType = true; }
-						else if (elemInfo.editableType == EditableType::Vector2) { elemSize = 8; elemInfo.isValueType = true; }
-						else if (elemInfo.editableType == EditableType::Vector3) { elemSize = 12; elemInfo.isValueType = true; }
-						else if (elemInfo.editableType == EditableType::Vector4 || elemInfo.editableType == EditableType::Quaternion || elemInfo.editableType == EditableType::Color) { elemSize = 16; elemInfo.isValueType = true; }
+						else if (elemInfo.editableType == EditableType::Float)
+						{
+							elemSize = 4;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Double)
+						{
+							elemSize = 8;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Bool)
+						{
+							elemSize = 1;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Vector2)
+						{
+							elemSize = 8;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Vector3)
+						{
+							elemSize = 12;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Vector4 || elemInfo.editableType ==
+							EditableType::Quaternion || elemInfo.editableType == EditableType::Color)
+						{
+							elemSize = 16;
+							elemInfo.isValueType = true;
+						}
 
 						for (int i = 0; i < collectionCount; ++i)
 						{
@@ -1201,7 +1433,9 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 	}
 }
 
-void Inspector::RenderPropertiesSection(void* instance, const std::vector<ComponentPropertyInfo>& properties, InspectionTarget& target, InspectedObjectTab& tab, const size_t componentIndex) const
+void Inspector::RenderPropertiesSection(void* instance, const std::vector<ComponentPropertyInfo>& properties,
+                                        InspectionTarget& target, InspectedObjectTab& tab,
+                                        const size_t componentIndex) const
 {
 	if (properties.empty())
 	{
@@ -1239,11 +1473,11 @@ void Inspector::RenderPropertiesSection(void* instance, const std::vector<Compon
 	ImGui::Spacing();
 
 	if (ImGui::BeginTable("PropertiesTable", 3,
-		ImGuiTableFlags_Resizable |
-		ImGuiTableFlags_BordersInnerV |
-		ImGuiTableFlags_SizingFixedFit |
-		ImGuiTableFlags_RowBg |
-		ImGuiTableFlags_Sortable))
+	                      ImGuiTableFlags_Resizable |
+	                      ImGuiTableFlags_BordersInnerV |
+	                      ImGuiTableFlags_SizingFixedFit |
+	                      ImGuiTableFlags_RowBg |
+	                      ImGuiTableFlags_Sortable))
 	{
 		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 150.0f);
 		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -1282,7 +1516,8 @@ void Inspector::RenderPropertiesSection(void* instance, const std::vector<Compon
 	}
 }
 
-void Inspector::RenderMethodsSection(void* instance, const std::vector<ComponentMethodInfo>& methods, InspectionTarget& target, InspectedObjectTab& tab, const size_t componentIndex)
+void Inspector::RenderMethodsSection(void* instance, const std::vector<ComponentMethodInfo>& methods,
+                                     InspectionTarget& target, InspectedObjectTab& tab, const size_t componentIndex)
 {
 	if (methods.empty())
 	{
@@ -1322,11 +1557,11 @@ void Inspector::RenderMethodsSection(void* instance, const std::vector<Component
 	ImGui::Spacing();
 
 	if (ImGui::BeginTable("MethodsTable", 3,
-		ImGuiTableFlags_Resizable |
-		ImGuiTableFlags_BordersInnerV |
-		ImGuiTableFlags_SizingFixedFit |
-		ImGuiTableFlags_RowBg |
-		ImGuiTableFlags_Sortable))
+	                      ImGuiTableFlags_Resizable |
+	                      ImGuiTableFlags_BordersInnerV |
+	                      ImGuiTableFlags_SizingFixedFit |
+	                      ImGuiTableFlags_RowBg |
+	                      ImGuiTableFlags_Sortable))
 	{
 		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 160.0f);
 		ImGui::TableSetupColumn("Signature", ImGuiTableColumnFlags_WidthStretch);
@@ -1409,7 +1644,8 @@ void Inspector::RenderMethodsSection(void* instance, const std::vector<Component
 void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjectTab& tab)
 {
 	ImGui::PushItemWidth(-1);
-	ImGui::InputTextWithHint("##ComponentSearch", "Filter components...", target.componentSearchBuffer, sizeof(target.componentSearchBuffer));
+	ImGui::InputTextWithHint("##ComponentSearch", "Filter components...", target.componentSearchBuffer,
+	                         sizeof(target.componentSearchBuffer));
 	ImGui::PopItemWidth();
 
 	ImGui::Spacing();
@@ -1436,15 +1672,19 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 	for (const size_t idx : filteredComponentIndices)
 	{
 		if (idx >= target.cachedComponents.size() ||
-		    idx >= target.cachedComponentNames.size() ||
-		    idx >= target.cachedComponentFields.size())
-		    continue;
+			idx >= target.cachedComponentNames.size() ||
+			idx >= target.cachedComponentFields.size())
+			continue;
 
 		const auto comp = target.cachedComponents[idx];
 		const std::string& compName = target.cachedComponentNames[idx];
 		const auto& fields = target.cachedComponentFields[idx];
-		const auto& properties = target.cachedComponentProperties.size() > idx ? target.cachedComponentProperties[idx] : std::vector<ComponentPropertyInfo>{};
-		const auto& methods = target.cachedComponentMethods.size() > idx ? target.cachedComponentMethods[idx] : std::vector<ComponentMethodInfo>{};
+		const auto& properties = target.cachedComponentProperties.size() > idx
+			                         ? target.cachedComponentProperties[idx]
+			                         : std::vector<ComponentPropertyInfo>{};
+		const auto& methods = target.cachedComponentMethods.size() > idx
+			                      ? target.cachedComponentMethods[idx]
+			                      : std::vector<ComponentMethodInfo>{};
 
 		ImGui::PushID(static_cast<int>(idx));
 
@@ -1516,9 +1756,9 @@ void Inspector::RenderDetailsWindow()
 void Inspector::RenderTabBar()
 {
 	if (ImGui::BeginTabBar("InspectorTabs",
-		ImGuiTabBarFlags_Reorderable |
-		ImGuiTabBarFlags_AutoSelectNewTabs |
-		ImGuiTabBarFlags_TabListPopupButton))
+	                       ImGuiTabBarFlags_Reorderable |
+	                       ImGuiTabBarFlags_AutoSelectNewTabs |
+	                       ImGuiTabBarFlags_TabListPopupButton))
 	{
 		for (size_t i = 0; i < openTabs.size(); ++i)
 		{
@@ -1646,8 +1886,8 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 		}
 		ImGui::EndChild();
 	}
-	
-	
+
+
 	else if (target.instance)
 	{
 		ImGui::TextDisabled("Inspecting nested object at %p", target.instance);
@@ -1668,6 +1908,4 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 		}
 		ImGui::EndChild();
 	}
-
-
 }

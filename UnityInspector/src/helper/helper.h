@@ -25,6 +25,14 @@ namespace Helper
 	bool SafeWriteInt64(void* ptr, int offset, int64_t value);
 	bool SafeReadUInt64(void* ptr, int offset, uint64_t& outValue);
 	bool SafeWriteUInt64(void* ptr, int offset, uint64_t value);
+	bool SafeReadByte(void* ptr, int offset, uint8_t& outValue);
+	bool SafeWriteByte(void* ptr, int offset, uint8_t value);
+	bool SafeReadSByte(void* ptr, int offset, int8_t& outValue);
+	bool SafeWriteSByte(void* ptr, int offset, int8_t value);
+	bool SafeReadInt16(void* ptr, int offset, int16_t& outValue);
+	bool SafeWriteInt16(void* ptr, int offset, int16_t value);
+	bool SafeReadUInt16(void* ptr, int offset, uint16_t& outValue);
+	bool SafeWriteUInt16(void* ptr, int offset, uint16_t value);
 	bool SafeReadFloat(void* ptr, int offset, float& outValue);
 	bool SafeWriteFloat(void* ptr, int offset, float value);
 	bool SafeReadDouble(void* ptr, int offset, double& outValue);
@@ -42,7 +50,7 @@ namespace Helper
 	bool SafeReadColor(void* ptr, int offset, Color& outValue);
 	bool SafeWriteColor(void* ptr, int offset, const Color& value);
 	bool SafeReadStringPtr(void* ptr, int offset, UT::String*& outValue);
-	
+
 	bool SafeReadPointer(void* ptr, int offset, void*& outValue);
 
 	bool SafeGetStaticFieldInt(void* fieldHandle, int& outValue);
@@ -51,6 +59,14 @@ namespace Helper
 	bool SafeSetStaticFieldInt64(void* fieldHandle, int64_t value);
 	bool SafeGetStaticFieldUInt64(void* fieldHandle, uint64_t& outValue);
 	bool SafeSetStaticFieldUInt64(void* fieldHandle, uint64_t value);
+	bool SafeGetStaticFieldByte(void* fieldHandle, uint8_t& outValue);
+	bool SafeSetStaticFieldByte(void* fieldHandle, uint8_t value);
+	bool SafeGetStaticFieldSByte(void* fieldHandle, int8_t& outValue);
+	bool SafeSetStaticFieldSByte(void* fieldHandle, int8_t value);
+	bool SafeGetStaticFieldInt16(void* fieldHandle, int16_t& outValue);
+	bool SafeSetStaticFieldInt16(void* fieldHandle, int16_t value);
+	bool SafeGetStaticFieldUInt16(void* fieldHandle, uint16_t& outValue);
+	bool SafeSetStaticFieldUInt16(void* fieldHandle, uint16_t value);
 	bool SafeGetStaticFieldFloat(void* fieldHandle, float& outValue);
 	bool SafeSetStaticFieldFloat(void* fieldHandle, float value);
 	bool SafeGetStaticFieldBool(void* fieldHandle, bool& outValue);
@@ -75,7 +91,7 @@ namespace Helper
 	};
 
 	InvokeParamBuffers BuildInvokeParams(const std::vector<std::string>& paramValues,
-		const std::vector<EditableType>& paramTypes);
+	                                     const std::vector<EditableType>& paramTypes);
 
 	bool SafeGetComponents(GameObject* obj, UR::Class* componentClass, std::vector<UT::Component*>& outComponents);
 	bool SafeGetGameObject(Rigidbody* rb, GameObject*& outGameObject);
