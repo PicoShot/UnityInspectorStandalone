@@ -1542,8 +1542,9 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						std::string elementTypeName = "Element";
 						if (isArray)
 						{
-							if (size_t pos = field->typeName.find("[]"); pos != std::string::npos) elementTypeName =
-								field->typeName.substr(0, pos);
+							if (size_t pos = field->typeName.find("[]"); pos != std::string::npos)
+								elementTypeName =
+									field->typeName.substr(0, pos);
 						}
 						else if (isList)
 						{
@@ -1984,6 +1985,9 @@ void Inspector::RenderTabBar()
 
 			if (IsObjectPinned(tab.gameObject))
 				flags |= ImGuiTabItemFlags_NoCloseButton;
+
+			if (static_cast<int>(i) == activeTabIndex)
+				flags |= ImGuiTabItemFlags_SetSelected;
 
 			if (ImGui::BeginTabItem(tab.tabName.c_str(), &tabOpen, flags))
 			{

@@ -86,7 +86,7 @@ namespace Loader
 		}
 		while (true);
 
-		if (Config::settings.ini.debug_console) console::StartConsole("Pico Debug Console", false);
+		if (Config::settings.ini.debug_console) console::StartConsole("Debug Console", false);
 		LOG_INFO("loaded, initializing...");
 
 		UR::Init(Config::state.gameHandle, Config::state.unityMode);
