@@ -110,6 +110,7 @@ private:
 
 	std::vector<InspectedObjectTab> openTabs;
 	int activeTabIndex = -1;
+	bool pendingTabSwitch = false;
 	static constexpr int maxTabs = 10;
 
 	std::deque<UT::GameObject*> recentSelections;

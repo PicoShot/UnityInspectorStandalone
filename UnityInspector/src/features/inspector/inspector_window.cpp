@@ -2000,7 +2000,7 @@ void Inspector::RenderTabBar()
 			if (IsObjectPinned(tab.gameObject))
 				flags |= ImGuiTabItemFlags_NoCloseButton;
 
-			if (static_cast<int>(i) == activeTabIndex)
+			if (pendingTabSwitch && static_cast<int>(i) == activeTabIndex)
 				flags |= ImGuiTabItemFlags_SetSelected;
 
 			if (ImGui::BeginTabItem(tab.tabName.c_str(), &tabOpen, flags))
@@ -2022,6 +2022,7 @@ void Inspector::RenderTabBar()
 			}
 		}
 
+		pendingTabSwitch = false;
 		ImGui::EndTabBar();
 	}
 }

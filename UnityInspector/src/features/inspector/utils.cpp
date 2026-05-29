@@ -565,6 +565,7 @@ void Inspector::OpenObjectInNewTab(UT::GameObject* obj)
 
 	openTabs.push_back(newTab);
 	activeTabIndex = static_cast<int>(openTabs.size()) - 1;
+	pendingTabSwitch = true;
 	showDetailsWindow = true;
 	ImGui::SetWindowFocus("Inspector");
 	AddToRecentSelections(obj);
@@ -595,6 +596,7 @@ void Inspector::SwitchToTab(const int tabIndex)
 		return;
 
 	activeTabIndex = tabIndex;
+	pendingTabSwitch = true;
 	showDetailsWindow = true;
 	ImGui::SetWindowFocus("Inspector");
 }
