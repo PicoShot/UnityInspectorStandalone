@@ -8,13 +8,14 @@ on:
   workflow_dispatch:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  SCCACHE_DIR: ${{ github.workspace }}\.sccache
+  SCCACHE_GHA_ENABLED: "true"
   SCCACHE_CACHE_SIZE: 2G
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -25,25 +26,14 @@ jobs:
         with:
           arch: x64
 
-      - name: Setup Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
-
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-
-      - name: Cache sccache directory
-        uses: actions/cache@v4
-        with:
-          path: .sccache
-          key: ${{ runner.os }}-sccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-sccache-
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Configure CMake
         run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
       - name: Build project
-        run: cmake --build build --config Release
+        run: cmake --build build
 
       - name: Show sccache stats
         run: sccache --show-stats
