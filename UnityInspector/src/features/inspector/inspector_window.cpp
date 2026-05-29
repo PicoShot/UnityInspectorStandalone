@@ -1903,6 +1903,20 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 
 		std::string headerLabel = compName + "##comp";
 
+		bool hasEnabledProp = false;
+		bool enabled = true;
+		if (comp)
+			hasEnabledProp = Helper::SafeGetComponentEnabled(comp, enabled);
+
+		if (hasEnabledProp)
+		{
+			ImGui::PushID(static_cast<int>(idx * 2 + 1));
+			if (ImGui::Checkbox("##enabled", &enabled))
+				Helper::SafeSetComponentEnabled(comp, enabled);
+			ImGui::PopID();
+			ImGui::SameLine();
+		}
+
 		int headerFlags = 0;
 		if (target.cachedComponents.size() == 1)
 			headerFlags |= ImGuiTreeNodeFlags_DefaultOpen;

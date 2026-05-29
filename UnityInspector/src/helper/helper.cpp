@@ -1470,4 +1470,65 @@ namespace Helper
 
 		return nullptr;
 	}
+
+	static void* FindMethodInHierarchy(void* obj, const char* methodName, int paramCount)
+	{
+		if (!obj) return nullptr;
+
+		const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+		void* klass = SafeGetObjectClass(obj);
+		if (!klass) return nullptr;
+
+		void* currentClass = klass;
+		while (currentClass)
+		{
+			void* iter = nullptr;
+			void* method;
+			while ((method = UR::Invoke<void*, void*, void*>(
+				mono ? "mono_class_get_methods" : "il2cpp_class_get_methods", currentClass, &iter)))
+			{
+				const char* name = UR::Invoke<const char*, void*>(
+					mono ? "mono_method_get_name" : "il2cpp_method_get_name", method);
+				if (name && strcmp(name, methodName) == 0)
+				{
+					if (paramCount < 0) return method;
+					int actualParamCount = 0;
+					if (mono)
+					{
+						if (void* sig = UR::Invoke<void*, void*>("mono_method_signature", method))
+							actualParamCount = UR::Invoke<int, void*>("mono_signature_get_param_count", sig);
+					}
+					else
+					{
+						actualParamCount = UR::Invoke<int, void*>("il2cpp_method_get_param_count", method);
+					}
+					if (actualParamCount == paramCount) return method;
+				}
+			}
+			currentClass = UR::Invoke<void*, void*>(mono ? "mono_class_get_parent" : "il2cpp_class_get_parent",
+			                                        currentClass);
+		}
+		return nullptr;
+	}
+
+	bool SafeGetComponentEnabled(UT::Component* comp, bool& outEnabled)
+	{
+		outEnabled = true;
+		if (!comp) return false;
+
+		void* method = FindMethodInHierarchy(comp, "get_enabled", 0);
+		if (!method) return false;
+
+		return SafeInvokeGetter(comp, method, &outEnabled, sizeof(bool));
+	}
+
+	bool SafeSetComponentEnabled(UT::Component* comp, bool value)
+	{
+		if (!comp) return false;
+
+		void* method = FindMethodInHierarchy(comp, "set_enabled", 1);
+		if (!method) return false;
+
+		return SafeInvokeSetter(comp, method, &value);
+	}
 }
