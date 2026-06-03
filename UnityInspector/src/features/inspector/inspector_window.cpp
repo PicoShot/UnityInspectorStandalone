@@ -1327,9 +1327,9 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 					{
 						auto list = static_cast<UT::List<uintptr_t>*>(collectionPtr);
 						collectionCount = list->size;
-						if (list->pList)
+						if (list->array)
 						{
-							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(list->pList) + 0x20);
+							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(list->array) + 0x20);
 						}
 					}
 					else if (isDictionary)

@@ -211,9 +211,9 @@ void Inspector::ScanStaticClasses()
 
 						// Mono JIT will abort() if mono_class_vtable is called on an uninflated generic type.
 						// Skip generic types (backtick) and compiler-generated types (<, $).
-						if (klass->name.find('`') != std::string::npos ||
-							klass->name.find('<') != std::string::npos ||
-							klass->name.find('$') != std::string::npos)
+						if (klass->m_name.find('`') != std::string::npos ||
+							klass->m_name.find('<') != std::string::npos ||
+							klass->m_name.find('$') != std::string::npos)
 							continue;
 
 						std::string typeName = field->type->name;
@@ -254,8 +254,8 @@ void Inspector::ScanStaticClasses()
 							node.typeClassHandle = typeClassHandle;
 
 							std::string kName = klass->namespaze.empty()
-								                    ? klass->name
-								                    : klass->namespaze + "." + klass->name;
+								                    ? klass->m_name
+								                    : klass->namespaze + "." + klass->m_name;
 							node.name = kName + "." + field->name;
 							node.fullName = node.name + " (" + typeName + ")";
 							staticInstances.push_back(std::move(node));

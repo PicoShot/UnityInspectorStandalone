@@ -11,7 +11,7 @@ bool IsEnumClass(const std::string& typeName)
 		for (const auto& klass : assembly->classes)
 		{
 			if (!klass) continue;
-			if (klass->name == typeName)
+			if (klass->m_name == typeName)
 			{
 				if (void* klassPtr = klass.get(); UR::Invoke<bool, void*>(API("class_is_enum"), klassPtr))
 					return true;
@@ -32,7 +32,7 @@ std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTy
 		for (const auto& klass : assembly->classes)
 		{
 			if (!klass) continue;
-			if (klass->name == enumTypeName)
+			if (klass->m_name == enumTypeName)
 			{
 				enumClass = klass.get();
 				break;
@@ -260,7 +260,7 @@ void FieldEditor::Render()
 		}
 		else if (state.nestedClass && !state.nestedInstance)
 		{
-			ImGui::TextDisabled("This field is a pointer to %s", state.nestedClass->name.c_str());
+			ImGui::TextDisabled("This field is a pointer to %s", state.nestedClass->m_name.c_str());
 			ImGui::TextDisabled("Current value: null");
 
 			ImGui::Separator();
@@ -380,7 +380,7 @@ UR::Class* FieldEditor::GetPointerClass(const std::string& typeName)
 		for (const auto& klass : assembly->classes)
 		{
 			if (!klass) continue;
-			if (klass->name == typeName)
+			if (klass->m_name == typeName)
 				return klass.get();
 		}
 	}
@@ -394,7 +394,7 @@ UR::Class* FieldEditor::GetPointerClass(const std::string& typeName)
 			for (const auto& klass : assembly->classes)
 			{
 				if (!klass) continue;
-				if (klass->name == shortName)
+				if (klass->m_name == shortName)
 					return klass.get();
 			}
 		}
@@ -774,7 +774,7 @@ void FieldEditor::RenderNestedInspector()
 
 	ImGui::TextDisabled("This field points to an instance of:");
 	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));
-	ImGui::Text("%s", state.nestedClass->name.c_str());
+	ImGui::Text("%s", state.nestedClass->m_name.c_str());
 	ImGui::PopStyleColor();
 
 	ImGui::TextDisabled("Address: %p", state.nestedInstance);
@@ -822,7 +822,7 @@ void FieldEditor::RenderNestedInspector()
 				ImGui::PushID(field.get());
 				if (ImGui::SmallButton("Edit"))
 				{
-					std::string title = "Edit " + state.nestedClass->name + "." + field->name;
+					std::string title = "Edit " + state.nestedClass->m_name + "." + field->name;
 					auto editor = std::make_unique<FieldEditor>();
 					editor->OpenFieldEditor(field.get(), state.nestedInstance, title);
 					pendingEditors.push_back(std::move(editor));

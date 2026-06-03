@@ -461,9 +461,9 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 			if (!klass || !klass->address)
 				continue;
 
-			if (klass->name.find('`') != std::string::npos ||
-				klass->name.find('<') != std::string::npos ||
-				klass->name.find('$') != std::string::npos)
+			if (klass->m_name.find('`') != std::string::npos ||
+				klass->m_name.find('<') != std::string::npos ||
+				klass->m_name.find('$') != std::string::npos)
 				continue;
 
 			if (!includeSystemNamespaces &&
@@ -496,7 +496,7 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 				scanField.isStatic = true;
 				scanField.valueType = actualType;
 				scanField.fieldName = field->name;
-				scanField.className = klass->name;
+				scanField.className = klass->m_name;
 				scanField.namespaze = klass->namespaze;
 				scanField.objectName = "(static)";
 				memcpy(&scanField.lastValue, value, sizeof(double));

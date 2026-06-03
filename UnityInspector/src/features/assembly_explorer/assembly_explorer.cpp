@@ -54,16 +54,16 @@ void AssemblyExplorer::LoadAssemblyData()
 			if (!klass) continue;
 
 			AssemblyClassInfo classInfo;
-			classInfo.name = klass->name;
+			classInfo.name = klass->m_name;
 			classInfo.parent = klass->parent;
 			classInfo.classHandle = klass.get();
 			classInfo.fieldCount = static_cast<int>(klass->fields.size());
 			classInfo.methodCount = static_cast<int>(klass->methods.size());
 
 			if (!klass->namespaze.empty())
-				classInfo.fullName = klass->namespaze + "." + klass->name;
+				classInfo.fullName = klass->namespaze + "." + klass->m_name;
 			else
-				classInfo.fullName = klass->name;
+				classInfo.fullName = klass->m_name;
 
 			std::string nsName = klass->namespaze.empty() ? "<Global Namespace>" : klass->namespaze;
 			nsMap[nsName].push_back(std::move(classInfo));
@@ -782,10 +782,10 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					ImGui::PopStyleColor();
 
 					ImGui::TableSetColumnIndex(2);
-					if (!method->args.empty())
+					if (!method->m_args.empty())
 					{
 						std::string params;
-						for (const auto& arg : method->args)
+						for (const auto& arg : method->m_args)
 						{
 							if (!arg) continue;
 							if (!params.empty()) params += ", ";
@@ -829,7 +829,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					{
 						void* target = isStatic ? nullptr : selectedInstance->instance;
 
-						if (method->args.empty())
+						if (method->m_args.empty())
 						{
 							try
 							{
@@ -843,7 +843,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 							invokeState.targetMethod = method.get();
 							invokeState.targetInstance = target;
 							invokeState.parameterValues.clear();
-							invokeState.parameterValues.resize(method->args.size());
+							invokeState.parameterValues.resize(method->m_args.size());
 							invokeState.resultText.clear();
 							invokeState.hasResult = false;
 						}
@@ -1182,9 +1182,9 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 		ImGui::Text("Method: %s", invokeState.targetMethod->name.c_str());
 		ImGui::Separator();
 
-		for (size_t i = 0; i < invokeState.targetMethod->args.size(); i++)
+		for (size_t i = 0; i < invokeState.targetMethod->m_args.size(); i++)
 		{
-			const auto& arg = invokeState.targetMethod->args[i];
+			const auto& arg = invokeState.targetMethod->m_args[i];
 			if (!arg) continue;
 
 			std::string typeName = arg->pType ? arg->pType->name : "unknown";
@@ -1233,7 +1233,7 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 		if (ImGui::Button("Invoke", ImVec2(120, 0)))
 		{
 			std::vector<EditableType> paramTypes;
-			for (const auto& arg : invokeState.targetMethod->args)
+			for (const auto& arg : invokeState.targetMethod->m_args)
 			{
 				if (arg && arg->pType)
 					paramTypes.push_back(DetermineEditableType(arg->pType->name));

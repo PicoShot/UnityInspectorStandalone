@@ -1576,12 +1576,12 @@ namespace LuaBindings
 		                             "argCount", [](const UR::Method* self) -> int
 		                             {
 			                             if (!self) return 0;
-			                             return static_cast<int>(self->args.size());
+			                             return static_cast<int>(self->m_args.size());
 		                             }
 		);
 
 		lua.new_usertype<UR::Class>("Class",
-		                            "GetName", &UR::Class::name,
+		                            "GetName", &UR::Class::m_name,
 		                            "GetNamespace", &UR::Class::namespaze,
 		                            "GetParent", &UR::Class::parent,
 		                            "GetFields", [](const UR::Class* klass) -> sol::as_table_t<std::vector<UR::Field*>>

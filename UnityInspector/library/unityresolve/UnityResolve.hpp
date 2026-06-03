@@ -1,5 +1,6 @@
 ﻿#ifndef UNITYRESOLVE_HPP
 #define UNITYRESOLVE_HPP
+#include "UnityResolve.hpp"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define WINDOWS_MODE 1
@@ -98,7 +99,7 @@ public:
 
 		[[nodiscard]] auto Get(const std::string& strClass, const std::string& strNamespace = "*", const std::string& strParent = "*") const -> Class* {
 
-			for (const auto& pClass : classes) if (strClass == pClass->name && (strNamespace == "*" || pClass->namespaze == strNamespace) && (strParent == "*" || pClass->parent == strParent)) return pClass.get();
+			for (const auto& pClass : classes) if (strClass == pClass->m_name && (strNamespace == "*" || pClass->namespaze == strNamespace) && (strParent == "*" || pClass->parent == strParent)) return pClass.get();
 			return nullptr;
 		}
 	};
@@ -117,7 +118,7 @@ public:
 
 	struct Class final {
 		void* address;
-		std::string name;
+		std::string m_name;
 		std::string parent;
 		std::string namespaze;
 		std::vector<std::unique_ptr<Field>>  fields;
@@ -132,11 +133,11 @@ public:
 			if constexpr (std::is_same_v<RType, Method>) {
 				for (const auto& pMethod : methods) {
 					if (pMethod->name == name) {
-						if (pMethod->args.empty() && args.empty()) return static_cast<RType*>(pMethod.get());
-						if (pMethod->args.size() == args.size()) {
+						if (pMethod->m_args.empty() && args.empty()) return static_cast<RType*>(pMethod.get());
+						if (pMethod->m_args.size() == args.size()) {
 							size_t index{ 0 };
-							for (size_t i{ 0 }; const auto& typeName : args) if (typeName == "*" || typeName.empty() ? true : pMethod->args[i++].get()->pType->name == typeName) index++;
-							if (index == pMethod->args.size()) return static_cast<RType*>(pMethod.get());
+							for (size_t i{ 0 }; const auto& typeName : args) if (typeName == "*" || typeName.empty() ? true : pMethod->m_args[i++].get()->pType->name == typeName) index++;
+							if (index == pMethod->m_args.size()) return static_cast<RType*>(pMethod.get());
 						}
 					}
 				}
@@ -280,7 +281,7 @@ public:
 			std::unique_ptr<Type> pType;
 		};
 
-		std::vector<std::unique_ptr<Arg>> args;
+		std::vector<std::unique_ptr<Arg>> m_args;
 
 		template <typename Return, typename... Args>
 		auto Invoke(Args... args) -> Return {
@@ -447,15 +448,15 @@ public:
 				io << "\n";
 				io << std::format("\tAssembly: {}\n", pAssembly->name.empty() ? "" : pAssembly->name);
 				io << std::format("\tAssemblyFile: {} \n", pAssembly->file.empty() ? "" : pAssembly->file);
-				io << std::format("\tclass {}{} ", pClass->name, pClass->parent.empty() ? "" : " : " + pClass->parent);
+				io << std::format("\tclass {}{} ", pClass->m_name, pClass->parent.empty() ? "" : " : " + pClass->parent);
 				io << "{\n\n";
 				for (const auto& pField : pClass->fields) io << std::format("\t\t{:+#06X} | {}{} {};\n", pField->offset, pField->static_field ? "static " : "", pField->type->name, pField->name);
 				io << "\n";
 				for (const auto& pMethod : pClass->methods) {
-					io << std::format("\t\t[Flags: {:032b}] [ParamsCount: {:04d}] |RVA: {:+#010X}|\n", pMethod->flags, pMethod->args.size(), reinterpret_cast<std::uint64_t>(pMethod->function) - reinterpret_cast<std::uint64_t>(hmodule_));
+					io << std::format("\t\t[Flags: {:032b}] [ParamsCount: {:04d}] |RVA: {:+#010X}|\n", pMethod->flags, pMethod->m_args.size(), reinterpret_cast<std::uint64_t>(pMethod->function) - reinterpret_cast<std::uint64_t>(hmodule_));
 					io << std::format("\t\t{}{} {}(", pMethod->static_function ? "static " : "", pMethod->return_type->name, pMethod->name);
 					std::string params{};
-					for (const auto& pArg : pMethod->args) params += std::format("{} {}, ", pArg->pType->name, pArg->name);
+					for (const auto& pArg : pMethod->m_args) params += std::format("{} {}, ", pArg->pType->name, pArg->name);
 					if (!params.empty()) {
 						params.pop_back();
 						params.pop_back();
@@ -478,7 +479,7 @@ public:
 				io2 << "\n";
 				io2 << std::format("\tAssembly: {}\n", pAssembly->name.empty() ? "" : pAssembly->name);
 				io2 << std::format("\tAssemblyFile: {} \n", pAssembly->file.empty() ? "" : pAssembly->file);
-				io2 << std::format("\tstruct {}{} ", pClass->name, pClass->parent.empty() ? "" : " : " + pClass->parent);
+				io2 << std::format("\tstruct {}{} ", pClass->m_name, pClass->parent.empty() ? "" : " : " + pClass->parent);
 				io2 << "{\n\n";
 
 				for (size_t i = 0; i < pClass->fields.size(); i++) {
@@ -709,7 +710,7 @@ private:
 				if (pClass == nullptr) continue;
 				auto pAClass = std::make_unique<Class>();
 				pAClass->address = pClass;
-				pAClass->name = Invoke<const char*>("il2cpp_class_get_name", pClass);
+				pAClass->m_name = Invoke<const char*>("il2cpp_class_get_name", pClass);
 				if (const auto pPClass = Invoke<void*>("il2cpp_class_get_parent", pClass)) pAClass->parent = Invoke<const char*>("il2cpp_class_get_name", pPClass);
 				pAClass->namespaze = Invoke<const char*>("il2cpp_class_get_namespace", pClass);
 
@@ -738,7 +739,7 @@ private:
 					auto pAClass = std::make_unique<Class>();
 					pAClass->address = pClass;
 					try {
-						pAClass->name = Invoke<const char*>("mono_class_get_name", pClass);
+						pAClass->m_name = Invoke<const char*>("mono_class_get_name", pClass);
 						if (const auto pPClass = Invoke<void*>("mono_class_get_parent", pClass)) pAClass->parent = Invoke<const char*>("mono_class_get_name", pPClass);
 						pAClass->namespaze = Invoke<const char*>("mono_class_get_namespace", pClass);
 					}
@@ -843,7 +844,7 @@ private:
 							pType->size = -1;
 							arg->pType = std::move(pType);
 						}
-						pMethod->args.emplace_back(arg);
+						pMethod->m_args.emplace_back(arg);
 					}
 					klass->methods.push_back(std::move(pMethod));
 				}
@@ -893,7 +894,7 @@ private:
 								if ((mType = Invoke<void*>("mono_signature_get_params", signature, &mIter))) {
 									int t_size{};
 									try {
-										pMethod->args.push_back(std::make_unique<Method::Arg>(Method::Arg{
+										pMethod->m_args.push_back(std::make_unique<Method::Arg>(Method::Arg{
 											names[iname],
 											std::make_unique<Type>(Type{.address = mType, .name = Invoke<const char*>("mono_type_get_name", mType), .size = Invoke<int>("mono_type_size", mType, &t_size) })
 											}));
@@ -1554,9 +1555,7 @@ public:
 			All = 191
 		};
 
-		struct MemberInfo {
-
-		};
+		struct MemberInfo {};
 
 		struct FieldInfo : MemberInfo {
 			auto GetIsInitOnly() -> bool {
@@ -1944,8 +1943,6 @@ public:
 			wchar_t m_firstChar[32]{};
 
 			[[nodiscard]] auto ToString() const -> std::string {
-				if (!m_firstChar) return "";
-
 				const int size = WideCharToMultiByte(CP_UTF8, 0, m_firstChar, -1, nullptr, 0, nullptr, nullptr);
 				if (size <= 0) return "";
 
@@ -2047,29 +2044,29 @@ public:
 				if (method) return method->Invoke<void>(this, newSize);
 			}
 
-			static auto New(const Class* kalss, const std::uintptr_t size) -> Array* {
-				if (mode_ == Mode::Il2Cpp) return UnityResolve::Invoke<Array*, void*, std::uintptr_t>("il2cpp_array_new", kalss->address, size);
-				return UnityResolve::Invoke<Array*, void*, void*, std::uintptr_t>("mono_array_new", pDomain, kalss->address, size);
+			static auto New(const Class* klass, const std::uintptr_t size) -> Array* {
+				if (mode_ == Mode::Il2Cpp) return UnityResolve::Invoke<Array*, void*, std::uintptr_t>("il2cpp_array_new", klass->address, size);
+				return UnityResolve::Invoke<Array*, void*, void*, std::uintptr_t>("mono_array_new", pDomain, klass->address, size);
 			}
 		};
 
 		template <typename Type>
 		struct List : Object {
-			Array<Type>* pList;
+			Array<Type>* array;
 			int          size{};
 			int          version{};
 			void* syncRoot{};
 
-			auto ToArray() -> Array<Type>* { return pList; }
+			auto ToArray() -> Array<Type>* { return array; }
 
-			static auto New(const Class* kalss, const std::uintptr_t size) -> std::unique_ptr<List<Type>> {
-				auto pList = std::make_unique<List<Type>>();
-				pList->pList = Array<Type>::New(kalss, size);
-				pList->size = size;
-				return pList;
+			static auto New(const Class* klass, const std::uintptr_t size) -> std::unique_ptr<List> {
+				auto array = std::make_unique<List>();
+				array->array = Array<Type>::New(klass, size);
+				array->size = size;
+				return array;
 			}
 
-			auto operator[](const unsigned int m_uIndex) -> Type& { return pList->At(m_uIndex); }
+			auto operator[](const unsigned int m_uIndex) -> Type& { return array->At(m_uIndex); }
 
 			auto Add(Type pDate) -> void {
 
@@ -2170,11 +2167,112 @@ public:
 			auto operator[](const TKey tKey) const -> TValue { return GetValueByKey(tKey); }
 		};
 
+		template <typename T>
+		struct Stack : Object
+		{
+			Array<T>* array;
+			int size{};
+			int version{};
+			void* syncRoot{};
+
+			static auto New(const Class* klass, const std::uintptr_t size) -> std::unique_ptr<Stack> {
+				auto array = std::make_unique<Stack>();
+				array->array = Array<Type>::New(klass, size);
+				array->size = size;
+				return array;
+			}
+
+			auto ToArray() -> Array<Type>* { return array; }
+
+			auto operator[](const unsigned int m_uIndex) -> Type& { return array->At(m_uIndex); }
+
+			auto Clear() -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Clear");
+				if (method) return method->Invoke<void>(this);
+			}
+
+			auto Contains(T item) -> bool {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Contains");
+				if (method) return method->Invoke<bool, T>(this, item);
+			}
+
+			auto Peek() -> T {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Peek");
+				if (method) return method->Invoke<T>(this);
+			}
+
+			auto Pop() -> T {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Pop");
+				if (method) return method->Invoke<T>(this);
+			}
+
+			auto Push(T item) -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Push");
+				if (method) return method->Invoke<void, T>(this, item);
+			}
+		};
+
+		template <typename T>
+		struct Queue : Object
+		{
+			Array<T>* array;
+			int head{};
+			int tail{};
+			int size{};
+			int version{};
+			void* syncRoot{};
+
+			static auto New(const Class* klass, const std::uintptr_t size) -> std::unique_ptr<Queue> {
+				auto array = std::make_unique<Queue>();
+				array->array = Array<Type>::New(klass, size);
+				array->size = size;
+				return array;
+			}
+
+			auto ToArray() -> Array<Type>* { return array; }
+
+			auto operator[](const unsigned int m_uIndex) -> Type& { return array->At(m_uIndex); }
+
+			auto Clear() -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Clear");
+				if (method) return method->Invoke<void>(this);
+			}
+
+			auto Enqueue(T item) -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Enqueue");
+				if (method) return method->Invoke<void, T>(this, item);
+			}
+
+			auto Dequeue() -> T {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Dequeue");
+				if (method) return method->Invoke<T>(this);
+			}
+
+			auto Peek() -> T {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Peek");
+				if (method) return method->Invoke<T>(this);
+			}
+
+			auto Contains(T item) -> bool {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Contains");
+				if (method) return method->Invoke<bool, T>(this, item);
+			}
+		};
+
 		struct UnityObject : Object {
 			void* m_CachedPtr;
 
 			auto IsAlive() -> bool {
-				if (!this) return false;
 				static Method* method;
 				if (!method) method = Get("UnityEngine.CoreModule.dll")->Get("Object")->Get<Method>("op_Implicit", { "*" });
 				if (method) return method->Invoke<bool>(this);
