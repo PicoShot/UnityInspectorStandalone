@@ -28,3 +28,4 @@ ipch/
 .DS_Store
 Thumbs.db
 /dist
+/build

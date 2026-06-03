@@ -1305,7 +1305,9 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			bool isArray = field->typeName.find("[]") != std::string::npos;
 			bool isList = field->typeName.find("System.Collections.Generic.List") != std::string::npos;
 			bool isDictionary = field->typeName.find("System.Collections.Generic.Dictionary") != std::string::npos;
-			bool isCollection = !field->isStatic && (isArray || isList || isDictionary);
+			bool isStack = field->typeName.find("System.Collections.Generic.Stack") != std::string::npos;
+			bool isQueue = field->typeName.find("System.Collections.Generic.Queue") != std::string::npos;
+			bool isCollection = !field->isStatic && (isArray || isList || isDictionary || isStack || isQueue);
 
 			bool isExpanded = false;
 			int collectionCount = 0;
@@ -1323,13 +1325,13 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						collectionCount = static_cast<int>(arr->max_length);
 						arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(arr) + 0x20);
 					}
-					else if (isList)
+					else if (isList || isStack || isQueue)
 					{
-						auto list = static_cast<UT::List<uintptr_t>*>(collectionPtr);
-						collectionCount = list->size;
-						if (list->array)
+						auto container = static_cast<UT::List<uintptr_t>*>(collectionPtr);
+						collectionCount = container->size;
+						if (container->array)
 						{
-							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(list->array) + 0x20);
+							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(container->array) + 0x20);
 						}
 					}
 					else if (isDictionary)
@@ -1546,7 +1548,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 								elementTypeName =
 									field->typeName.substr(0, pos);
 						}
-						else if (isList)
+						else if (isList || isStack || isQueue)
 						{
 							size_t start = field->typeName.find("<");
 							if (size_t end = field->typeName.rfind(">"); start != std::string::npos && end !=

@@ -963,6 +963,10 @@ public:
 		struct List;
 		template <typename TKey, typename TValue>
 		struct Dictionary;
+		template <typename T>
+		struct Stack;
+		template <typename T>
+		struct Queue;
 		struct Behaviour;
 		struct MonoBehaviour;
 		struct CsType;
@@ -2175,16 +2179,16 @@ public:
 			int version{};
 			void* syncRoot{};
 
-			static auto New(const Class* klass, const std::uintptr_t size) -> std::unique_ptr<Stack> {
-				auto array = std::make_unique<Stack>();
-				array->array = Array<Type>::New(klass, size);
-				array->size = size;
-				return array;
-			}
+		static auto New(const Class* klass, const std::uintptr_t size) -> std::unique_ptr<Stack> {
+			auto array = std::make_unique<Stack>();
+			array->array = Array<T>::New(klass, size);
+			array->size = size;
+			return array;
+		}
 
-			auto ToArray() -> Array<Type>* { return array; }
+		auto ToArray() -> Array<T>* { return array; }
 
-			auto operator[](const unsigned int m_uIndex) -> Type& { return array->At(m_uIndex); }
+		auto operator[](const unsigned int m_uIndex) -> T& { return array->At(m_uIndex); }
 
 			auto Clear() -> void {
 				static Method* method;
@@ -2227,16 +2231,16 @@ public:
 			int version{};
 			void* syncRoot{};
 
-			static auto New(const Class* klass, const std::uintptr_t size) -> std::unique_ptr<Queue> {
-				auto array = std::make_unique<Queue>();
-				array->array = Array<Type>::New(klass, size);
-				array->size = size;
-				return array;
-			}
+		static auto New(const Class* klass, const std::uintptr_t size) -> std::unique_ptr<Queue> {
+			auto array = std::make_unique<Queue>();
+			array->array = Array<T>::New(klass, size);
+			array->size = size;
+			return array;
+		}
 
-			auto ToArray() -> Array<Type>* { return array; }
+		auto ToArray() -> Array<T>* { return array; }
 
-			auto operator[](const unsigned int m_uIndex) -> Type& { return array->At(m_uIndex); }
+		auto operator[](const unsigned int m_uIndex) -> T& { return array->At(m_uIndex); }
 
 			auto Clear() -> void {
 				static Method* method;
@@ -2269,10 +2273,22 @@ public:
 			}
 		};
 
+
+		template <typename T>
+		struct HashMap : Object
+		{
+			Array<int>* m_buckets;
+			Array<T>* m_slots;
+			int m_count;
+			int m_lastIndex;
+			int m_freeList;
+		};
+
 		struct UnityObject : Object {
 			void* m_CachedPtr;
 
 			auto IsAlive() -> bool {
+				if (!m_CachedPtr) return false;
 				static Method* method;
 				if (!method) method = Get("UnityEngine.CoreModule.dll")->Get("Object")->Get<Method>("op_Implicit", { "*" });
 				if (method) return method->Invoke<bool>(this);
