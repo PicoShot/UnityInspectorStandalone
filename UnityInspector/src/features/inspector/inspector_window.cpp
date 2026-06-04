@@ -1308,7 +1308,8 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			bool isStack = field->typeName.find("System.Collections.Generic.Stack") != std::string::npos;
 			bool isQueue = field->typeName.find("System.Collections.Generic.Queue") != std::string::npos;
 			bool isHashSet = field->typeName.find("System.Collections.Generic.HashSet") != std::string::npos;
-			bool isCollection = !field->isStatic && (isArray || isList || isDictionary || isStack || isQueue || isHashSet);
+			bool isArrayList = field->typeName.find("System.Collections.ArrayList") != std::string::npos;
+			bool isCollection = !field->isStatic && (isArray || isList || isDictionary || isStack || isQueue || isHashSet || isArrayList);
 
 			bool isExpanded = false;
 			int collectionCount = 0;
@@ -1327,7 +1328,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						collectionCount = static_cast<int>(arr->max_length);
 						arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(arr) + 0x20);
 					}
-					else if (isList || isStack || isQueue)
+					else if (isList || isStack || isQueue || isArrayList)
 					{
 						auto container = static_cast<UT::List<uintptr_t>*>(collectionPtr);
 						collectionCount = container->size;
@@ -1674,6 +1675,10 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 							{
 								elementTypeName = field->typeName.substr(start + 1, end - start - 1);
 							}
+						}
+						else if (isArrayList)
+						{
+							elementTypeName = "System.Object";
 						}
 
 						std::string shortElemType = SimplifyTypeName(elementTypeName);

@@ -962,6 +962,7 @@ public:
 		struct Array;
 		struct String;
 		struct Object;
+		struct ArrayList;
 		template <typename T>
 		struct List;
 		template <typename TKey, typename TValue>
@@ -971,7 +972,7 @@ public:
 		template <typename T>
 		struct Queue;
 		template <typename T>
-		struct HashMap;
+		struct HashSet;
 		struct Behaviour;
 		struct MonoBehaviour;
 		struct CsType;
@@ -2128,6 +2129,55 @@ public:
 			}
 		};
 
+		struct ArrayList : Object {
+			Array<Object*>* _items;
+			int _size{};
+			int _version{};
+			Object* _syncRoot{};
+
+			auto ToArray() -> Array<Object*>* { return _items; }
+
+			auto operator[](const unsigned int m_uIndex) -> Object*& { return _items->At(m_uIndex); }
+
+			auto Add(Object* pDate) -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("ArrayList")->Get<Method>("Add");
+				if (method) return method->Invoke<void>(this, pDate);
+			}
+
+			auto Remove(Object* pDate) -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("ArrayList")->Get<Method>("Remove");
+				if (method) return method->Invoke<void>(this, pDate);
+			}
+
+			auto RemoveAt(int index) -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("ArrayList")->Get<Method>("RemoveAt");
+				if (method) return method->Invoke<void>(this, index);
+			}
+
+			auto Clear() -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("ArrayList")->Get<Method>("Clear");
+				if (method) return method->Invoke<void>(this);
+			}
+
+			auto Contains(Object* pDate) -> bool {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("ArrayList")->Get<Method>("Contains");
+				if (method) return method->Invoke<bool>(this, pDate);
+				return false;
+			}
+
+			auto IndexOf(Object* pDate) -> int {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("ArrayList")->Get<Method>("IndexOf");
+				if (method) return method->Invoke<int>(this, pDate);
+				return -1;
+			}
+		};
+
 		template <typename TKey, typename TValue>
 		struct Dictionary : Object {
 			struct Entry {
@@ -2286,13 +2336,13 @@ public:
 
 
 		template <typename T>
-		struct HashMap : Object
+		struct HashSet : Object
 		{
-			Array<int>* m_buckets;
-			Array<T>* m_slots;
-			int m_count;
-			int m_lastIndex;
-			int m_freeList;
+			Array<int>* m_buckets{};
+			Array<T>* m_slots{};
+			int m_count{};
+			int m_lastIndex{};
+			int m_freeList{};
 		};
 
 		struct UnityObject : Object {
