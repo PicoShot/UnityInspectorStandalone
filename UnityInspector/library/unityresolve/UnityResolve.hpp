@@ -137,8 +137,7 @@ public:
 						if (pMethod->m_args.size() == args.size()) {
 							size_t index{ 0 };
 							for (size_t i{ 0 }; const auto& typeName : args) {
-								bool match = typeName == "*" || typeName.empty() ? true : pMethod->m_args[i].get()->pType->name == typeName;
-								if (match) index++;
+								if (typeName == "*" || typeName.empty() ? true : pMethod->m_args[i].get()->pType->name == typeName) index++;
 								i++;
 							}
 							if (index == pMethod->m_args.size()) return static_cast<RType*>(pMethod.get());
@@ -2206,18 +2205,21 @@ public:
 				static Method* method;
 				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Contains");
 				if (method) return method->Invoke<bool, T>(this, item);
+				return false;
 			}
 
 			auto Peek() -> T {
 				static Method* method;
 				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Peek");
 				if (method) return method->Invoke<T>(this);
+				return nullptr;
 			}
 
 			auto Pop() -> T {
 				static Method* method;
 				if (!method) method = Get("mscorlib.dll")->Get("Stack")->Get<Method>("Pop");
 				if (method) return method->Invoke<T>(this);
+				return nullptr;
 			}
 
 			auto Push(T item) -> void {
@@ -2264,18 +2266,21 @@ public:
 				static Method* method;
 				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Dequeue");
 				if (method) return method->Invoke<T>(this);
+				return nullptr;
 			}
 
 			auto Peek() -> T {
 				static Method* method;
 				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Peek");
 				if (method) return method->Invoke<T>(this);
+				return nullptr;
 			}
 
 			auto Contains(T item) -> bool {
 				static Method* method;
 				if (!method) method = Get("mscorlib.dll")->Get("Queue")->Get<Method>("Contains");
 				if (method) return method->Invoke<bool, T>(this, item);
+				return false;
 			}
 		};
 
@@ -2302,7 +2307,6 @@ public:
 			}
 
 			auto GetName() -> String* {
-
 				static Method* method;
 				if (!method) method = Get("UnityEngine.CoreModule.dll")->Get("Object")->Get<Method>("get_name");
 				if (method) return method->Invoke<String*>(this);
