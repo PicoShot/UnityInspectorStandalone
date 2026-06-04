@@ -11,6 +11,7 @@ namespace Helper
 		bool valid = false;
 	};
 
+	bool IsValidUserPointer(void* ptr);
 	bool SafeIsAlive(UnityObject* obj);
 	bool SafeGetTag(GameObject* obj, UT::String*& outTag);
 	bool SafeGetActiveSelf(GameObject* obj, bool& outActive);

@@ -4,9 +4,21 @@
 
 namespace Helper
 {
+	bool IsValidUserPointer(void* ptr)
+	{
+		if (!ptr) return false;
+		const uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
+		if (addr < 0x10000) return false;
+		if (addr > 0x7FFFFFFFFFFF) return false;
+		if (addr == 0xCCCCCCCCCCCCCCCCull || addr == 0xDDDDDDDDDDDDDDDDull ||
+		    addr == 0xFEEEFEEEFEEEFEEEull || addr == 0xBAADF00DBAADF00Dull)
+			return false;
+		return true;
+	}
+
 	bool SafeIsAlive(UnityObject* obj)
 	{
-		if (!obj) return false;
+		if (!IsValidUserPointer(obj)) return false;
 
 		__try
 		{
@@ -1276,7 +1288,7 @@ namespace Helper
 
 	bool SafeGetParent(Transform* transform, Transform*& outParent)
 	{
-		if (!transform) return false;
+		if (!IsValidUserPointer(transform)) return false;
 		__try
 		{
 			outParent = transform->GetParent();

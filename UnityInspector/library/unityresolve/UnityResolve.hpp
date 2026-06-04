@@ -136,7 +136,11 @@ public:
 						if (pMethod->m_args.empty() && args.empty()) return static_cast<RType*>(pMethod.get());
 						if (pMethod->m_args.size() == args.size()) {
 							size_t index{ 0 };
-							for (size_t i{ 0 }; const auto& typeName : args) if (typeName == "*" || typeName.empty() ? true : pMethod->m_args[i++].get()->pType->name == typeName) index++;
+							for (size_t i{ 0 }; const auto& typeName : args) {
+								bool match = typeName == "*" || typeName.empty() ? true : pMethod->m_args[i].get()->pType->name == typeName;
+								if (match) index++;
+								i++;
+							}
 							if (index == pMethod->m_args.size()) return static_cast<RType*>(pMethod.get());
 						}
 					}
