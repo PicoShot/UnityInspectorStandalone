@@ -2135,9 +2135,9 @@ public:
 			int _version{};
 			Object* _syncRoot{};
 
-			auto ToArray() -> Array<Object*>* { return _items; }
+			auto ToArray() const -> Array<Object*>* { return _items; }
 
-			auto operator[](const unsigned int m_uIndex) -> Object*& { return _items->At(m_uIndex); }
+			auto operator[](const unsigned int m_uIndex) const -> Object*& { return _items->At(m_uIndex); }
 
 			auto Add(Object* pDate) -> void {
 				static Method* method;
@@ -2334,7 +2334,6 @@ public:
 			}
 		};
 
-
 		template <typename T>
 		struct HashSet : Object
 		{
@@ -2343,6 +2342,40 @@ public:
 			int m_count{};
 			int m_lastIndex{};
 			int m_freeList{};
+
+			auto Add(T item) -> bool {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("HashSet`1")->Get<Method>("Add");
+				if (method) return method->Invoke<bool, T>(this, item);
+				return false;
+			}
+
+			auto Clear() -> void {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("HashSet`1")->Get<Method>("Clear");
+				if (method) return method->Invoke<void>(this);
+			}
+
+			auto Contains(T item) -> bool {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("HashSet`1")->Get<Method>("Contains");
+				if (method) return method->Invoke<bool, T>(this, item);
+				return false;
+			}
+
+			auto Remove(T item) -> bool {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("HashSet`1")->Get<Method>("Remove");
+				if (method) return method->Invoke<bool, T>(this, item);
+				return false;
+			}
+
+			auto ToArray() -> Array<T>* {
+				static Method* method;
+				if (!method) method = Get("mscorlib.dll")->Get("HashSet`1")->Get<Method>("ToArray");
+				if (method) return method->Invoke<Array<T>*>(this);
+				return nullptr;
+			}
 		};
 
 		struct UnityObject : Object {
