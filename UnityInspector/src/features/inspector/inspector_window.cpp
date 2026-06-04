@@ -1307,16 +1307,18 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			bool isDictionary = field->typeName.find("System.Collections.Generic.Dictionary") != std::string::npos;
 			bool isStack = field->typeName.find("System.Collections.Generic.Stack") != std::string::npos;
 			bool isQueue = field->typeName.find("System.Collections.Generic.Queue") != std::string::npos;
-			bool isCollection = !field->isStatic && (isArray || isList || isDictionary || isStack || isQueue);
+			bool isHashSet = field->typeName.find("System.Collections.Generic.HashSet") != std::string::npos;
+			bool isCollection = !field->isStatic && (isArray || isList || isDictionary || isStack || isQueue || isHashSet);
 
 			bool isExpanded = false;
 			int collectionCount = 0;
 			void* arrayDataStart = nullptr;
+			void* collectionPtr = nullptr;
 
 			ImGui::TableSetColumnIndex(0);
 			if (isCollection)
 			{
-				if (void* collectionPtr = nullptr; Helper::SafeReadPointer(instance, field->offset, collectionPtr) &&
+				if (Helper::SafeReadPointer(instance, field->offset, collectionPtr) &&
 					collectionPtr)
 				{
 					if (isArray)
@@ -1341,6 +1343,14 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						Helper::SafeReadPointer(collectionPtr, 0x18, pEntries);
 						if (pEntries)
 							arrayDataStart = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(pEntries) + 0x20);
+					}
+					else if (isHashSet)
+					{
+						Helper::SafeReadInt(collectionPtr, 0x20, collectionCount);
+						void* pSlots = nullptr;
+						Helper::SafeReadPointer(collectionPtr, 0x18, pSlots);
+						if (pSlots)
+							arrayDataStart = pSlots;
 					}
 
 					collectionCount = std::max(0, std::min(collectionCount, 1000));
@@ -1539,6 +1549,114 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 							}
 						}
 					}
+					else if (isHashSet)
+					{
+						std::string elementTypeName = "Element";
+						size_t start = field->typeName.find("<");
+						if (size_t end = field->typeName.rfind(">"); start != std::string::npos && end !=
+							std::string::npos && end > start)
+						{
+							elementTypeName = field->typeName.substr(start + 1, end - start - 1);
+						}
+
+						std::string shortElemType = SimplifyTypeName(elementTypeName);
+						ComponentFieldInfo elemInfo;
+						elemInfo.typeName = elementTypeName;
+						elemInfo.isStatic = false;
+						elemInfo.editableType = DetermineEditableType(elementTypeName, &elemInfo.enumTypeName);
+
+						int elemSize = sizeof(void*);
+						elemInfo.isValueType = false;
+
+						if (elemInfo.editableType == EditableType::Enum || elemInfo.editableType == EditableType::Int)
+						{
+							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64") elemSize = 8;
+							else if (elementTypeName == "System.Int16" || elementTypeName == "System.UInt16" ||
+								elementTypeName == "System.Char")
+								elemSize = 2;
+							else if (elementTypeName == "System.Byte" || elementTypeName == "System.SByte" ||
+								elementTypeName == "System.Boolean")
+								elemSize = 1;
+							else elemSize = 4;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Float)
+						{
+							elemSize = 4;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Double)
+						{
+							elemSize = 8;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Bool)
+						{
+							elemSize = 1;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Vector2)
+						{
+							elemSize = 8;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Vector3)
+						{
+							elemSize = 12;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Vector4 || elemInfo.editableType ==
+							EditableType::Quaternion || elemInfo.editableType == EditableType::Color)
+						{
+							elemSize = 16;
+							elemInfo.isValueType = true;
+						}
+
+						int slotStride = 8 + elemSize;
+						int align = (elemSize >= 8 || !elemInfo.isValueType) ? 8 : 4;
+						slotStride = ((slotStride + align - 1) / align) * align;
+
+						int lastIndex = 0;
+						Helper::SafeReadInt(collectionPtr, 0x24, lastIndex);
+
+						int displayIndex = 0;
+						for (int i = 0; i < lastIndex && displayIndex < collectionCount; ++i)
+						{
+							int hashCode = 0;
+							Helper::SafeReadInt(arrayDataStart, 0x20 + i * slotStride, hashCode);
+							if (hashCode < 0) continue;
+
+							void* slotValueAddr = reinterpret_cast<void*>(
+								reinterpret_cast<uintptr_t>(arrayDataStart) + 0x20 + i * slotStride + 8);
+
+							ImGui::TableNextRow();
+
+							ImGui::TableSetColumnIndex(0);
+							ImGui::Indent(15.0f);
+							ImGui::Text("[%d]", displayIndex);
+							ImGui::Unindent(15.0f);
+
+							ImGui::TableSetColumnIndex(1);
+							ImGui::TextUnformatted(shortElemType.c_str());
+							if (ImGui::IsItemHovered())
+							{
+								ImGui::BeginTooltip();
+								ImGui::Text("%s", elementTypeName.c_str());
+								ImGui::EndTooltip();
+							}
+
+							ImGui::TableSetColumnIndex(2);
+							ImGui::PushID(reinterpret_cast<intptr_t>(slotValueAddr) + displayIndex);
+							elemInfo.name = "[" + std::to_string(displayIndex) + "]";
+							elemInfo.offset = 0;
+							RenderEditableField(slotValueAddr, elemInfo);
+							ImGui::PopID();
+
+							ImGui::TableSetColumnIndex(3);
+
+							displayIndex++;
+						}
+					}
 					else
 					{
 						std::string elementTypeName = "Element";
@@ -1548,7 +1666,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 								elementTypeName =
 									field->typeName.substr(0, pos);
 						}
-						else if (isList || isStack || isQueue)
+						else if (isList || isStack || isQueue || isHashSet)
 						{
 							size_t start = field->typeName.find("<");
 							if (size_t end = field->typeName.rfind(">"); start != std::string::npos && end !=

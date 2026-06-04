@@ -971,6 +971,8 @@ public:
 		struct Stack;
 		template <typename T>
 		struct Queue;
+		template <typename T>
+		struct HashMap;
 		struct Behaviour;
 		struct MonoBehaviour;
 		struct CsType;
