@@ -14,7 +14,7 @@ bool IsEnumClass(const std::string& typeName)
 			if (!klass) continue;
 			if (klass->m_name == typeName)
 			{
-				if (void* klassPtr = klass.get(); UR::Invoke<bool, void*>(API("class_is_enum"), klassPtr))
+				if (void* klassPtr = klass->address; UR::Invoke<bool, void*>(API("class_is_enum"), klassPtr))
 					return true;
 			}
 		}
@@ -35,7 +35,7 @@ std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTy
 			if (!klass) continue;
 			if (klass->m_name == enumTypeName)
 			{
-				enumClass = klass.get();
+				enumClass = klass->address;
 				break;
 			}
 		}
