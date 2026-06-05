@@ -2,6 +2,8 @@
 #include "inspector.h"
 #include "helper/helper.h"
 
+#define API(fn) (Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_" fn : "il2cpp_" fn)
+
 static void QuaternionToEuler(float x, float y, float z, float w, float outEuler[3])
 {
 	const float sinr = 2.0f * (w * x + y * z);
@@ -264,7 +266,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 {
 	if (!instance && !field.isStatic) return;
 
-	ImGui::PushID(field.offset);
+	ImGui::PushID(field.fieldHandle ? field.fieldHandle : reinterpret_cast<void*>(static_cast<intptr_t>(field.offset)));
 
 	if (itemWidth > 0.0f)
 		ImGui::SetNextItemWidth(itemWidth);
@@ -457,23 +459,66 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				if (int val; Helper::SafeGetStaticFieldInt(field.fieldHandle, val))
 				{
 					const auto enumVals = GetEnumValues(field.enumTypeName);
-					int currentIdx = 0;
-					for (size_t i = 0; i < enumVals.size(); i++)
+					auto currentName = "Unknown";
+					for (const auto& [fst, snd] : enumVals)
 					{
-						if (enumVals[i].second == val)
+						if (snd == val)
 						{
-							currentIdx = static_cast<int>(i);
+							currentName = fst.c_str();
 							break;
 						}
 					}
-					std::vector<const char*> names;
-					for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
-					if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
+
+					bool isParentEnum = false;
+					if (field.classHandle)
 					{
-						Helper::SafeSetStaticFieldInt(field.fieldHandle, enumVals[currentIdx].second);
+						isParentEnum = UR::Invoke<bool, void*>(API("class_is_enum"), field.classHandle);
 					}
-					ImGui::SameLine();
-					ImGui::Text("%d", val);
+
+					if (isParentEnum)
+					{
+						ImGui::TextDisabled("%s", currentName);
+						ImGui::SameLine();
+						ImGui::Text("(%d)", val);
+					}
+					else
+					{
+						int currentIdx = 0;
+						for (size_t i = 0; i < enumVals.size(); i++)
+						{
+							if (enumVals[i].second == val)
+							{
+								currentIdx = static_cast<int>(i);
+								break;
+							}
+						}
+
+						const char* previewLabel = currentIdx >= 0 && currentIdx < static_cast<int>(enumVals.size())
+							                           ? enumVals[currentIdx].first.c_str()
+							                           : "Unknown";
+
+						if (ImGui::BeginCombo("##val", previewLabel, 0))
+						{
+							for (int i = 0; i < static_cast<int>(enumVals.size()); i++)
+							{
+								const bool isSelected = (i == currentIdx);
+								ImGui::PushID(i);
+								if (ImGui::Selectable(enumVals[i].first.c_str(), isSelected))
+								{
+									if (i != currentIdx)
+									{
+										Helper::SafeSetStaticFieldInt(field.fieldHandle, enumVals[i].second);
+									}
+								}
+								if (isSelected)
+									ImGui::SetItemDefaultFocus();
+								ImGui::PopID();
+							}
+							ImGui::EndCombo();
+						}
+						ImGui::SameLine();
+						ImGui::Text("%d", val);
+					}
 				}
 				else { ImGui::TextDisabled("ERROR"); }
 				break;
@@ -776,45 +821,38 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				{
 					const auto enumVals = GetEnumValues(field.enumTypeName);
 
-					auto currentName = "Unknown";
-					for (const auto& [fst, snd] : enumVals)
+					int currentIdx = 0;
+					for (size_t i = 0; i < enumVals.size(); i++)
 					{
-						if (snd == val)
+						if (enumVals[i].second == val)
 						{
-							currentName = fst.c_str();
+							currentIdx = static_cast<int>(i);
 							break;
 						}
 					}
 
-					ImGui::TextDisabled("%s", currentName);
-					ImGui::SameLine();
-					if (ImGui::SmallButton("Enter"))
-					{
-						if (auto activeTab = GetActiveTab())
-						{
-							void* instancePtr = nullptr;
-							if (field.isValueType)
-								instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.
-									offset);
-							else
-								Helper::SafeReadPointer(instance, field.offset, instancePtr);
+					const char* previewLabel = currentIdx >= 0 && currentIdx < static_cast<int>(enumVals.size())
+						                           ? enumVals[currentIdx].first.c_str()
+						                           : "Unknown";
 
-							if (instancePtr)
+					if (ImGui::BeginCombo("##val", previewLabel, 0))
+					{
+						for (int i = 0; i < static_cast<int>(enumVals.size()); i++)
+						{
+							const bool isSelected = (i == currentIdx);
+							ImGui::PushID(i);
+							if (ImGui::Selectable(enumVals[i].first.c_str(), isSelected))
 							{
-								InspectionTarget nextTarget;
-								nextTarget.instance = instancePtr;
-								nextTarget.name = field.name;
-								nextTarget.classHandle = field.classHandle;
-								nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(instancePtr));
-								nextTarget.cachedComponentNames.push_back(field.typeName);
-								void* targetKlass = field.isValueType ? field.typeClassHandle : nullptr;
-								nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
-								nextTarget.cachedComponentProperties.push_back(
-									GetObjectProperties(instancePtr, targetKlass));
-								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
-								activeTab->navigationStack.push_back(std::move(nextTarget));
+								if (i != currentIdx)
+								{
+									Helper::SafeWriteInt(instance, field.offset, enumVals[i].second);
+								}
 							}
+							if (isSelected)
+								ImGui::SetItemDefaultFocus();
+							ImGui::PopID();
 						}
+						ImGui::EndCombo();
 					}
 				}
 				else { ImGui::TextDisabled("ERROR"); }
@@ -1486,6 +1524,58 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 
 			ImGui::TableSetColumnIndex(3);
 
+			if (field->editableType == EditableType::Enum)
+			{
+				if (ImGui::SmallButton("Enter"))
+				{
+					if (auto activeTab = GetActiveTab())
+					{
+						void* instancePtr = nullptr;
+						if (field->isStatic)
+						{
+							if (field->isValueType)
+							{
+								instancePtr = nullptr;
+							}
+							else
+							{
+								Helper::SafeGetStaticFieldPointer(field->fieldHandle, instancePtr);
+							}
+						}
+						else if (instance)
+						{
+							if (field->isValueType)
+								instancePtr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field->offset);
+							else
+								Helper::SafeReadPointer(instance, field->offset, instancePtr);
+						}
+
+						if (instancePtr || field->isValueType)
+						{
+							InspectionTarget nextTarget;
+							nextTarget.instance = instancePtr;
+							nextTarget.name = field->name;
+							nextTarget.classHandle = field->classHandle;
+							if (instancePtr)
+							{
+								nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(instancePtr));
+								nextTarget.cachedComponentNames.push_back(field->typeName);
+							}
+							else
+							{
+								nextTarget.cachedComponents.push_back(nullptr);
+								nextTarget.cachedComponentNames.push_back(field->typeName);
+							}
+							void* targetKlass = field->typeClassHandle;
+							nextTarget.cachedComponentFields.push_back(GetObjectFields(instancePtr, targetKlass));
+							nextTarget.cachedComponentProperties.push_back(
+								GetObjectProperties(instancePtr, targetKlass));
+							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
+							activeTab->navigationStack.push_back(std::move(nextTarget));
+						}
+					}
+				}
+			}
 
 			if (isExpanded)
 			{

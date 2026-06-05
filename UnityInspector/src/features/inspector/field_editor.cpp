@@ -53,7 +53,16 @@ std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTy
 			if (const char* fieldName = UR::Invoke<const char*, void*>(API("field_get_name"), field))
 			{
 				int value = 0;
-				UR::Invoke<void, void*, int*>(API("field_get_static_value"), field, &value);
+				if (Config::state.unityMode == UnityResolve::Mode::Mono)
+				{
+					void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+					                                               UR::Invoke<void*, void*>("mono_field_get_parent", field));
+					UR::Invoke<void, void*, void*, int*>("mono_field_static_get_value", vTable, field, &value);
+				}
+				else
+				{
+					UR::Invoke<void, void*, int*>("il2cpp_field_static_get_value", field, &value);
+				}
 				result.push_back({fieldName, value});
 			}
 		}
