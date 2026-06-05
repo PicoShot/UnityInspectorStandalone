@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "field_editor.h"
+#include "helper/helper.h"
 
 #define API(fn) (Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_" fn : "il2cpp_" fn)
 
@@ -142,11 +143,7 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, const std::s
 
 				if (state.isValueType)
 				{
-					if (field->static_field)
-					{
-						// Static value types not supported for nested inspection
-					}
-					else if (instance)
+					if (instance)
 					{
 						state.nestedInstance = reinterpret_cast<void*>(
 							reinterpret_cast<uintptr_t>(instance) + field->offset);
@@ -175,8 +172,7 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, const std::s
 
 void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* instance, const std::string& title)
 {
-	if (fieldInfo.isStatic) return;
-	if (!IsPointerType(fieldInfo.typeName)) return;
+	if (!IsPointerType(fieldInfo.typeName) && !IsEditableType(fieldInfo.typeName)) return;
 
 	state.showWindow = true;
 	state.windowTitle = title;
@@ -186,7 +182,6 @@ void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* ins
 	state.isValueType = false;
 	state.ownedField.reset();
 
-	// Create synthetic UR::Field for metadata/display
 	auto ownedField = std::make_unique<UR::Field>();
 	ownedField->name = fieldInfo.name;
 	ownedField->offset = fieldInfo.offset;
@@ -197,7 +192,12 @@ void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* ins
 	state.targetField = ownedField.get();
 	state.ownedField = std::move(ownedField);
 
-	// Find the class for nested inspection
+	if (IsEditableType(fieldInfo.typeName))
+	{
+		ReadFieldValue();
+		return;
+	}
+
 	state.nestedClass = GetPointerClass(fieldInfo.typeName);
 	if (!state.nestedClass) return;
 
@@ -213,7 +213,11 @@ void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* ins
 	}
 	else
 	{
-		if (instance)
+		if (fieldInfo.isStatic)
+		{
+			Helper::SafeGetStaticFieldPointer(fieldInfo.fieldHandle, state.nestedInstance);
+		}
+		else if (instance)
 		{
 			state.nestedInstance = *reinterpret_cast<void**>(
 				reinterpret_cast<uintptr_t>(instance) + fieldInfo.offset);
@@ -624,6 +628,42 @@ void FieldEditor::ReadFieldValue()
 				field->GetStaticValue(&val);
 				state.intValue = static_cast<long long>(val);
 			}
+			else if (typeName == "UnityEngine.Vector2")
+			{
+				Vec2 val = {};
+				field->GetStaticValue(&val);
+				state.floatValue = val.x;
+			}
+			else if (typeName == "UnityEngine.Vector3")
+			{
+				Vec3 val = {};
+				field->GetStaticValue(&val);
+				state.floatValue = val.x;
+			}
+			else if (typeName == "UnityEngine.Vector4")
+			{
+				Vec4 val = {};
+				field->GetStaticValue(&val);
+				state.floatValue = val.x;
+			}
+			else if (typeName == "UnityEngine.Quaternion")
+			{
+				Quat val = {};
+				field->GetStaticValue(&val);
+				state.floatValue = val.x;
+			}
+			else if (typeName == "UnityEngine.Color")
+			{
+				Color val = {};
+				field->GetStaticValue(&val);
+				state.floatValue = val.r;
+			}
+			else if (DetermineEditableType(typeName) == EditableType::Enum)
+			{
+				int32_t val = 0;
+				field->GetStaticValue(&val);
+				state.intValue = val;
+			}
 			else
 			{
 				int64_t val = 0;
@@ -705,6 +745,36 @@ void FieldEditor::WriteFieldValue()
 			else if (typeName == "System.SByte")
 			{
 				int8_t val = static_cast<int8_t>(state.intValue);
+				field->SetStaticValue(&val);
+			}
+			else if (typeName == "UnityEngine.Vector2")
+			{
+				Vec2 val = { state.floatValue, state.floatValue };
+				field->SetStaticValue(&val);
+			}
+			else if (typeName == "UnityEngine.Vector3")
+			{
+				Vec3 val = { state.floatValue, state.floatValue, state.floatValue };
+				field->SetStaticValue(&val);
+			}
+			else if (typeName == "UnityEngine.Vector4")
+			{
+				Vec4 val = { state.floatValue, state.floatValue, state.floatValue, state.floatValue };
+				field->SetStaticValue(&val);
+			}
+			else if (typeName == "UnityEngine.Quaternion")
+			{
+				Quat val = { state.floatValue, state.floatValue, state.floatValue, state.floatValue };
+				field->SetStaticValue(&val);
+			}
+			else if (typeName == "UnityEngine.Color")
+			{
+				Color val = { state.floatValue, state.floatValue, state.floatValue, state.floatValue };
+				field->SetStaticValue(&val);
+			}
+			else if (DetermineEditableType(typeName) == EditableType::Enum)
+			{
+				int32_t val = static_cast<int32_t>(state.intValue);
 				field->SetStaticValue(&val);
 			}
 			else

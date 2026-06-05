@@ -78,8 +78,16 @@ namespace Helper
 	bool SafeSetStaticFieldBool(void* fieldHandle, bool value);
 	bool SafeGetStaticFieldDouble(void* fieldHandle, double& outValue);
 	bool SafeSetStaticFieldDouble(void* fieldHandle, double value);
+	bool SafeGetStaticFieldVector2(void* fieldHandle, Vec2& outValue);
+	bool SafeSetStaticFieldVector2(void* fieldHandle, const Vec2& value);
 	bool SafeGetStaticFieldVector3(void* fieldHandle, Vec3& outValue);
 	bool SafeSetStaticFieldVector3(void* fieldHandle, const Vec3& value);
+	bool SafeGetStaticFieldVector4(void* fieldHandle, Vec4& outValue);
+	bool SafeSetStaticFieldVector4(void* fieldHandle, const Vec4& value);
+	bool SafeGetStaticFieldQuaternion(void* fieldHandle, Quat& outValue);
+	bool SafeSetStaticFieldQuaternion(void* fieldHandle, const Quat& value);
+	bool SafeGetStaticFieldColor(void* fieldHandle, Color& outValue);
+	bool SafeSetStaticFieldColor(void* fieldHandle, const Color& value);
 	bool SafeGetStaticFieldPointer(void* fieldHandle, void*& outValue);
 
 	void* SafeGetObjectClass(void* obj);

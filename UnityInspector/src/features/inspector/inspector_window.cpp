@@ -221,7 +221,6 @@ static bool ParseDictionaryTypes(const std::string& typeName, std::string& outKe
 	size_t angleStart = typeName.find('<', dictPos);
 	if (angleStart == std::string::npos)
 	{
-		// Try backtick format: Dictionary`2[TKey, TValue]
 		angleStart = typeName.find('[', dictPos);
 		if (angleStart == std::string::npos) return false;
 	}
@@ -373,43 +372,108 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 					if (ImGui::DragFloat("##val", &val, 0.1f))
 						Helper::SafeSetStaticFieldFloat(field.fieldHandle, val);
 				}
-				else { ImGui::TextDisabled("ERROR"); }
-				break;
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
 			}
-		case EditableType::Double:
+		case EditableType::Vector2:
 			{
-				if (double val; Helper::SafeGetStaticFieldDouble(field.fieldHandle, val))
+				if (UT::Vector2 val; Helper::SafeGetStaticFieldVector2(field.fieldHandle, val))
 				{
-					float fVal = static_cast<float>(val);
-					if (ImGui::DragFloat("##val", &fVal, 0.01f))
-						Helper::SafeSetStaticFieldDouble(field.fieldHandle, fVal);
+					float arr[2] = {val.x, val.y};
+					if (ImGui::DragFloat2("##val", arr, 0.1f))
+					{
+						val.x = arr[0];
+						val.y = arr[1];
+						Helper::SafeSetStaticFieldVector2(field.fieldHandle, val);
+					}
 				}
 				else { ImGui::TextDisabled("ERROR"); }
 				break;
 			}
-		case EditableType::Bool:
+		case EditableType::Vector4:
 			{
-				bool val;
-				if (Helper::SafeGetStaticFieldBool(field.fieldHandle, val))
+				if (UT::Vector4 val; Helper::SafeGetStaticFieldVector4(field.fieldHandle, val))
 				{
-					if (ImGui::Checkbox("##val", &val))
-						Helper::SafeSetStaticFieldBool(field.fieldHandle, val);
-				}
-				else { ImGui::TextDisabled("ERROR"); }
-				break;
-			}
-		case EditableType::Vector3:
-			{
-				if (UT::Vector3 val; Helper::SafeGetStaticFieldVector3(field.fieldHandle, val))
-				{
-					float arr[3] = {val.x, val.y, val.z};
-					if (DragVector3Compact("##val", arr, 0.1f))
+					float arr[4] = {val.x, val.y, val.z, val.w};
+					if (ImGui::DragFloat4("##val", arr, 0.1f))
 					{
 						val.x = arr[0];
 						val.y = arr[1];
 						val.z = arr[2];
-						Helper::SafeSetStaticFieldVector3(field.fieldHandle, val);
+						val.w = arr[3];
+						Helper::SafeSetStaticFieldVector4(field.fieldHandle, val);
 					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Quaternion:
+			{
+				if (UT::Quaternion val; Helper::SafeGetStaticFieldQuaternion(field.fieldHandle, val))
+				{
+					float arr[4] = {val.x, val.y, val.z, val.w};
+					if (DragVector4Compact("##val", arr, 0.01f))
+					{
+						val.x = arr[0];
+						val.y = arr[1];
+						val.z = arr[2];
+						val.w = arr[3];
+						Helper::SafeSetStaticFieldQuaternion(field.fieldHandle, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Color:
+			{
+				if (UT::Color val; Helper::SafeGetStaticFieldColor(field.fieldHandle, val))
+				{
+					float arr[4] = {val.r, val.g, val.b, val.a};
+					if (ImGui::ColorEdit4("##val", arr, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar))
+					{
+						val.r = arr[0];
+						val.g = arr[1];
+						val.b = arr[2];
+						val.a = arr[3];
+						Helper::SafeSetStaticFieldColor(field.fieldHandle, val);
+					}
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::String:
+			{
+				if (void* strPtrRaw = nullptr; Helper::SafeGetStaticFieldPointer(field.fieldHandle, strPtrRaw))
+				{
+					auto strPtr = static_cast<UT::String*>(strPtrRaw);
+					const std::string currentStr = strPtr ? strPtr->ToString() : "(null)";
+					ImGui::TextDisabled("\"%s\"", currentStr.c_str());
+				}
+				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Enum:
+			{
+				if (int val; Helper::SafeGetStaticFieldInt(field.fieldHandle, val))
+				{
+					const auto enumVals = GetEnumValues(field.enumTypeName);
+					int currentIdx = 0;
+					for (size_t i = 0; i < enumVals.size(); i++)
+					{
+						if (enumVals[i].second == val)
+						{
+							currentIdx = static_cast<int>(i);
+							break;
+						}
+					}
+					std::vector<const char*> names;
+					for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
+					if (ImGui::Combo("##val", &currentIdx, names.data(), static_cast<int>(names.size())))
+					{
+						Helper::SafeSetStaticFieldInt(field.fieldHandle, enumVals[currentIdx].second);
+					}
+					ImGui::SameLine();
+					ImGui::Text("%d", val);
 				}
 				else { ImGui::TextDisabled("ERROR"); }
 				break;
@@ -1309,7 +1373,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			bool isQueue = field->typeName.find("System.Collections.Generic.Queue") != std::string::npos;
 			bool isHashSet = field->typeName.find("System.Collections.Generic.HashSet") != std::string::npos;
 			bool isArrayList = field->typeName.find("System.Collections.ArrayList") != std::string::npos;
-			bool isCollection = !field->isStatic && (isArray || isList || isDictionary || isStack || isQueue || isHashSet || isArrayList);
+			bool isCollection = isArray || isList || isDictionary || isStack || isQueue || isHashSet || isArrayList;
 
 			bool isExpanded = false;
 			int collectionCount = 0;
@@ -1319,8 +1383,17 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			ImGui::TableSetColumnIndex(0);
 			if (isCollection)
 			{
-				if (Helper::SafeReadPointer(instance, field->offset, collectionPtr) &&
-					collectionPtr)
+				bool gotCollection = false;
+				if (field->isStatic)
+				{
+					gotCollection = Helper::SafeGetStaticFieldPointer(field->fieldHandle, collectionPtr) && collectionPtr;
+				}
+				else if (instance)
+				{
+					gotCollection = Helper::SafeReadPointer(instance, field->offset, collectionPtr) && collectionPtr;
+				}
+
+				if (gotCollection)
 				{
 					if (isArray)
 					{
@@ -1627,7 +1700,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 							Helper::SafeReadInt(arrayDataStart, 0x20 + i * slotStride, hashCode);
 							if (hashCode < 0) continue;
 
-							void* slotValueAddr = reinterpret_cast<void*>(
+							auto slotValueAddr = reinterpret_cast<void*>(
 								reinterpret_cast<uintptr_t>(arrayDataStart) + 0x20 + i * slotStride + 8);
 
 							ImGui::TableNextRow();

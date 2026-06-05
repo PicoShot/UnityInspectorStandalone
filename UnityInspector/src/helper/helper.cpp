@@ -975,6 +975,178 @@ namespace Helper
 		catch (...) { return false; }
 	}
 
+	bool SafeGetStaticFieldVector2(void* fieldHandle, Vec2& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Vec2*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Vec2*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldVector2(void* fieldHandle, const Vec2& value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			Vec2 v = value;
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Vec2*>("mono_field_static_set_value", vTable, fieldHandle, &v);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Vec2*>("il2cpp_field_static_set_value", fieldHandle, &v);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldVector4(void* fieldHandle, Vec4& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Vec4*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Vec4*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldVector4(void* fieldHandle, const Vec4& value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			Vec4 v = value;
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Vec4*>("mono_field_static_set_value", vTable, fieldHandle, &v);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Vec4*>("il2cpp_field_static_set_value", fieldHandle, &v);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldQuaternion(void* fieldHandle, Quat& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Quat*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Quat*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldQuaternion(void* fieldHandle, const Quat& value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			Quat v = value;
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Quat*>("mono_field_static_set_value", vTable, fieldHandle, &v);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Quat*>("il2cpp_field_static_set_value", fieldHandle, &v);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeGetStaticFieldColor(void* fieldHandle, Color& outValue)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Color*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Color*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
+	bool SafeSetStaticFieldColor(void* fieldHandle, const Color& value)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			Color v = value;
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, Color*>("mono_field_static_set_value", vTable, fieldHandle, &v);
+			}
+			else
+			{
+				UR::Invoke<void, void*, Color*>("il2cpp_field_static_set_value", fieldHandle, &v);
+			}
+			return true;
+		}
+		catch (...) { return false; }
+	}
+
 	bool IsValidReadPtr(const void* ptr)
 	{
 		if (!ptr) return false;
