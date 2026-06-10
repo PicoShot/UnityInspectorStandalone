@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "inspector.h"
+#include "helper/helper.h"
 
 void Inspector::RenderMethodInvokePopup()
 {
@@ -83,6 +84,8 @@ void Inspector::RenderMethodInvokePopup()
 			void* result = InvokeMethod(invokeState.targetInstance, invokeState.method, invokeState.parameterValues);
 
 			invokeState.hasResult = true;
+			invokeState.resultPointer = nullptr;
+			invokeState.resultEditableType = EditableType::None;
 			if (result)
 			{
 				if (invokeState.method.returnTypeName == "void" || invokeState.method.returnTypeName == "System.Void")
@@ -92,6 +95,8 @@ void Inspector::RenderMethodInvokePopup()
 				else
 				{
 					const EditableType retType = DetermineEditableType(invokeState.method.returnTypeName);
+					invokeState.resultPointer = result;
+					invokeState.resultEditableType = retType;
 					void* unboxed = UR::Invoke<void*, void*>(
 						Config::state.unityMode == UnityResolve::Mode::Mono
 							? "mono_object_unbox"
@@ -160,6 +165,30 @@ void Inspector::RenderMethodInvokePopup()
 		{
 			ImGui::Separator();
 			ImGui::Text("Result: %s", invokeState.resultText.c_str());
+			if (invokeState.resultPointer && invokeState.resultEditableType == EditableType::CustomObject)
+			{
+				ImGui::SameLine();
+				if (ImGui::SmallButton("Enter"))
+				{
+					if (auto activeTab = GetActiveTab())
+					{
+						void* klass = Helper::SafeGetObjectClass(invokeState.resultPointer);
+						InspectionTarget nextTarget;
+						nextTarget.instance = invokeState.resultPointer;
+						nextTarget.name = invokeState.method.name + "()";
+						nextTarget.classHandle = klass;
+
+						nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(invokeState.resultPointer));
+						nextTarget.cachedComponentNames.push_back(invokeState.method.returnTypeName);
+
+						nextTarget.cachedComponentFields.push_back(GetObjectFields(invokeState.resultPointer, klass));
+						nextTarget.cachedComponentProperties.push_back(GetObjectProperties(invokeState.resultPointer, klass));
+						nextTarget.cachedComponentMethods.push_back(GetObjectMethods(invokeState.resultPointer, klass));
+
+						activeTab->navigationStack.push_back(std::move(nextTarget));
+					}
+				}
+			}
 		}
 	}
 	ImGui::End();
