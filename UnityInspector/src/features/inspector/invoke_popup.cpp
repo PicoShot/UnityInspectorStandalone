@@ -110,10 +110,22 @@ void Inspector::RenderMethodInvokePopup()
 						case EditableType::Double:
 							invokeState.resultText = std::to_string(*static_cast<double*>(unboxed));
 							break;
-						case EditableType::Bool:
-							invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
-							break;
-						default:
+					case EditableType::Bool:
+						invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
+						break;
+				case EditableType::String:
+					{
+						if (const auto* str = static_cast<UT::String*>(result))
+						{
+							invokeState.resultText = "\"" + str->ToString() + "\"";
+						}
+						else
+						{
+							invokeState.resultText = "(null)";
+						}
+					}
+					break;
+					default:
 							invokeState.resultText = std::format("(object: 0x{:X})",
 							                                     reinterpret_cast<uintptr_t>(result));
 							break;
