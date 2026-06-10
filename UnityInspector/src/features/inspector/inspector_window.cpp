@@ -1244,6 +1244,18 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
 		}
+	case EditableType::String:
+		{
+			void* result = nullptr;
+			if (Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result))
+			{
+				auto strPtr = static_cast<UT::String*>(result);
+				const std::string currentStr = strPtr ? strPtr->ToString() : "(null)";
+				ImGui::TextDisabled("\"%s\"", currentStr.c_str());
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
 	default:
 		ImGui::TextDisabled("...");
 		break;

@@ -93,6 +93,7 @@ namespace Helper
 	void* SafeGetObjectClass(void* obj);
 
 	bool SafeInvokeGetter(void* obj, void* methodHandle, void* outValue, int valueSize);
+	bool SafeInvokeGetterPointer(void* obj, void* methodHandle, void*& outPointer);
 	bool SafeInvokeSetter(void* obj, void* methodHandle, void* value);
 
 	void* SafeInvokeMethod(void* obj, void* methodHandle, void** params, bool& success);

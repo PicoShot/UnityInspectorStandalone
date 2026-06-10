@@ -1242,6 +1242,17 @@ namespace Helper
 		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 	}
 
+	bool SafeInvokeGetterPointer(void* obj, void* methodHandle, void*& outPointer)
+	{
+		if (!methodHandle) return false;
+		__try
+		{
+			outPointer = DoSafeInvokeGetter(obj, methodHandle);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
+
 	__declspec(noinline) void DoSafeInvokeSetter(void* obj, void* methodHandle, void* value)
 	{
 		void* params[1] = {value};
