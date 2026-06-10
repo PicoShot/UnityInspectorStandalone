@@ -33,6 +33,8 @@ struct MethodInvokeState
 	std::vector<std::string> parameterValues;
 	std::string resultText;
 	bool hasResult = false;
+	void* resultPointer = nullptr;
+	EditableType resultEditableType = EditableType::None;
 };
 
 struct HierarchyNode final
