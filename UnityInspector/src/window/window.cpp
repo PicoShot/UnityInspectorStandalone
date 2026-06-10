@@ -169,6 +169,9 @@ namespace Window
 		{
 			ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
 
+			if (Input::ProcessMessage(uMsg, wParam))
+				return 2;
+
 			if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureMouseUnlessPopupClose)
 			{
 				switch (uMsg)
@@ -191,8 +194,6 @@ namespace Window
 				case WM_NCMOUSELEAVE:
 				case WM_NCMOUSEMOVE:
 					return 2;
-				default:
-					if (Input::ProcessMessage(uMsg, wParam)) return 2;
 				}
 			}
 		}
