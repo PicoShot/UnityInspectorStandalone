@@ -1390,6 +1390,12 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			filteredFields.push_back(&field);
 	}
 
+	std::sort(filteredFields.begin(), filteredFields.end(), [](const ComponentFieldInfo* a, const ComponentFieldInfo* b) {
+		if (a->isStatic != b->isStatic) return a->isStatic < b->isStatic;
+		if (!a->isStatic) return a->offset < b->offset;
+		return a->name < b->name;
+	});
+
 	if (filteredFields.empty())
 	{
 		ImGui::TextDisabled("No fields match filters");
