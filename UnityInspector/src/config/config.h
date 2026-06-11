@@ -30,6 +30,7 @@ struct UserSettings
 		bool avoid_quiting = false;
 		bool internal_overlay = true;
 		bool external_overlay = false;
+		bool lua_jit_enabled = false;
 	} ini;
 
 	struct InspectorSettings
@@ -69,6 +70,7 @@ struct UserSettings
 				if (c.contains("avoid_quiting"))     ini.avoid_quiting = c["avoid_quiting"].as<bool>();
 				if (c.contains("internal_overlay"))  ini.internal_overlay = c["internal_overlay"].as<bool>();
 				if (c.contains("external_overlay"))  ini.external_overlay = c["external_overlay"].as<bool>();
+				if (c.contains("lua_jit_enabled"))   ini.lua_jit_enabled = c["lua_jit_enabled"].as<bool>();
 			}
 		}
 		catch (...)
