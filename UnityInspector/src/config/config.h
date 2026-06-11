@@ -57,7 +57,16 @@ struct UserSettings
 			GetModuleFileNameA(nullptr, buffer, MAX_PATH);
 			const auto configPath = std::filesystem::path(buffer).parent_path() / "config.ini";
 
-			if (!std::filesystem::exists(configPath)) return;
+			if (!std::filesystem::exists(configPath))
+			{
+				ini::IniFile configFile;
+				configFile["Config"]["debug_console"] = ini.debug_console;
+				configFile["Config"]["internal_overlay"] = ini.internal_overlay;
+				configFile["Config"]["external_overlay"] = ini.external_overlay;
+				configFile["Config"]["lua_jit_enabled"] = ini.lua_jit_enabled;
+				configFile.save(configPath.string());
+				return;
+			}
 
 			ini::IniFile configFile;
 			configFile.load(configPath.string());
