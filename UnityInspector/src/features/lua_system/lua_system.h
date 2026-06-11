@@ -1,8 +1,7 @@
 #pragma once
 #include "pch.h"
 #include "features/features.h"
-
-class LuaPlugin;
+#include "lua_plugin.h"
 
 class LuaSystem final : public IFeature
 {
@@ -16,7 +15,7 @@ public:
 	void EnsureInitialized();
 	bool IsReady() const { return initialized; }
 
-	sol::state& GetState() { return *luaState; }
+	sol::state& GetState() const { return *luaState; }
 	std::vector<std::unique_ptr<LuaPlugin>>& GetPlugins() { return plugins; }
 
 	bool IsConsoleVisible() const { return showConsole; }

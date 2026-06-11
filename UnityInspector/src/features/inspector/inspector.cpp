@@ -103,7 +103,7 @@ void Inspector::Render()
 					else
 					{
 						std::string lowerSearch = searchBuffer;
-						std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+						std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
 						for (auto& node : rootNodes)
 						{
 							RenderHierarchyNode(node, lowerSearch);
@@ -160,7 +160,7 @@ void Inspector::Render()
 						if (staticSearchBuffer[0] != '\0')
 						{
 							lowerSearch = staticSearchBuffer;
-							std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+							std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
 						}
 
 						for (const auto& node : staticInstances)
@@ -308,7 +308,7 @@ void Inspector::OpenStaticInstanceInNewTab(const StaticInstanceNode& node)
 	ImGui::SetWindowFocus("Inspector");
 }
 
-void Inspector::InspectInstance(void* instance, void* classHandle, const std::string& name)
+void Inspector::InspectInstance(void* instance, void* classHandle, const std::string_view name)
 {
 	if (openTabs.size() >= maxTabs) return;
 

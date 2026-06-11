@@ -74,7 +74,7 @@ private:
 	void RenderValueInput();
 	void SyncValueToBuffer();
 
-	void ScanStaticFields(std::vector<ScanField>& out);
+	void ScanStaticFields(std::vector<ScanField>& out) const;
 	void ScanUnityObjectFields(std::vector<ScanField>& out);
 
 	struct VisitedKey
@@ -122,7 +122,6 @@ private:
 	static const char* GetComparisonName(ScanComparison comp);
 	static std::string FormatFieldValue(const ScanField& field);
 
-private:
 	std::thread scanThread;
 	std::mutex resultsMutex;
 	std::atomic<bool> stopRequested{false};

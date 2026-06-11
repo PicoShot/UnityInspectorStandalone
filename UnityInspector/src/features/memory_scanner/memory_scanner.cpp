@@ -60,7 +60,7 @@ void MemoryScanner::Update(float deltaTime)
 			const ScanOperation op = pendingOperation;
 			pendingOperation = ScanOperation::None;
 
-			scanThread = std::thread([this, op]()
+			scanThread = std::thread([this, op]
 			{
 				try
 				{
@@ -164,7 +164,7 @@ void MemoryScanner::Render()
 		}
 
 		ImGui::SameLine();
-		std::unique_lock<std::mutex> resultsLock(resultsMutex);
+		std::unique_lock resultsLock(resultsMutex);
 		ImGui::TextDisabled("Results: %zu / %zu", currentResults.size(), MAX_RESULTS);
 
 		if (!statusText.empty() && !scanInProgress)
@@ -190,7 +190,7 @@ void MemoryScanner::Render()
 			ImGui::TableHeadersRow();
 
 			std::string filterLower = resultFilterBuffer;
-			std::ranges::transform(filterLower, filterLower.begin(), ::tolower);
+			std::ranges::transform(filterLower, filterLower.begin(), tolower);
 
 			for (size_t i = 0; i < currentResults.size(); ++i)
 			{
@@ -481,7 +481,7 @@ void MemoryScanner::ResetScan()
 	scanInProgress = false;
 }
 
-void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out)
+void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 {
 	if (out.size() >= MAX_RESULTS)
 		return;

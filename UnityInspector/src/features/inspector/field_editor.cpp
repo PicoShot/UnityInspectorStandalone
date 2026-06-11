@@ -4,7 +4,7 @@
 
 #define API(fn) (Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_" fn : "il2cpp_" fn)
 
-bool IsEnumClass(const std::string& typeName)
+bool IsEnumClass(std::string_view typeName)
 {
 	for (const auto& assembly : UR::assembly)
 	{
@@ -22,7 +22,7 @@ bool IsEnumClass(const std::string& typeName)
 	return false;
 }
 
-std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTypeName)
+std::vector<std::pair<std::string, int>> GetEnumValues(std::string_view enumTypeName)
 {
 	std::vector<std::pair<std::string, int>> result;
 
@@ -71,7 +71,7 @@ std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTy
 	return result;
 }
 
-static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fieldTypeName,
+static void CheckAndUpdateEnumType(std::string& typeName, std::string_view fieldTypeName,
                                    std::string* enumTypeNameOut)
 {
 	if (enumTypeNameOut) enumTypeNameOut->clear();
@@ -91,16 +91,14 @@ static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fie
 	}
 }
 
-bool IsUInt64WrappingType(const std::string& typeName)
+bool IsUInt64WrappingType(std::string_view typeName)
 {
-	std::string lower = typeName;
-	std::ranges::transform(lower, lower.begin(), tolower);
-	return lower.find("gametimestamp") != std::string::npos;
+	return Helper::CaseInsensitiveFind(typeName, "gametimestamp");
 }
 
-EditableType DetermineEditableType(const std::string& typeName, std::string* enumTypeNameOut)
+EditableType DetermineEditableType(std::string_view typeName, std::string* enumTypeNameOut)
 {
-	std::string effectiveTypeName = typeName;
+	std::string effectiveTypeName(typeName);
 	CheckAndUpdateEnumType(effectiveTypeName, typeName, enumTypeNameOut);
 
 	if (effectiveTypeName == "Enum") return EditableType::Enum;
@@ -140,7 +138,7 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
 FieldEditor::FieldEditor() = default;
 FieldEditor::~FieldEditor() = default;
 
-void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, const std::string& title)
+void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, std::string_view title)
 {
 	if (!field) return;
 
@@ -156,7 +154,7 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, const std::s
 
 	if (field->type)
 	{
-		if (const std::string typeName = field->type->name; IsPointerType(typeName))
+		if (const std::string_view typeName = field->type->name; IsPointerType(typeName))
 		{
 			state.nestedClass = GetPointerClass(typeName);
 			if (state.nestedClass)
@@ -192,7 +190,7 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, const std::s
 	ReadFieldValue();
 }
 
-void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* instance, const std::string& title)
+void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* instance, std::string_view title)
 {
 	if (!IsPointerType(fieldInfo.typeName) && !IsEditableType(fieldInfo.typeName)) return;
 
@@ -211,8 +209,8 @@ void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* ins
 	auto fieldType = std::make_unique<UR::Type>();
 	fieldType->name = fieldInfo.typeName;
 	ownedField->type = std::move(fieldType);
-	state.targetField = ownedField.get();
 	state.ownedField = std::move(ownedField);
+	state.targetField = state.ownedField.get();
 
 	if (IsEditableType(fieldInfo.typeName))
 	{
@@ -357,14 +355,14 @@ void FieldEditor::Render()
 	});
 }
 
-bool FieldEditor::IsEditableType(const std::string& typeName)
+bool FieldEditor::IsEditableType(std::string_view typeName)
 {
 	return IsIntegerType(typeName) || IsFloatType(typeName) || IsBoolType(typeName) || IsStringType(typeName) ||
 		typeName == "System.Decimal" ||
 		IsUInt64WrappingType(typeName);
 }
 
-bool FieldEditor::IsIntegerType(const std::string& typeName)
+bool FieldEditor::IsIntegerType(std::string_view typeName)
 {
 	return typeName == "System.Int16" || typeName == "System.UInt16" ||
 		typeName == "System.Int32" || typeName == "System.Int" ||
@@ -376,23 +374,23 @@ bool FieldEditor::IsIntegerType(const std::string& typeName)
 		typeName == "System.Char";
 }
 
-bool FieldEditor::IsFloatType(const std::string& typeName)
+bool FieldEditor::IsFloatType(std::string_view typeName)
 {
 	return typeName == "System.Single" || typeName == "System.Float" ||
 		typeName == "System.Double" || typeName == "System.Decimal";
 }
 
-bool FieldEditor::IsBoolType(const std::string& typeName)
+bool FieldEditor::IsBoolType(std::string_view typeName)
 {
 	return typeName == "System.Boolean" || typeName == "System.Bool";
 }
 
-bool FieldEditor::IsStringType(const std::string& typeName)
+bool FieldEditor::IsStringType(std::string_view typeName)
 {
 	return typeName == "System.String";
 }
 
-bool FieldEditor::IsPointerType(const std::string& typeName)
+bool FieldEditor::IsPointerType(std::string_view typeName)
 {
 	return !IsEditableType(typeName) &&
 		!typeName.empty() &&
@@ -400,7 +398,7 @@ bool FieldEditor::IsPointerType(const std::string& typeName)
 		!typeName.starts_with("UnityEngine.");
 }
 
-UR::Class* FieldEditor::GetPointerClass(const std::string& typeName)
+UR::Class* FieldEditor::GetPointerClass(std::string_view typeName)
 {
 	for (const auto& assembly : UR::assembly)
 	{
@@ -415,7 +413,7 @@ UR::Class* FieldEditor::GetPointerClass(const std::string& typeName)
 
 	if (const size_t lastDot = typeName.rfind('.'); lastDot != std::string::npos)
 	{
-		const std::string shortName = typeName.substr(lastDot + 1);
+		const std::string_view shortName = typeName.substr(lastDot + 1);
 		for (const auto& assembly : UR::assembly)
 		{
 			if (!assembly) continue;
@@ -431,7 +429,7 @@ UR::Class* FieldEditor::GetPointerClass(const std::string& typeName)
 	return nullptr;
 }
 
-void FieldEditor::ReadValueFromAddress(void* addr, const std::string& typeName, FieldEditorState& state)
+void FieldEditor::ReadValueFromAddress(void* addr, std::string_view typeName, FieldEditorState& state)
 {
 	if (IsStringType(typeName))
 	{
@@ -531,7 +529,7 @@ void FieldEditor::ReadValueFromAddress(void* addr, const std::string& typeName, 
 	}
 }
 
-void FieldEditor::WriteValueToAddress(void* addr, const std::string& typeName, const FieldEditorState& state)
+void FieldEditor::WriteValueToAddress(void* addr, std::string_view typeName, const FieldEditorState& state)
 {
 	if (IsStringType(typeName))
 	{
@@ -634,7 +632,7 @@ void FieldEditor::WriteValueToAddress(void* addr, const std::string& typeName, c
 	}
 }
 
-std::string FieldEditor::FormatFieldValue(void* addr, const std::string& typeName)
+std::string FieldEditor::FormatFieldValue(void* addr, std::string_view typeName)
 {
 	if (IsStringType(typeName))
 	{
@@ -728,7 +726,7 @@ void FieldEditor::ReadFieldValue()
 	const UR::Field* field = state.targetField;
 	if (!field || !field->type) return;
 
-	const std::string typeName = field->type->name;
+	const std::string_view typeName = field->type->name;
 
 	try
 	{
@@ -882,7 +880,7 @@ void FieldEditor::WriteFieldValue()
 	const UR::Field* field = state.targetField;
 	if (!field || !field->type) return;
 
-	const std::string typeName = field->type->name;
+	const std::string_view typeName = field->type->name;
 
 	try
 	{
@@ -1020,7 +1018,7 @@ void FieldEditor::WriteFieldValue()
 	}
 }
 
-void FieldEditor::RenderIntEditor(const std::string& typeName)
+void FieldEditor::RenderIntEditor(std::string_view typeName)
 {
 	ImGui::Text("Value:");
 	if (typeName == "System.UInt64")

@@ -98,7 +98,7 @@ public:
 	void Render() override;
 
 	static Inspector* GetInstance() { return s_Instance; }
-	void InspectInstance(void* instance, void* classHandle, const std::string& name);
+	void InspectInstance(void* instance, void* classHandle, std::string_view name);
 
 private:
 	static inline Inspector* s_Instance = nullptr;

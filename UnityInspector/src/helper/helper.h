@@ -121,7 +121,7 @@ namespace Helper
 
 	bool RayCast(const Vec3& origin, const Vec3& direction, float maxDistance = 1000.0f);
 	bool RayCastHit(const Vec3& origin, const Vec3& direction, const RaycastHit& hitInfo, float maxDistance = 1000.0f);
-	bool WorldToScreen(const Vec3 worldPos, Vec2& screenPos);
+	bool WorldToScreen(Vec3 worldPos, Vec2& screenPos);
 	GameObject* RaycastPick(const Vec2& screenPos);
 
 	bool SafeGetComponentEnabled(UT::Component* comp, bool& outEnabled);

@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "features.h"
 #include "lua_system/lua_system.h"
-#include "lua_system/lua_plugin.h"
 
 void IFeature::Init()
 {

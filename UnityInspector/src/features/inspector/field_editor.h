@@ -2,11 +2,11 @@
 #include "features/features.h"
 #include "features/inspector/editable_type.h"
 
-EditableType DetermineEditableType(const std::string& typeName, std::string* enumTypeNameOut = nullptr);
+EditableType DetermineEditableType(std::string_view typeName, std::string* enumTypeNameOut = nullptr);
 
-std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTypeName);
+std::vector<std::pair<std::string, int>> GetEnumValues(std::string_view enumTypeName);
 
-bool IsUInt64WrappingType(const std::string& typeName);
+bool IsUInt64WrappingType(std::string_view typeName);
 
 struct ComponentFieldInfo final
 {
@@ -50,8 +50,8 @@ struct FieldEditor final
 	FieldEditor();
 	~FieldEditor();
 
-	void OpenFieldEditor(UR::Field* field, void* instance, const std::string& title);
-	void OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* instance, const std::string& title);
+	void OpenFieldEditor(UR::Field* field, void* instance, std::string_view title);
+	void OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* instance, std::string_view title);
 
 	void Render();
 
@@ -59,14 +59,14 @@ struct FieldEditor final
 
 	void Close();
 
-	static bool IsEditableType(const std::string& typeName);
-	static bool IsIntegerType(const std::string& typeName);
-	static bool IsFloatType(const std::string& typeName);
-	static bool IsBoolType(const std::string& typeName);
-	static bool IsStringType(const std::string& typeName);
-	static bool IsPointerType(const std::string& typeName);
+	static bool IsEditableType(std::string_view typeName);
+	static bool IsIntegerType(std::string_view typeName);
+	static bool IsFloatType(std::string_view typeName);
+	static bool IsBoolType(std::string_view typeName);
+	static bool IsStringType(std::string_view typeName);
+	static bool IsPointerType(std::string_view typeName);
 
-	static std::string FormatFieldValue(void* addr, const std::string& typeName);
+	static std::string FormatFieldValue(void* addr, std::string_view typeName);
 
 private:
 	FieldEditorState state;
@@ -75,10 +75,10 @@ private:
 
 	void TakePendingEditors(std::vector<std::unique_ptr<FieldEditor>>& out);
 
-	static UR::Class* GetPointerClass(const std::string& typeName);
+	static UR::Class* GetPointerClass(std::string_view typeName);
 	void ReadFieldValue();
 	void WriteFieldValue();
-	void RenderIntEditor(const std::string& typeName);
+	void RenderIntEditor(std::string_view typeName);
 	void RenderFloatEditor();
 	void RenderBoolEditor();
 	void RenderStringEditor();
@@ -87,6 +87,6 @@ private:
 
 	void RenderNestedFieldValue(const UR::Field* field, void* instance) const;
 
-	static void ReadValueFromAddress(void* addr, const std::string& typeName, FieldEditorState& state);
-	static void WriteValueToAddress(void* addr, const std::string& typeName, const FieldEditorState& state);
+	static void ReadValueFromAddress(void* addr, std::string_view typeName, FieldEditorState& state);
+	static void WriteValueToAddress(void* addr, std::string_view typeName, const FieldEditorState& state);
 };

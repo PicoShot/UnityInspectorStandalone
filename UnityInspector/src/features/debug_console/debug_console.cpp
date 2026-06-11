@@ -267,7 +267,7 @@ void DebugConsole::RenderConsoleWindow()
 	std::scoped_lock lock(logMutex);
 
 	std::string lowerFilter = filterBuffer;
-	std::ranges::transform(lowerFilter, lowerFilter.begin(), ::tolower);
+	std::ranges::transform(lowerFilter, lowerFilter.begin(), tolower);
 
 	int index = 0;
 	for (const auto& entry : logBuffer)

@@ -118,9 +118,9 @@ static void SectionLabel(const char* text, size_t count)
 		ImGui::TextDisabled("%s", text);
 }
 
-static std::string SimplifyTypeName(const std::string& typeName)
+static std::string SimplifyTypeName(std::string_view typeName)
 {
-	static const std::unordered_map<std::string, std::string> primitiveMap = {
+	static const std::unordered_map<std::string_view, std::string_view> primitiveMap = {
 		{"System.Int32", "int"}, {"System.Single", "float"}, {"System.Boolean", "bool"},
 		{"System.Double", "double"}, {"System.String", "string"}, {"System.Int64", "long"},
 		{"System.Int16", "short"}, {"System.Byte", "byte"}, {"System.UInt32", "uint"},
@@ -130,9 +130,9 @@ static std::string SimplifyTypeName(const std::string& typeName)
 	};
 
 	if (auto it = primitiveMap.find(typeName); it != primitiveMap.end())
-		return it->second;
+		return std::string(it->second);
 
-	std::string result = typeName;
+	std::string result(typeName);
 
 	if (size_t angleBracketPos = result.find('<'); angleBracketPos != std::string::npos)
 	{
@@ -180,7 +180,7 @@ static int AlignUp(int value, int alignment)
 	return (value + alignment - 1) & ~(alignment - 1);
 }
 
-static int GetTypeSize(const std::string& typeName)
+static int GetTypeSize(std::string_view typeName)
 {
 	if (typeName == "System.Boolean" || typeName == "System.Byte" || typeName == "System.SByte") return 1;
 	if (typeName == "System.Int16" || typeName == "System.UInt16" || typeName == "System.Char") return 2;
@@ -217,7 +217,7 @@ static bool SafeReadDecimal(void* addr, double& outValue)
 	}
 }
 
-static int GetTypeAlignment(const std::string& typeName)
+static int GetTypeAlignment(std::string_view typeName)
 {
 	if (typeName == "System.Boolean" || typeName == "System.Byte" || typeName == "System.SByte") return 1;
 	if (typeName == "System.Int16" || typeName == "System.UInt16" || typeName == "System.Char") return 2;
@@ -233,7 +233,7 @@ static int GetTypeAlignment(const std::string& typeName)
 	return sizeof(void*);
 }
 
-static bool IsDefinitelyValueType(const std::string& typeName)
+static bool IsDefinitelyValueType(std::string_view typeName)
 {
 	if (typeName == "System.String" || typeName == "System.Object") return false;
 	if (typeName == "System.Decimal") return true;
@@ -245,26 +245,26 @@ static bool IsDefinitelyValueType(const std::string& typeName)
 	return false;
 }
 
-static bool ParseDictionaryTypes(const std::string& typeName, std::string& outKeyType, std::string& outValueType)
+static bool ParseDictionaryTypes(std::string_view typeName, std::string& outKeyType, std::string& outValueType)
 {
 	size_t dictPos = typeName.find("Dictionary");
-	if (dictPos == std::string::npos) return false;
+	if (dictPos == std::string_view::npos) return false;
 
 	size_t angleStart = typeName.find('<', dictPos);
-	if (angleStart == std::string::npos)
+	if (angleStart == std::string_view::npos)
 	{
 		angleStart = typeName.find('[', dictPos);
-		if (angleStart == std::string::npos) return false;
+		if (angleStart == std::string_view::npos) return false;
 	}
 
 	char closeChar = (typeName[angleStart] == '<') ? '>' : ']';
 	size_t angleEnd = typeName.rfind(closeChar);
-	if (angleEnd == std::string::npos || angleEnd <= angleStart) return false;
+	if (angleEnd == std::string_view::npos || angleEnd <= angleStart) return false;
 
-	std::string inner = typeName.substr(angleStart + 1, angleEnd - angleStart - 1);
+	std::string_view inner = typeName.substr(angleStart + 1, angleEnd - angleStart - 1);
 
 	int depth = 0;
-	size_t commaPos = std::string::npos;
+	size_t commaPos = std::string_view::npos;
 	for (size_t i = 0; i < inner.size(); ++i)
 	{
 		if (inner[i] == '<' || inner[i] == '[') depth++;
@@ -276,10 +276,10 @@ static bool ParseDictionaryTypes(const std::string& typeName, std::string& outKe
 		}
 	}
 
-	if (commaPos == std::string::npos) return false;
+	if (commaPos == std::string_view::npos) return false;
 
-	outKeyType = inner.substr(0, commaPos);
-	outValueType = inner.substr(commaPos + 1);
+	outKeyType = std::string(inner.substr(0, commaPos));
+	outValueType = std::string(inner.substr(commaPos + 1));
 
 	auto trim = [](std::string& s)
 	{
@@ -1559,7 +1559,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 	ImGui::Spacing();
 
 	std::string lowerSearch = lSearchBuffer;
-	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
 
 	std::vector<const ComponentFieldInfo*> filteredFields;
 	for (const auto& field : fields)
@@ -2169,7 +2169,7 @@ void Inspector::RenderPropertiesSection(void* instance, const std::vector<Compon
 	ImGui::Spacing();
 
 	std::string lowerSearch = lSearchBuffer;
-	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
 
 	std::vector<const ComponentPropertyInfo*> filteredProps;
 	for (const auto& prop : properties)
@@ -2256,7 +2256,7 @@ void Inspector::RenderMethodsSection(void* instance, const std::vector<Component
 	ImGui::Spacing();
 
 	std::string lowerSearch = lSearchBuffer;
-	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
 
 	std::vector<const ComponentMethodInfo*> filteredMethods;
 	for (const auto& method : methods)
@@ -2369,7 +2369,7 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 	ImGui::Spacing();
 
 	std::string lowerSearch = target.componentSearchBuffer;
-	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
 
 	std::vector<size_t> filteredComponentIndices;
 	for (size_t i = 0; i < target.cachedComponents.size(); i++)
