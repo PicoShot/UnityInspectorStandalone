@@ -113,13 +113,13 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
 		typeName == "System.IntPtr" || typeName == "System.UIntPtr" ||
 		IsUInt64WrappingType(typeName))
 		return EditableType::Int;
-	if (typeName == "System.Single" || typeName == "System.Float")
+	if (typeName == "System.Single")
 		return EditableType::Float;
 	if (typeName == "System.Double")
 		return EditableType::Double;
 	if (typeName == "System.Decimal")
 		return EditableType::Decimal;
-	if (typeName == "System.Boolean" || typeName == "System.Bool")
+	if (typeName == "System.Boolean")
 		return EditableType::Bool;
 	if (typeName == "System.String")
 		return EditableType::String;
