@@ -56,6 +56,9 @@
 
 // Lua
 #include "sol/sol.hpp"
+extern "C" {
+#include "luajit/luajit.h"
+}
 
 // Macros
 #define TOKENPASTE(x, y) x ## y

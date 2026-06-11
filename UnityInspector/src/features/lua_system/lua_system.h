@@ -13,9 +13,10 @@ public:
 
 	void ReloadAll();
 	void ExecuteString(const std::string& code);
+	void EnsureInitialized();
 	bool IsReady() const { return initialized; }
 
-	sol::state& GetState() { return luaState; }
+	sol::state& GetState() { return *luaState; }
 	std::vector<std::unique_ptr<LuaPlugin>>& GetPlugins() { return plugins; }
 
 	bool IsConsoleVisible() const { return showConsole; }
@@ -25,7 +26,7 @@ public:
 
 private:
 	static inline LuaSystem* s_Instance = nullptr;
-	sol::state luaState;
+	std::unique_ptr<sol::state> luaState;
 	std::vector<std::unique_ptr<LuaPlugin>> plugins;
 	std::filesystem::path pluginsDir;
 	bool initialized = false;
@@ -33,7 +34,7 @@ private:
 	float reloadTimer = 0.0f;
 	static constexpr float RELOAD_INTERVAL = .5f;
 
-	TextEditor textEditor;
+	std::unique_ptr<TextEditor> textEditor;
 
 	void ScanPlugins();
 	void CheckHotReload();

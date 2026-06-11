@@ -3,19 +3,31 @@
 #include "lua_plugin.h"
 #include "lua_bindings.h"
 #include "features/debug_console/debug_console.h"
+#include "config/config.h"
 
-REGISTER_FEATURE(LuaSystem)
+//REGISTER_FEATURE(LuaSystem)  // manually registered in features.cpp to avoid static init crash
 
 void LuaSystem::Init()
 {
 	s_Instance = this;
+}
+
+void LuaSystem::EnsureInitialized()
+{
+	if (initialized) return;
+	if (luaState) return;
+
 	try
 	{
-		LuaBindings::RegisterAll(luaState);
+		luaState = std::make_unique<sol::state>();
 
-		textEditor.SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());
-		textEditor.SetPalette(TextEditor::GetDarkPalette());
-		textEditor.SetShowWhitespaces(false);
+		if (!Config::settings.ini.lua_jit_enabled)
+			luaJIT_setmode(luaState->lua_state(), 0, LUAJIT_MODE_ENGINE | LUAJIT_MODE_OFF);
+
+		textEditor = std::make_unique<TextEditor>();
+		textEditor->SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());
+		textEditor->SetPalette(TextEditor::GetDarkPalette());
+		textEditor->SetShowWhitespaces(false);
 
 		char buffer[MAX_PATH];
 		GetModuleFileNameA(nullptr, buffer, MAX_PATH);
@@ -27,19 +39,30 @@ void LuaSystem::Init()
 			LOG_INFO("Created plugins directory: {}", pluginsDir.string());
 		}
 
+		LuaBindings::RegisterAll(*luaState);
 		ScanPlugins();
 		initialized = true;
-		LOG_INFO("LuaSystem initialized. Plugins dir: {}", pluginsDir.string());
+		LOG_INFO("LuaSystem initialized. JIT: {}", Config::settings.ini.lua_jit_enabled ? "ON" : "OFF");
 	}
 	catch (const std::exception& e)
 	{
 		LOG_ERROR("LuaSystem init failed: {}", e.what());
 		DebugConsole::AddLog(std::format("LuaSystem init failed: {}", e.what()), LogType::Error);
+		luaState.reset();
+		textEditor.reset();
+	}
+	catch (...)
+	{
+		LOG_ERROR("LuaSystem init failed: SEH exception caught");
+		DebugConsole::AddLog("LuaSystem init failed: SEH exception caught", LogType::Error);
+		luaState.reset();
+		textEditor.reset();
 	}
 }
 
 void LuaSystem::ScanPlugins()
 {
+	if (!luaState) return;
 	plugins.clear();
 
 	if (!std::filesystem::exists(pluginsDir))
@@ -50,7 +73,7 @@ void LuaSystem::ScanPlugins()
 		if (!entry.is_regular_file()) continue;
 		if (entry.path().extension() != ".lua") continue;
 
-		auto plugin = std::make_unique<LuaPlugin>(luaState, entry.path());
+		auto plugin = std::make_unique<LuaPlugin>(*luaState, entry.path());
 		plugin->Init();
 		plugins.push_back(std::move(plugin));
 	}
@@ -58,6 +81,7 @@ void LuaSystem::ScanPlugins()
 
 void LuaSystem::CheckHotReload()
 {
+	if (!luaState) return;
 	if (!std::filesystem::exists(pluginsDir))
 		return;
 
@@ -97,7 +121,7 @@ void LuaSystem::CheckHotReload()
 			}
 			else
 			{
-				auto plugin = std::make_unique<LuaPlugin>(luaState, entry.path());
+				auto plugin = std::make_unique<LuaPlugin>(*luaState, entry.path());
 				plugin->Init();
 				LOG_INFO("Loaded new plugin: {}", plugin->GetName());
 				plugins.push_back(std::move(plugin));
@@ -161,7 +185,7 @@ void LuaSystem::RenderLuaConsole()
 	{
 		if (ImGui::Button("Execute", ImVec2(100, 0)))
 		{
-			if (std::string code = textEditor.GetText(); !code.empty())
+			if (std::string code = textEditor->GetText(); !code.empty())
 			{
 				ExecuteString(code);
 			}
@@ -169,30 +193,32 @@ void LuaSystem::RenderLuaConsole()
 		ImGui::SameLine();
 		if (ImGui::Button("Clear", ImVec2(100, 0)))
 		{
-			textEditor.SetText("");
+			textEditor->SetText("");
 		}
 
 		ImGui::Spacing();
 
-		textEditor.Render("##LuaConsole", ImVec2(-1, ImGui::GetContentRegionAvail().y), true);
+		textEditor->Render("##LuaConsole", ImVec2(-1, ImGui::GetContentRegionAvail().y), true);
 	}
 	ImGui::End();
 }
 
 void LuaSystem::ReloadAll()
 {
+	EnsureInitialized();
 	if (!initialized) return;
 	ScanPlugins();
 }
 
 void LuaSystem::ExecuteString(const std::string& code)
 {
-	if (!initialized) return;
+	EnsureInitialized();
+	if (!initialized || !luaState) return;
 
 	try
 	{
 		UR::ThreadAttach();
-		if (sol::protected_function_result result = luaState.safe_script(code); !result.valid())
+		if (sol::protected_function_result result = luaState->safe_script(code); !result.valid())
 		{
 			sol::error err = result;
 			DebugConsole::AddLog(std::format("Lua console error: {}", err.what()), LogType::Error);
