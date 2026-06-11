@@ -523,9 +523,9 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 		ImGui::TextDisabled("Active Instance:");
 
 		std::string previewText = "None";
-		if (selectedInstance)
+		if (const auto* inst = selectedInstance)
 		{
-			previewText = selectedInstance->displayName;
+			previewText = inst->displayName;
 		}
 
 		if (ImGui::BeginCombo("##InstanceSelect", previewText.c_str()))
@@ -555,9 +555,12 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 			ImGui::EndCombo();
 		}
 
-		if (ImGui::IsItemHovered() && selectedInstance)
+		if (ImGui::IsItemHovered())
 		{
-			ImGui::SetTooltip("Address: %p", selectedInstance->instance);
+			if (const auto* inst = selectedInstance)
+			{
+				ImGui::SetTooltip("Address: %p", inst->instance);
+			}
 		}
 
 		ImGui::SameLine();
@@ -600,7 +603,12 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 	{
 		if (ImGui::CollapsingHeader("Fields", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			bool canEditInstance = selectedInstance && selectedInstance->instance;
+			const auto* inst = selectedInstance;
+			bool canEditInstance = false;
+			if (inst)
+			{
+				canEditInstance = inst->instance != nullptr;
+			}
 
 			if (!canEditInstance && !selectedClass->instances.empty())
 			{
@@ -644,8 +652,8 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						uintptr_t addr = 0;
 						if (isStatic)
 							addr = reinterpret_cast<uintptr_t>(field->address);
-						else if (canEditInstance)
-							addr = reinterpret_cast<uintptr_t>(selectedInstance->instance) + static_cast<uintptr_t>(field->offset);
+						else if (canEditInstance && inst)
+							addr = reinterpret_cast<uintptr_t>(inst->instance) + static_cast<uintptr_t>(field->offset);
 						std::string addrStr = std::format("0x{:X}", static_cast<unsigned long long>(addr));
 						ImGui::TextDisabled("%s", addrStr.c_str());
 						ImGui::Separator();
@@ -670,7 +678,12 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						ImGui::TextDisabled("[S]");
 
 					ImGui::TableSetColumnIndex(3);
-					RenderFieldRow(field.get(), canEditInstance ? selectedInstance->instance : nullptr);
+					void* targetInstance = nullptr;
+					if (canEditInstance && inst)
+					{
+						targetInstance = inst->instance;
+					}
+					RenderFieldRow(field.get(), targetInstance);
 
 					ImGui::TableSetColumnIndex(4);
 
@@ -681,7 +694,11 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 
 					if (ImGui::SmallButton("Edit"))
 					{
-						void* target = isStatic ? nullptr : selectedInstance->instance;
+						void* target = nullptr;
+						if (!isStatic && inst)
+						{
+							target = inst->instance;
+						}
 						std::string title = "Edit Field: " + field->name;
 
 						if (!fieldEditor)
@@ -724,7 +741,12 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 		{
 			ImGui::Indent();
 
-			bool canInvokeInstance = selectedInstance && selectedInstance->instance;
+			const auto* inst = selectedInstance;
+			bool canInvokeInstance = false;
+			if (inst)
+			{
+				canInvokeInstance = inst->instance != nullptr;
+			}
 
 			if (ImGui::BeginTable("MethodsTable", 6, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
 			{
@@ -827,7 +849,11 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 
 					if (ImGui::SmallButton("Invoke"))
 					{
-						void* target = isStatic ? nullptr : selectedInstance->instance;
+						void* target = nullptr;
+						if (!isStatic && inst)
+						{
+							target = inst->instance;
+						}
 
 						if (method->m_args.empty())
 						{
