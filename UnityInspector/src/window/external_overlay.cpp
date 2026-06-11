@@ -219,7 +219,7 @@ namespace ExternalOverlay
 
 		Window::RenderToExternalOverlay(m_device, m_context, m_targetView, m_overlayHwnd);
 
-		m_swapChain->Present(1, 0);
+		SUCCEEDED(m_swapChain->Present(1, 0));
 	}
 
 	void RunRenderLoop()
