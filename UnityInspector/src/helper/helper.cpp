@@ -1355,6 +1355,60 @@ namespace Helper
 					result.buffers.push_back(std::move(buf));
 					break;
 				}
+			case EditableType::Enum:
+				{
+					auto buf = std::make_unique<char[]>(sizeof(int));
+					*reinterpret_cast<int*>(buf.get()) = std::stoi(valueStr);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
+			case EditableType::Decimal:
+				{
+					auto buf = std::make_unique<char[]>(16);
+					int32_t parts[4] = {};
+					const double val = std::stod(valueStr);
+					const bool negative = val < 0;
+					const double absVal = negative ? -val : val;
+					const uint64_t scaled = static_cast<uint64_t>(absVal * 1.0);
+					parts[0] = negative ? 0x80000000 : 0;
+					parts[1] = static_cast<int32_t>(scaled >> 32);
+					parts[2] = static_cast<int32_t>(scaled & 0xFFFFFFFF);
+					parts[3] = 0;
+					std::memcpy(buf.get(), parts, 16);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
+			case EditableType::Vector2:
+				{
+					auto buf = std::make_unique<char[]>(sizeof(Vec2));
+					auto& v = *reinterpret_cast<Vec2*>(buf.get());
+					v.x = v.y = std::stof(valueStr);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
+			case EditableType::Vector3:
+				{
+					auto buf = std::make_unique<char[]>(sizeof(Vec3));
+					auto& v = *reinterpret_cast<Vec3*>(buf.get());
+					v.x = v.y = v.z = std::stof(valueStr);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
+			case EditableType::Vector4:
+			case EditableType::Quaternion:
+			case EditableType::Color:
+				{
+					auto buf = std::make_unique<char[]>(16);
+					auto* f = reinterpret_cast<float*>(buf.get());
+					f[0] = f[1] = f[2] = f[3] = std::stof(valueStr);
+					result.params.push_back(buf.get());
+					result.buffers.push_back(std::move(buf));
+					break;
+				}
 			default:
 				result.params.push_back(nullptr);
 				break;

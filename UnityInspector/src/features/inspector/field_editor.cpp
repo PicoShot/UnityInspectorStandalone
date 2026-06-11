@@ -91,6 +91,13 @@ static void CheckAndUpdateEnumType(std::string& typeName, const std::string& fie
 	}
 }
 
+bool IsUInt64WrappingType(const std::string& typeName)
+{
+	std::string lower = typeName;
+	std::ranges::transform(lower, lower.begin(), tolower);
+	return lower.find("gametimestamp") != std::string::npos;
+}
+
 EditableType DetermineEditableType(const std::string& typeName, std::string* enumTypeNameOut)
 {
 	std::string effectiveTypeName = typeName;
@@ -100,13 +107,19 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
 
 	if (typeName == "System.Int16" || typeName == "System.Int32" || typeName == "System.Int64" ||
 		typeName == "System.UInt16" || typeName == "System.UInt32" || typeName == "System.UInt64" ||
-		typeName == "System.Byte" || typeName == "System.SByte" || typeName == "System.Char")
+		typeName == "System.Byte" || typeName == "System.SByte" || typeName == "System.Char" ||
+		typeName == "System.Short" || typeName == "System.UShort" ||
+		typeName == "System.Long" || typeName == "System.ULong" ||
+		typeName == "System.IntPtr" || typeName == "System.UIntPtr" ||
+		IsUInt64WrappingType(typeName))
 		return EditableType::Int;
-	if (typeName == "System.Single")
+	if (typeName == "System.Single" || typeName == "System.Float")
 		return EditableType::Float;
 	if (typeName == "System.Double")
 		return EditableType::Double;
-	if (typeName == "System.Boolean")
+	if (typeName == "System.Decimal")
+		return EditableType::Decimal;
+	if (typeName == "System.Boolean" || typeName == "System.Bool")
 		return EditableType::Bool;
 	if (typeName == "System.String")
 		return EditableType::String;
@@ -346,7 +359,9 @@ void FieldEditor::Render()
 
 bool FieldEditor::IsEditableType(const std::string& typeName)
 {
-	return IsIntegerType(typeName) || IsFloatType(typeName) || IsBoolType(typeName) || IsStringType(typeName);
+	return IsIntegerType(typeName) || IsFloatType(typeName) || IsBoolType(typeName) || IsStringType(typeName) ||
+		typeName == "System.Decimal" ||
+		IsUInt64WrappingType(typeName);
 }
 
 bool FieldEditor::IsIntegerType(const std::string& typeName)
@@ -466,6 +481,50 @@ void FieldEditor::ReadValueFromAddress(void* addr, const std::string& typeName, 
 	{
 		state.intValue = static_cast<long long>(*static_cast<int8_t*>(addr));
 	}
+	else if (typeName == "System.IntPtr")
+	{
+		state.intValue = static_cast<long long>(*static_cast<intptr_t*>(addr));
+	}
+	else if (typeName == "System.UIntPtr")
+	{
+		state.intValue = static_cast<long long>(*static_cast<uintptr_t*>(addr));
+	}
+	else if (IsUInt64WrappingType(typeName))
+	{
+		state.intValue = static_cast<long long>(*static_cast<uint64_t*>(addr));
+	}
+	else if (typeName == "System.Decimal")
+	{
+		auto* parts = static_cast<int32_t*>(addr);
+		const int scale = (parts[0] >> 16) & 0x1F;
+		const bool negative = (parts[0] & 0x80000000) != 0;
+		const int64_t lo = static_cast<uint32_t>(parts[2]);
+		const int64_t mid = static_cast<uint32_t>(parts[3]);
+		const int64_t hi = static_cast<uint32_t>(parts[1]);
+		const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
+			static_cast<double>(hi) * 18446744073709551616.0;
+		state.floatValue = static_cast<float>(unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0));
+	}
+	else if (typeName == "UnityEngine.Vector2")
+	{
+		state.floatValue = static_cast<Vec2*>(addr)->x;
+	}
+	else if (typeName == "UnityEngine.Vector3")
+	{
+		state.floatValue = static_cast<Vec3*>(addr)->x;
+	}
+	else if (typeName == "UnityEngine.Vector4")
+	{
+		state.floatValue = static_cast<Vec4*>(addr)->x;
+	}
+	else if (typeName == "UnityEngine.Quaternion")
+	{
+		state.floatValue = static_cast<Quat*>(addr)->x;
+	}
+	else if (typeName == "UnityEngine.Color")
+	{
+		state.floatValue = static_cast<Color*>(addr)->r;
+	}
 	else
 	{
 		state.intValue = *static_cast<int32_t*>(addr);
@@ -518,6 +577,57 @@ void FieldEditor::WriteValueToAddress(void* addr, const std::string& typeName, c
 	{
 		*static_cast<int8_t*>(addr) = static_cast<int8_t>(state.intValue);
 	}
+	else if (typeName == "System.IntPtr")
+	{
+		*static_cast<intptr_t*>(addr) = static_cast<intptr_t>(state.intValue);
+	}
+	else if (typeName == "System.UIntPtr")
+	{
+		*static_cast<uintptr_t*>(addr) = static_cast<uintptr_t>(state.intValue);
+	}
+	else if (IsUInt64WrappingType(typeName))
+	{
+		*static_cast<uint64_t*>(addr) = static_cast<uint64_t>(state.intValue);
+	}
+	else if (typeName == "System.Decimal")
+	{
+		auto* parts = static_cast<int32_t*>(addr);
+		const double value = static_cast<double>(state.floatValue);
+		const int scale = (parts[0] >> 16) & 0x1F;
+		const bool negative = value < 0;
+		const double absValue = negative ? -value : value;
+		const double scaled = absValue * std::pow(10.0, scale);
+		const uint64_t unscaled = static_cast<uint64_t>(scaled);
+		parts[0] = (parts[0] & 0x00FF0000) | (negative ? 0x80000000 : 0);
+		parts[1] = static_cast<int32_t>(unscaled >> 32);
+		parts[2] = static_cast<int32_t>(unscaled & 0xFFFFFFFF);
+		parts[3] = static_cast<int32_t>((unscaled >> 32) >> 32);
+	}
+	else if (typeName == "UnityEngine.Vector2")
+	{
+		auto& v = *static_cast<Vec2*>(addr);
+		v.x = v.y = state.floatValue;
+	}
+	else if (typeName == "UnityEngine.Vector3")
+	{
+		auto& v = *static_cast<Vec3*>(addr);
+		v.x = v.y = v.z = state.floatValue;
+	}
+	else if (typeName == "UnityEngine.Vector4")
+	{
+		auto& v = *static_cast<Vec4*>(addr);
+		v.x = v.y = v.z = v.w = state.floatValue;
+	}
+	else if (typeName == "UnityEngine.Quaternion")
+	{
+		auto& v = *static_cast<Quat*>(addr);
+		v.x = v.y = v.z = v.w = state.floatValue;
+	}
+	else if (typeName == "UnityEngine.Color")
+	{
+		auto& v = *static_cast<Color*>(addr);
+		v.r = v.g = v.b = v.a = state.floatValue;
+	}
 	else
 	{
 		*static_cast<int32_t*>(addr) = state.intValue;
@@ -561,6 +671,50 @@ std::string FieldEditor::FormatFieldValue(void* addr, const std::string& typeNam
 		return std::to_string(*static_cast<uint8_t*>(addr));
 	if (typeName == "System.SByte")
 		return std::to_string(*static_cast<int8_t*>(addr));
+	if (typeName == "System.IntPtr")
+		return std::to_string(*static_cast<intptr_t*>(addr));
+	if (typeName == "System.UIntPtr")
+		return std::to_string(*static_cast<uintptr_t*>(addr));
+	if (IsUInt64WrappingType(typeName))
+		return std::to_string(*static_cast<uint64_t*>(addr));
+	if (typeName == "System.Decimal")
+	{
+		const auto* parts = static_cast<int32_t*>(addr);
+		const int scale = (parts[0] >> 16) & 0x1F;
+		const bool negative = (parts[0] & 0x80000000) != 0;
+		const int64_t lo = static_cast<uint32_t>(parts[2]);
+		const int64_t mid = static_cast<uint32_t>(parts[3]);
+		const int64_t hi = static_cast<uint32_t>(parts[1]);
+		const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
+			static_cast<double>(hi) * 18446744073709551616.0;
+		const double value = unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0);
+		return std::format("{:.6f}", value);
+	}
+	if (typeName == "UnityEngine.Vector2")
+	{
+		const auto& v = *static_cast<Vec2*>(addr);
+		return std::format("({:.3f}, {:.3f})", v.x, v.y);
+	}
+	if (typeName == "UnityEngine.Vector3")
+	{
+		const auto& v = *static_cast<Vec3*>(addr);
+		return std::format("({:.3f}, {:.3f}, {:.3f})", v.x, v.y, v.z);
+	}
+	if (typeName == "UnityEngine.Vector4")
+	{
+		const auto& v = *static_cast<Vec4*>(addr);
+		return std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v.x, v.y, v.z, v.w);
+	}
+	if (typeName == "UnityEngine.Quaternion")
+	{
+		const auto& v = *static_cast<Quat*>(addr);
+		return std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v.x, v.y, v.z, v.w);
+	}
+	if (typeName == "UnityEngine.Color")
+	{
+		const auto& v = *static_cast<Color*>(addr);
+		return std::format("RGBA({:.2f}, {:.2f}, {:.2f}, {:.2f})", v.r, v.g, v.b, v.a);
+	}
 	if (IsIntegerType(typeName))
 		return std::to_string(*static_cast<int32_t*>(addr));
 
@@ -618,6 +772,37 @@ void FieldEditor::ReadFieldValue()
 				int8_t val = 0;
 				field->GetStaticValue(&val);
 				state.intValue = static_cast<long long>(val);
+			}
+			else if (typeName == "System.IntPtr")
+			{
+				intptr_t val = 0;
+				field->GetStaticValue(&val);
+				state.intValue = static_cast<long long>(val);
+			}
+			else if (typeName == "System.UIntPtr")
+			{
+				uintptr_t val = 0;
+				field->GetStaticValue(&val);
+				state.intValue = static_cast<long long>(val);
+			}
+			else if (IsUInt64WrappingType(typeName))
+			{
+				uint64_t val = 0;
+				field->GetStaticValue(&val);
+				state.intValue = static_cast<long long>(val);
+			}
+			else if (typeName == "System.Decimal")
+			{
+				int32_t parts[4] = {};
+				field->GetStaticValue(&parts);
+				const int scale = (parts[0] >> 16) & 0x1F;
+				const bool negative = (parts[0] & 0x80000000) != 0;
+				const int64_t lo = static_cast<uint32_t>(parts[2]);
+				const int64_t mid = static_cast<uint32_t>(parts[3]);
+				const int64_t hi = static_cast<uint32_t>(parts[1]);
+				const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
+					static_cast<double>(hi) * 18446744073709551616.0;
+				state.floatValue = static_cast<float>(unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0));
 			}
 			else if (typeName == "System.Int16" || typeName == "System.Short")
 			{
@@ -755,6 +940,37 @@ void FieldEditor::WriteFieldValue()
 			{
 				int8_t val = static_cast<int8_t>(state.intValue);
 				field->SetStaticValue(&val);
+			}
+			else if (typeName == "System.IntPtr")
+			{
+				intptr_t val = static_cast<intptr_t>(state.intValue);
+				field->SetStaticValue(&val);
+			}
+			else if (typeName == "System.UIntPtr")
+			{
+				uintptr_t val = static_cast<uintptr_t>(state.intValue);
+				field->SetStaticValue(&val);
+			}
+			else if (IsUInt64WrappingType(typeName))
+			{
+				uint64_t val = static_cast<uint64_t>(state.intValue);
+				field->SetStaticValue(&val);
+			}
+			else if (typeName == "System.Decimal")
+			{
+				int32_t parts[4] = {};
+				field->GetStaticValue(&parts);
+				const int scale = (parts[0] >> 16) & 0x1F;
+				const double value = static_cast<double>(state.floatValue);
+				const bool negative = value < 0;
+				const double absValue = negative ? -value : value;
+				const double scaled = absValue * std::pow(10.0, scale);
+				const uint64_t unscaled = static_cast<uint64_t>(scaled);
+				parts[0] = (parts[0] & 0x00FF0000) | (negative ? 0x80000000 : 0);
+				parts[1] = static_cast<int32_t>(unscaled >> 32);
+				parts[2] = static_cast<int32_t>(unscaled & 0xFFFFFFFF);
+				parts[3] = static_cast<int32_t>((unscaled >> 32) >> 32);
+				field->SetStaticValue(&parts);
 			}
 			else if (typeName == "UnityEngine.Vector2")
 			{

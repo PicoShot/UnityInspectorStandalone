@@ -125,7 +125,8 @@ static std::string SimplifyTypeName(const std::string& typeName)
 		{"System.Double", "double"}, {"System.String", "string"}, {"System.Int64", "long"},
 		{"System.Int16", "short"}, {"System.Byte", "byte"}, {"System.UInt32", "uint"},
 		{"System.UInt64", "ulong"}, {"System.UInt16", "ushort"}, {"System.SByte", "sbyte"},
-		{"System.Char", "char"}, {"System.Void", "void"}, {"System.Object", "object"}
+		{"System.Char", "char"}, {"System.Void", "void"}, {"System.Object", "object"},
+		{"System.Decimal", "decimal"}, {"System.IntPtr", "IntPtr"}, {"System.UIntPtr", "UIntPtr"}
 	};
 
 	if (auto it = primitiveMap.find(typeName); it != primitiveMap.end())
@@ -185,11 +186,35 @@ static int GetTypeSize(const std::string& typeName)
 	if (typeName == "System.Int16" || typeName == "System.UInt16" || typeName == "System.Char") return 2;
 	if (typeName == "System.Int32" || typeName == "System.UInt32" || typeName == "System.Single") return 4;
 	if (typeName == "System.Int64" || typeName == "System.UInt64" || typeName == "System.Double") return 8;
+	if (typeName == "System.Decimal") return 16;
+	if (typeName == "System.IntPtr" || typeName == "System.UIntPtr") return sizeof(void*);
 	if (typeName == "UnityEngine.Vector2") return 8;
 	if (typeName == "UnityEngine.Vector3") return 12;
 	if (typeName == "UnityEngine.Vector4" || typeName == "UnityEngine.Quaternion" || typeName == "UnityEngine.Color")
 		return 16;
+	if (IsUInt64WrappingType(typeName)) return 8;
 	return sizeof(void*);
+}
+
+__declspec(noinline) static bool SafeReadDecimal(void* addr, double& outValue)
+{
+	__try
+	{
+		const auto* parts = static_cast<int32_t*>(addr);
+		const int scale = (parts[0] >> 16) & 0x1F;
+		const bool negative = (parts[0] & 0x80000000) != 0;
+		const int64_t lo = static_cast<uint32_t>(parts[2]);
+		const int64_t mid = static_cast<uint32_t>(parts[3]);
+		const int64_t hi = static_cast<uint32_t>(parts[1]);
+		const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
+			static_cast<double>(hi) * 18446744073709551616.0;
+		outValue = unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0);
+		return true;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return false;
+	}
 }
 
 static int GetTypeAlignment(const std::string& typeName)
@@ -198,16 +223,21 @@ static int GetTypeAlignment(const std::string& typeName)
 	if (typeName == "System.Int16" || typeName == "System.UInt16" || typeName == "System.Char") return 2;
 	if (typeName == "System.Int32" || typeName == "System.UInt32" || typeName == "System.Single") return 4;
 	if (typeName == "System.Int64" || typeName == "System.UInt64" || typeName == "System.Double") return 8;
+	if (typeName == "System.Decimal") return 8;
+	if (typeName == "System.IntPtr" || typeName == "System.UIntPtr") return sizeof(void*);
 	if (typeName == "UnityEngine.Vector2") return 4;
 	if (typeName == "UnityEngine.Vector3") return 4;
 	if (typeName == "UnityEngine.Vector4" || typeName == "UnityEngine.Quaternion" || typeName == "UnityEngine.Color")
 		return 4;
+	if (IsUInt64WrappingType(typeName)) return 8;
 	return sizeof(void*);
 }
 
 static bool IsDefinitelyValueType(const std::string& typeName)
 {
 	if (typeName == "System.String" || typeName == "System.Object") return false;
+	if (typeName == "System.Decimal") return true;
+	if (IsUInt64WrappingType(typeName)) return true;
 	if (typeName.starts_with("System.")) return true;
 	if (typeName.starts_with("UnityEngine.Vector") || typeName == "UnityEngine.Quaternion" || typeName ==
 		"UnityEngine.Color")
@@ -354,6 +384,33 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 					}
 					else { ImGui::TextDisabled("ERROR"); }
 				}
+				else if (field.typeName == "System.IntPtr")
+				{
+					if (int64_t val; Helper::SafeGetStaticFieldInt64(field.fieldHandle, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+							Helper::SafeSetStaticFieldInt64(field.fieldHandle, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.UIntPtr")
+				{
+					if (uint64_t val; Helper::SafeGetStaticFieldUInt64(field.fieldHandle, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+							Helper::SafeSetStaticFieldUInt64(field.fieldHandle, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (IsUInt64WrappingType(field.typeName))
+				{
+					if (uint64_t val; Helper::SafeGetStaticFieldUInt64(field.fieldHandle, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+							Helper::SafeSetStaticFieldUInt64(field.fieldHandle, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
 				else
 				{
 					int val;
@@ -376,6 +433,31 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				}
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
+			}
+		case EditableType::Decimal:
+			{
+				int32_t parts[4] = {};
+				const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+				if (mono)
+				{
+					void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+						UR::Invoke<void*, void*>("mono_field_get_parent", field.fieldHandle));
+					UR::Invoke<void, void*, void*, void*>("mono_field_static_get_value", vTable, field.fieldHandle, &parts);
+				}
+				else
+				{
+					UR::Invoke<void, void*, void*>("il2cpp_field_static_get_value", field.fieldHandle, &parts);
+				}
+				const int scale = (parts[0] >> 16) & 0x1F;
+				const bool negative = (parts[0] & 0x80000000) != 0;
+				const int64_t lo = static_cast<uint32_t>(parts[2]);
+				const int64_t mid = static_cast<uint32_t>(parts[3]);
+				const int64_t hi = static_cast<uint32_t>(parts[1]);
+				const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
+					static_cast<double>(hi) * 18446744073709551616.0;
+				const double value = unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0);
+				ImGui::TextDisabled("[Decimal] %.6f", value);
+				break;
 			}
 		case EditableType::Vector2:
 			{
@@ -654,6 +736,33 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 					}
 					else { ImGui::TextDisabled("ERROR"); }
 				}
+				else if (field.typeName == "System.IntPtr")
+				{
+					if (int64_t val; Helper::SafeReadInt64(instance, field.offset, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_S64, &val))
+							Helper::SafeWriteInt64(instance, field.offset, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (field.typeName == "System.UIntPtr")
+				{
+					if (uint64_t val; Helper::SafeReadUInt64(instance, field.offset, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+							Helper::SafeWriteUInt64(instance, field.offset, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
+				else if (IsUInt64WrappingType(field.typeName))
+				{
+					if (uint64_t val; Helper::SafeReadUInt64(instance, field.offset, val))
+					{
+						if (ImGui::InputScalar("##val", ImGuiDataType_U64, &val))
+							Helper::SafeWriteUInt64(instance, field.offset, val);
+					}
+					else { ImGui::TextDisabled("ERROR"); }
+				}
 				else
 				{
 					int val;
@@ -710,6 +819,16 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 						Helper::SafeWriteDouble(instance, field.offset, fVal);
 				}
 				else { ImGui::TextDisabled("ERROR"); }
+				break;
+			}
+		case EditableType::Decimal:
+			{
+				const auto addr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
+				double value;
+				if (SafeReadDecimal(addr, value))
+					ImGui::TextDisabled("%.6f", value);
+				else
+					ImGui::TextDisabled("ERROR");
 				break;
 			}
 		case EditableType::Bool:
@@ -1256,6 +1375,67 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 			else { ImGui::TextDisabled("ERROR"); }
 			break;
 		}
+	case EditableType::Decimal:
+		{
+			int32_t parts[4] = {};
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &parts, sizeof(parts)))
+			{
+				const int scale = (parts[0] >> 16) & 0x1F;
+				const bool negative = (parts[0] & 0x80000000) != 0;
+				const int64_t lo = static_cast<uint32_t>(parts[2]);
+				const int64_t mid = static_cast<uint32_t>(parts[3]);
+				const int64_t hi = static_cast<uint32_t>(parts[1]);
+				const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
+					static_cast<double>(hi) * 18446744073709551616.0;
+				const double value = unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0);
+				ImGui::TextDisabled("%.6f", value);
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
+	case EditableType::Enum:
+		{
+			int val = 0;
+			if (Helper::SafeInvokeGetter(instance, prop.getterHandle, &val, sizeof(int)))
+			{
+				ImGui::TextDisabled("%d", val);
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
+	case EditableType::CustomObject:
+		{
+			void* result = nullptr;
+			if (Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result))
+			{
+				if (!result)
+					ImGui::TextDisabled("null");
+				else
+				{
+					ImGui::TextDisabled("(Object) %p", result);
+					ImGui::SameLine();
+					if (ImGui::SmallButton("Enter"))
+					{
+						if (auto activeTab = GetActiveTab())
+						{
+							void* klass = Helper::SafeGetObjectClass(result);
+							InspectionTarget nextTarget;
+							nextTarget.instance = result;
+							nextTarget.name = prop.name;
+							nextTarget.classHandle = klass;
+							nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(result));
+							nextTarget.cachedComponentNames.push_back(prop.typeName);
+							nextTarget.cachedComponentFields.push_back(GetObjectFields(result, klass));
+							nextTarget.cachedComponentProperties.push_back(GetObjectProperties(result, klass));
+							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(result, klass));
+							activeTab->navigationStack.push_back(std::move(nextTarget));
+						}
+					}
+				}
+			}
+			else { ImGui::TextDisabled("ERROR"); }
+			break;
+		}
 	default:
 		ImGui::TextDisabled("...");
 		break;
@@ -1752,7 +1932,9 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 
 						if (elemInfo.editableType == EditableType::Enum || elemInfo.editableType == EditableType::Int)
 						{
-							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64") elemSize = 8;
+							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64" ||
+								elementTypeName == "System.IntPtr" || elementTypeName == "System.UIntPtr")
+								elemSize = sizeof(void*);
 							else if (elementTypeName == "System.Int16" || elementTypeName == "System.UInt16" ||
 								elementTypeName == "System.Char")
 								elemSize = 2;
@@ -1770,6 +1952,11 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						else if (elemInfo.editableType == EditableType::Double)
 						{
 							elemSize = 8;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Decimal)
+						{
+							elemSize = 16;
 							elemInfo.isValueType = true;
 						}
 						else if (elemInfo.editableType == EditableType::Bool)
@@ -1873,7 +2060,9 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 
 						if (elemInfo.editableType == EditableType::Enum || elemInfo.editableType == EditableType::Int)
 						{
-							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64") elemSize = 8;
+							if (elementTypeName == "System.Int64" || elementTypeName == "System.UInt64" ||
+								elementTypeName == "System.IntPtr" || elementTypeName == "System.UIntPtr")
+								elemSize = sizeof(void*);
 							else if (elementTypeName == "System.Int16" || elementTypeName == "System.UInt16" ||
 								elementTypeName == "System.Char")
 								elemSize = 2;
@@ -1891,6 +2080,11 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						else if (elemInfo.editableType == EditableType::Double)
 						{
 							elemSize = 8;
+							elemInfo.isValueType = true;
+						}
+						else if (elemInfo.editableType == EditableType::Decimal)
+						{
+							elemSize = 16;
 							elemInfo.isValueType = true;
 						}
 						else if (elemInfo.editableType == EditableType::Bool)

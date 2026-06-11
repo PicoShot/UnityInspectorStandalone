@@ -134,7 +134,7 @@ private:
 	void ScanStaticClasses();
 	void CloseTab(int tabIndex);
 	void SwitchToTab(int tabIndex);
-	InspectedObjectTab* GetActiveTab();
+	InspectedObjectTab* GetActiveTab() const;
 	int FindTabForObject(const UT::GameObject* obj) const;
 	void AddToRecentSelections(UT::GameObject* obj);
 	void PinObject(UT::GameObject* obj);
