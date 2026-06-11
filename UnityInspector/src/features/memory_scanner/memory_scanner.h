@@ -33,6 +33,7 @@ class MemoryScanner final : public IFeature
 public:
 	void Update(float deltaTime) override;
 	void Render() override;
+	~MemoryScanner() override;
 
 private:
 	enum class ScanOperation { None, FirstScan, NextScan, Reset };
@@ -73,7 +74,7 @@ private:
 	void RenderValueInput();
 	void SyncValueToBuffer();
 
-	void ScanStaticFields(std::vector<ScanField>& out) const;
+	void ScanStaticFields(std::vector<ScanField>& out);
 	void ScanUnityObjectFields(std::vector<ScanField>& out);
 
 	struct VisitedKey
@@ -120,4 +121,9 @@ private:
 	static const char* GetValueTypeName(ScanValueType type);
 	static const char* GetComparisonName(ScanComparison comp);
 	static std::string FormatFieldValue(const ScanField& field);
+
+private:
+	std::thread scanThread;
+	std::mutex resultsMutex;
+	std::atomic<bool> stopRequested{false};
 };
