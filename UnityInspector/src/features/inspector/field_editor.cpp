@@ -483,7 +483,7 @@ void FieldEditor::ReadValueFromAddress(void* addr, const std::string& typeName, 
 	}
 	else if (typeName == "System.IntPtr")
 	{
-		state.intValue = static_cast<long long>(*static_cast<intptr_t*>(addr));
+		state.intValue = *static_cast<intptr_t*>(addr);
 	}
 	else if (typeName == "System.UIntPtr")
 	{
@@ -592,7 +592,7 @@ void FieldEditor::WriteValueToAddress(void* addr, const std::string& typeName, c
 	else if (typeName == "System.Decimal")
 	{
 		auto* parts = static_cast<int32_t*>(addr);
-		const double value = static_cast<double>(state.floatValue);
+		const double value = state.floatValue;
 		const int scale = (parts[0] >> 16) & 0x1F;
 		const bool negative = value < 0;
 		const double absValue = negative ? -value : value;
@@ -777,7 +777,7 @@ void FieldEditor::ReadFieldValue()
 			{
 				intptr_t val = 0;
 				field->GetStaticValue(&val);
-				state.intValue = static_cast<long long>(val);
+				state.intValue = val;
 			}
 			else if (typeName == "System.UIntPtr")
 			{
@@ -943,7 +943,7 @@ void FieldEditor::WriteFieldValue()
 			}
 			else if (typeName == "System.IntPtr")
 			{
-				intptr_t val = static_cast<intptr_t>(state.intValue);
+				intptr_t val = state.intValue;
 				field->SetStaticValue(&val);
 			}
 			else if (typeName == "System.UIntPtr")
@@ -961,7 +961,7 @@ void FieldEditor::WriteFieldValue()
 				int32_t parts[4] = {};
 				field->GetStaticValue(&parts);
 				const int scale = (parts[0] >> 16) & 0x1F;
-				const double value = static_cast<double>(state.floatValue);
+				const double value = state.floatValue;
 				const bool negative = value < 0;
 				const double absValue = negative ? -value : value;
 				const double scaled = absValue * std::pow(10.0, scale);

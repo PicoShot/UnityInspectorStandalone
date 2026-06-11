@@ -69,8 +69,7 @@ void Inspector::RenderMethodInvokePopup()
 				case EditableType::Enum:
 					{
 						const std::string& enumTypeName = invokeState.method.parameters[i].second;
-						const auto enumVals = GetEnumValues(enumTypeName);
-						if (!enumVals.empty())
+						if (const auto enumVals = GetEnumValues(enumTypeName); !enumVals.empty())
 						{
 							int currentIdx = 0;
 							const int currentVal = std::atoi(invokeState.parameterValues[i].c_str());
@@ -83,7 +82,7 @@ void Inspector::RenderMethodInvokePopup()
 								}
 							}
 							std::vector<const char*> names;
-							for (const auto& kv : enumVals) names.push_back(kv.first.c_str());
+							for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
 							if (ImGui::Combo("##param", &currentIdx, names.data(), static_cast<int>(names.size())))
 							{
 								invokeState.parameterValues[i] = std::to_string(enumVals[currentIdx].second);

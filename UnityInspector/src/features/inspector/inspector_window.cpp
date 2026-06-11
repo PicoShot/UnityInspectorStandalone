@@ -196,7 +196,7 @@ static int GetTypeSize(const std::string& typeName)
 	return sizeof(void*);
 }
 
-__declspec(noinline) static bool SafeReadDecimal(void* addr, double& outValue)
+static bool SafeReadDecimal(void* addr, double& outValue)
 {
 	__try
 	{
@@ -292,7 +292,7 @@ static bool ParseDictionaryTypes(const std::string& typeName, std::string& outKe
 	return true;
 }
 
-void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& field, const float itemWidth)
+void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& field, const float itemWidth) const
 {
 	if (!instance && !field.isStatic) return;
 
@@ -437,8 +437,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 		case EditableType::Decimal:
 			{
 				int32_t parts[4] = {};
-				const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
-				if (mono)
+				if (Config::state.unityMode == UnityResolve::Mode::Mono)
 				{
 					void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
 						UR::Invoke<void*, void*>("mono_field_get_parent", field.fieldHandle));
@@ -824,8 +823,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 		case EditableType::Decimal:
 			{
 				const auto addr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(instance) + field.offset);
-				double value;
-				if (SafeReadDecimal(addr, value))
+				if (double value; SafeReadDecimal(addr, value))
 					ImGui::TextDisabled("%.6f", value);
 				else
 					ImGui::TextDisabled("ERROR");
@@ -1365,8 +1363,7 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 		}
 	case EditableType::String:
 		{
-			void* result = nullptr;
-			if (Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result))
+			if (void* result = nullptr; Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result))
 			{
 				auto strPtr = static_cast<UT::String*>(result);
 				const std::string currentStr = strPtr ? strPtr->ToString() : "(null)";
@@ -1405,8 +1402,7 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 		}
 	case EditableType::CustomObject:
 		{
-			void* result = nullptr;
-			if (Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result))
+			if (void* result = nullptr; Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result))
 			{
 				if (!result)
 					ImGui::TextDisabled("null");
@@ -1540,7 +1536,7 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 }
 
 void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentFieldInfo>& fields,
-                                    InspectionTarget& target, InspectedObjectTab& tab, const size_t componentIndex)
+                                    InspectionTarget& target, InspectedObjectTab& tab, const size_t componentIndex) const
 {
 	if (fields.empty())
 	{
@@ -1570,7 +1566,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 			filteredFields.push_back(&field);
 	}
 
-	std::sort(filteredFields.begin(), filteredFields.end(), [](const ComponentFieldInfo* a, const ComponentFieldInfo* b) {
+	std::ranges::sort(filteredFields, [](const ComponentFieldInfo* a, const ComponentFieldInfo* b) {
 		if (a->isStatic != b->isStatic) return a->isStatic < b->isStatic;
 		if (!a->isStatic) return a->offset < b->offset;
 		return a->name < b->name;
