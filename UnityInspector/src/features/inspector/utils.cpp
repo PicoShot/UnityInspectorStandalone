@@ -571,12 +571,12 @@ void Inspector::SwitchToTab(const int tabIndex)
 	ImGui::SetWindowFocus("Inspector");
 }
 
-InspectedObjectTab* Inspector::GetActiveTab()
+InspectedObjectTab* Inspector::GetActiveTab() const
 {
 	if (activeTabIndex < 0 || std::cmp_greater_equal(activeTabIndex, openTabs.size()))
 		return nullptr;
 
-	return &openTabs[activeTabIndex];
+	return const_cast<InspectedObjectTab*>(&openTabs[activeTabIndex]);
 }
 
 int Inspector::FindTabForObject(const UT::GameObject* obj) const

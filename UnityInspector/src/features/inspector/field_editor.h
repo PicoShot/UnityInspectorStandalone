@@ -6,6 +6,8 @@ EditableType DetermineEditableType(const std::string& typeName, std::string* enu
 
 std::vector<std::pair<std::string, int>> GetEnumValues(const std::string& enumTypeName);
 
+bool IsUInt64WrappingType(const std::string& typeName);
+
 struct ComponentFieldInfo final
 {
 	std::string name;

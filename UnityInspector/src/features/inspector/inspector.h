@@ -134,7 +134,7 @@ private:
 	void ScanStaticClasses();
 	void CloseTab(int tabIndex);
 	void SwitchToTab(int tabIndex);
-	InspectedObjectTab* GetActiveTab();
+	InspectedObjectTab* GetActiveTab() const;
 	int FindTabForObject(const UT::GameObject* obj) const;
 	void AddToRecentSelections(UT::GameObject* obj);
 	void PinObject(UT::GameObject* obj);
@@ -149,7 +149,7 @@ private:
 	void RenderTransformSection(UT::Transform* transform, InspectedObjectTab& tab) const;
 	void RenderComponentsSection(InspectionTarget& target, InspectedObjectTab& tab);
 	void RenderFieldsSection(void* instance, const std::vector<ComponentFieldInfo>& fields, InspectionTarget& target,
-	                         InspectedObjectTab& tab, size_t componentIndex);
+	                         InspectedObjectTab& tab, size_t componentIndex) const;
 	void RenderPropertiesSection(void* instance, const std::vector<ComponentPropertyInfo>& properties,
 	                             InspectionTarget& target, InspectedObjectTab& tab, size_t componentIndex) const;
 	void RenderMethodsSection(void* instance, const std::vector<ComponentMethodInfo>& methods, InspectionTarget& target,
@@ -174,7 +174,7 @@ private:
 	std::vector<ComponentMethodInfo> GetComponentMethods(UT::Component* component) const;
 
 	std::string BuildObjectPath(UT::Transform* transform) const;
-	void RenderEditableField(void* instance, const ComponentFieldInfo& field, float itemWidth = -1.0f);
+	void RenderEditableField(void* instance, const ComponentFieldInfo& field, float itemWidth = -1.0f) const;
 	void RenderEditableProperty(void* instance, const ComponentPropertyInfo& prop) const;
 	void* InvokeMethod(void* instance, const ComponentMethodInfo& method,
 	                   const std::vector<std::string>& paramValues) const;

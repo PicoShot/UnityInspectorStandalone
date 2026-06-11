@@ -51,6 +51,7 @@ void Inspector::RenderMethodInvokePopup()
 				case EditableType::Int:
 				case EditableType::Float:
 				case EditableType::Double:
+				case EditableType::Decimal:
 					if (ImGui::InputText("##param", buf, sizeof(buf), ImGuiInputTextFlags_CharsDecimal))
 					{
 						invokeState.parameterValues[i] = buf;
@@ -62,6 +63,35 @@ void Inspector::RenderMethodInvokePopup()
 						if (ImGui::Checkbox("##param", &val))
 						{
 							invokeState.parameterValues[i] = val ? "true" : "false";
+						}
+						break;
+					}
+				case EditableType::Enum:
+					{
+						const std::string& enumTypeName = invokeState.method.parameters[i].second;
+						if (const auto enumVals = GetEnumValues(enumTypeName); !enumVals.empty())
+						{
+							int currentIdx = 0;
+							const int currentVal = std::atoi(invokeState.parameterValues[i].c_str());
+							for (size_t j = 0; j < enumVals.size(); j++)
+							{
+								if (enumVals[j].second == currentVal)
+								{
+									currentIdx = static_cast<int>(j);
+									break;
+								}
+							}
+							std::vector<const char*> names;
+							for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
+							if (ImGui::Combo("##param", &currentIdx, names.data(), static_cast<int>(names.size())))
+							{
+								invokeState.parameterValues[i] = std::to_string(enumVals[currentIdx].second);
+							}
+						}
+						else
+						{
+							if (ImGui::InputText("##param", buf, sizeof(buf)))
+								invokeState.parameterValues[i] = buf;
 						}
 						break;
 					}
@@ -128,8 +158,68 @@ void Inspector::RenderMethodInvokePopup()
 						{
 							invokeState.resultText = "(null)";
 						}
+						break;
 					}
-					break;
+				case EditableType::Decimal:
+					{
+						const auto* parts = static_cast<int32_t*>(unboxed);
+						const int scale = (parts[0] >> 16) & 0x1F;
+						const bool negative = (parts[0] & 0x80000000) != 0;
+						const int64_t lo = static_cast<uint32_t>(parts[2]);
+						const int64_t mid = static_cast<uint32_t>(parts[3]);
+						const int64_t hi = static_cast<uint32_t>(parts[1]);
+						const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
+							static_cast<double>(hi) * 18446744073709551616.0;
+						const double value = unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0);
+						invokeState.resultText = std::format("{:.6f}", value);
+						break;
+					}
+				case EditableType::Enum:
+					{
+						const int val = *static_cast<int*>(unboxed);
+						const auto& retTypeName = invokeState.method.returnTypeName;
+						const auto enumVals = GetEnumValues(retTypeName);
+						std::string enumName;
+						for (const auto& [fst, snd] : enumVals)
+						{
+							if (snd == val) { enumName = fst; break; }
+						}
+						if (!enumName.empty())
+							invokeState.resultText = std::format("{} ({})", enumName, val);
+						else
+							invokeState.resultText = std::to_string(val);
+						break;
+					}
+				case EditableType::Vector2:
+					{
+						const auto* v = static_cast<float*>(unboxed);
+						invokeState.resultText = std::format("({:.3f}, {:.3f})", v[0], v[1]);
+						break;
+					}
+				case EditableType::Vector3:
+					{
+						const auto* v = static_cast<float*>(unboxed);
+						invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f})", v[0], v[1], v[2]);
+						break;
+					}
+				case EditableType::Vector4:
+					{
+						const auto* v = static_cast<float*>(unboxed);
+						invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v[0], v[1], v[2], v[3]);
+						break;
+					}
+				case EditableType::Quaternion:
+					{
+						const auto* v = static_cast<float*>(unboxed);
+						invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v[0], v[1], v[2], v[3]);
+						break;
+					}
+				case EditableType::Color:
+					{
+						const auto* v = static_cast<float*>(unboxed);
+						invokeState.resultText = std::format("RGBA({:.2f}, {:.2f}, {:.2f}, {:.2f})", v[0], v[1], v[2], v[3]);
+						break;
+					}
 					default:
 							invokeState.resultText = std::format("(object: 0x{:X})",
 							                                     reinterpret_cast<uintptr_t>(result));
