@@ -67,7 +67,10 @@ namespace ExternalOverlay
 
 		if (!m_overlayHwnd) return false;
 
-		SetLayeredWindowAttributes(m_overlayHwnd, RGB(0, 0, 0), 255, LWA_COLORKEY);
+		SetLayeredWindowAttributes(m_overlayHwnd, 0, 255, LWA_ALPHA);
+
+		MARGINS margins = { -1, -1, -1, -1 };
+		if (!SUCCEEDED(DwmExtendFrameIntoClientArea(m_overlayHwnd, &margins))) return false;
 
 		ShowWindow(m_overlayHwnd, SW_SHOW);
 		UpdateWindow(m_overlayHwnd);
@@ -152,35 +155,54 @@ namespace ExternalOverlay
 	{
 		if (!IsWindow(m_gameHwnd)) return;
 
-		RECT gameRect;
-		GetWindowRect(m_gameHwnd, &gameRect);
+		const HWND foregroundWnd = GetForegroundWindow();
+		const bool isGameActive = (foregroundWnd == m_gameHwnd || foregroundWnd == m_overlayHwnd);
+
+		if (const bool isMinimized = IsIconic(m_gameHwnd); isMinimized || !isGameActive)
+		{
+			if (IsWindowVisible(m_overlayHwnd))
+			{
+				ShowWindow(m_overlayHwnd, SW_HIDE);
+			}
+			return;
+		}
+		if (!IsWindowVisible(m_overlayHwnd))
+		{
+			ShowWindow(m_overlayHwnd, SW_SHOW);
+		}
+
+		RECT clientRect;
+		if (!GetClientRect(m_gameHwnd, &clientRect)) return;
+
+		POINT topLeft = { clientRect.left, clientRect.top };
+		ClientToScreen(m_gameHwnd, &topLeft);
+
+		const int clientWidth = clientRect.right - clientRect.left;
+		const int clientHeight = clientRect.bottom - clientRect.top;
 
 		RECT overlayRect;
 		GetWindowRect(m_overlayHwnd, &overlayRect);
-
-		const int gameWidth = gameRect.right - gameRect.left;
-		const int gameHeight = gameRect.bottom - gameRect.top;
 		const int overlayWidth = overlayRect.right - overlayRect.left;
 
-		if (const int overlayHeight = overlayRect.bottom - overlayRect.top; gameRect.left != overlayRect.left || gameRect.top != overlayRect.top ||
-			gameWidth != overlayWidth || gameHeight != overlayHeight)
+		if (const int overlayHeight = overlayRect.bottom - overlayRect.top; topLeft.x != overlayRect.left || topLeft.y != overlayRect.top ||
+			clientWidth != overlayWidth || clientHeight != overlayHeight)
 		{
 			SetWindowPos(
 				m_overlayHwnd,
 				HWND_TOPMOST,
-				gameRect.left,
-				gameRect.top,
-				gameWidth,
-				gameHeight,
+				topLeft.x,
+				topLeft.y,
+				clientWidth,
+				clientHeight,
 				SWP_NOACTIVATE | SWP_SHOWWINDOW
 			);
 
-			if (m_swapChain && (gameWidth != overlayWidth || gameHeight != overlayHeight))
+			if (m_swapChain && (clientWidth != overlayWidth || clientHeight != overlayHeight))
 			{
 				m_targetView->Release();
 				m_targetView = nullptr;
 
-				if (SUCCEEDED(m_swapChain->ResizeBuffers(0, gameWidth, gameHeight, DXGI_FORMAT_UNKNOWN, 0)))
+				if (SUCCEEDED(m_swapChain->ResizeBuffers(0, clientWidth, clientHeight, DXGI_FORMAT_UNKNOWN, 0)))
 				{
 					ID3D11Texture2D* backBuffer = nullptr;
 					if (SUCCEEDED(
@@ -254,46 +276,26 @@ namespace ExternalOverlay
 
 		if (capture)
 		{
-			EnableWindow(m_gameHwnd, FALSE);
-
 			SetWindowLongPtr(m_overlayHwnd, GWL_EXSTYLE, WS_EX_LAYERED | WS_EX_TOPMOST);
 			SetWindowPos(m_overlayHwnd, HWND_TOPMOST, 0, 0, 0, 0,
 			             SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 
-			RECT rect;
-			GetClientRect(m_overlayHwnd, &rect);
-			const HRGN hRgn = CreateRectRgn(0, 0, rect.right - rect.left, rect.bottom - rect.top);
-			SetWindowRgn(m_overlayHwnd, hRgn, TRUE);
-
-			const DWORD foregroundThread = GetWindowThreadProcessId(GetForegroundWindow(), nullptr);
-			const DWORD overlayThread = GetCurrentThreadId();
-
-			AttachThreadInput(foregroundThread, overlayThread, TRUE);
 			BringWindowToTop(m_overlayHwnd);
 			SetForegroundWindow(m_overlayHwnd);
 			SetActiveWindow(m_overlayHwnd);
 			SetFocus(m_overlayHwnd);
-			AttachThreadInput(foregroundThread, overlayThread, FALSE);
 
 			while (ShowCursor(TRUE) < 0);
 		}
 		else
 		{
-			EnableWindow(m_gameHwnd, TRUE);
-			SetWindowRgn(m_overlayHwnd, nullptr, TRUE);
-
 			SetWindowLongPtr(m_overlayHwnd, GWL_EXSTYLE,
 			                 WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
 			SetWindowPos(m_overlayHwnd, HWND_TOPMOST, 0, 0, 0, 0,
 			             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 
-			const DWORD foregroundThread = GetWindowThreadProcessId(GetForegroundWindow(), nullptr);
-			const DWORD gameThread = GetWindowThreadProcessId(m_gameHwnd, nullptr);
-
-			AttachThreadInput(foregroundThread, gameThread, TRUE);
 			SetForegroundWindow(m_gameHwnd);
 			SetActiveWindow(m_gameHwnd);
-			AttachThreadInput(foregroundThread, gameThread, FALSE);
 
 			while (ShowCursor(FALSE) >= 0);
 		}

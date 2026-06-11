@@ -31,6 +31,8 @@
 #include <string>
 #include <cctype>
 #include <numbers>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi")
 
 // SDK
 #include "unityresolve/UnityResolve.hpp"
