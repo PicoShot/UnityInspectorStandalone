@@ -1558,10 +1558,13 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 
 	ImGui::Spacing();
 
+	std::string lowerSearch = lSearchBuffer;
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+
 	std::vector<const ComponentFieldInfo*> filteredFields;
 	for (const auto& field : fields)
 	{
-		if (PassesFieldFilter(field, lSearchBuffer, tab.filterEditableOnly, tab.filterStaticOnly,
+		if (PassesFieldFilter(field, lowerSearch, tab.filterEditableOnly, tab.filterStaticOnly,
 		                      tab.filterInstanceOnly))
 			filteredFields.push_back(&field);
 	}
@@ -2165,10 +2168,13 @@ void Inspector::RenderPropertiesSection(void* instance, const std::vector<Compon
 
 	ImGui::Spacing();
 
+	std::string lowerSearch = lSearchBuffer;
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+
 	std::vector<const ComponentPropertyInfo*> filteredProps;
 	for (const auto& prop : properties)
 	{
-		if (PassesPropertyFilter(prop, lSearchBuffer, tab.filterEditableOnly))
+		if (PassesPropertyFilter(prop, lowerSearch, tab.filterEditableOnly))
 			filteredProps.push_back(&prop);
 	}
 
@@ -2249,10 +2255,13 @@ void Inspector::RenderMethodsSection(void* instance, const std::vector<Component
 
 	ImGui::Spacing();
 
+	std::string lowerSearch = lSearchBuffer;
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+
 	std::vector<const ComponentMethodInfo*> filteredMethods;
 	for (const auto& method : methods)
 	{
-		if (PassesMethodFilter(method, lSearchBuffer, tab.filterStaticOnly, tab.filterInstanceOnly))
+		if (PassesMethodFilter(method, lowerSearch, tab.filterStaticOnly, tab.filterInstanceOnly))
 			filteredMethods.push_back(&method);
 	}
 
@@ -2359,13 +2368,16 @@ void Inspector::RenderComponentsSection(InspectionTarget& target, InspectedObjec
 
 	ImGui::Spacing();
 
+	std::string lowerSearch = target.componentSearchBuffer;
+	std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+
 	std::vector<size_t> filteredComponentIndices;
 	for (size_t i = 0; i < target.cachedComponents.size(); i++)
 	{
 		if (i >= target.cachedComponentNames.size())
 			continue;
 		if (const std::string& compName = target.cachedComponentNames[i]; PassesComponentFilter(
-			compName, target.componentSearchBuffer))
+			compName, lowerSearch))
 			filteredComponentIndices.push_back(i);
 	}
 

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "debug_console.h"
+#include "helper/helper.h"
 
 REGISTER_FEATURE(DebugConsole)
 
@@ -19,7 +20,7 @@ std::string DebugConsole::GetStackTrace()
 	static auto* stackTraceClass = unityCore->Get("StackTraceUtility", "UnityEngine");
 	if (!stackTraceClass) return "";
 
-	auto* mExtract = stackTraceClass->Get<UR::Method>("ExtractStackTrace");
+	static auto* mExtract = stackTraceClass->Get<UR::Method>("ExtractStackTrace");
 	if (!mExtract) return "";
 
 	const auto* result = mExtract->Invoke<UT::String*>();
@@ -36,7 +37,7 @@ std::string DebugConsole::GetCallingSource()
 	static auto* stackTraceClass = unityCore->Get("StackTrace", "System.Diagnostics");
 	if (!stackTraceClass) return "";
 
-	auto* mGetFrame = stackTraceClass->Get<UR::Method>("GetFrame", {"System.Int32"});
+	static auto* mGetFrame = stackTraceClass->Get<UR::Method>("GetFrame", {"System.Int32"});
 	if (!mGetFrame) return "";
 
 	auto* frame = mGetFrame->Invoke<void*, int>(0);
@@ -45,7 +46,7 @@ std::string DebugConsole::GetCallingSource()
 	static auto* frameClass = unityCore->Get("StackFrame", "System.Diagnostics");
 	if (!frameClass) return "";
 
-	auto* mGetMethod = frameClass->Get<UR::Method>("GetMethod");
+	static auto* mGetMethod = frameClass->Get<UR::Method>("GetMethod");
 	if (!mGetMethod) return "";
 
 	auto* methodInfo = mGetMethod->Invoke<void*, void*>(frame);
@@ -54,11 +55,14 @@ std::string DebugConsole::GetCallingSource()
 	static auto* systemCore = UR::Get("System.dll");
 	if (!systemCore) return "";
 
-	auto* methodBaseClass = systemCore->Get("MethodBase", "System.Reflection");
+	static auto* methodBaseClass = systemCore->Get("MethodBase", "System.Reflection");
 	if (!methodBaseClass) return "";
 
-	auto* mGetName = methodBaseClass->Get<UR::Method>("get_Name");
-	auto* mGetDeclaringType = methodBaseClass->Get<UR::Method>("get_DeclaringType");
+	static auto* mGetName = methodBaseClass->Get<UR::Method>("get_Name");
+	static auto* mGetDeclaringType = methodBaseClass->Get<UR::Method>("get_DeclaringType");
+
+	static auto* typeClass = systemCore->Get("Type", "System");
+	static auto* mGetFullName = typeClass ? typeClass->Get<UR::Method>("get_FullName") : nullptr;
 
 	std::string methodName;
 	std::string className;
@@ -72,13 +76,10 @@ std::string DebugConsole::GetCallingSource()
 	{
 		if (auto* type = mGetDeclaringType->Invoke<void*, void*>(methodInfo))
 		{
-			if (auto* typeClass = UR::Get("System.dll")->Get("Type", "System"))
+			if (mGetFullName)
 			{
-				if (auto* mGetFullName = typeClass->Get<UR::Method>("get_FullName"))
-				{
-					if (const auto* fullNameStr = mGetFullName->Invoke<UT::String*, void*>(type)) className =
-						fullNameStr->ToString();
-				}
+				if (const auto* fullNameStr = mGetFullName->Invoke<UT::String*, void*>(type)) className =
+					fullNameStr->ToString();
 			}
 		}
 	}
@@ -153,22 +154,12 @@ bool DebugConsole::ShouldShowLogType(LogType type) const
 	}
 }
 
-bool DebugConsole::PassesFilter(const LogEntry& entry) const
+bool DebugConsole::PassesFilter(const LogEntry& entry, std::string_view lowerFilter) const
 {
-	if (filterBuffer[0] == '\0') return true;
+	if (lowerFilter.empty()) return true;
 
-	std::string filter = filterBuffer;
-	std::ranges::transform(filter, filter.begin(), tolower);
-
-	std::string message = entry.message;
-	std::ranges::transform(message, message.begin(), tolower);
-
-	if (message.find(filter) != std::string::npos) return true;
-
-	std::string source = entry.source;
-	std::ranges::transform(source, source.begin(), tolower);
-
-	return source.find(filter) != std::string::npos;
+	if (Helper::CaseInsensitiveFind(entry.message, lowerFilter)) return true;
+	return Helper::CaseInsensitiveFind(entry.source, lowerFilter);
 }
 
 void DebugConsole::RenderLogEntry(const LogEntry& entry, int index)
@@ -275,11 +266,14 @@ void DebugConsole::RenderConsoleWindow()
 
 	std::scoped_lock lock(logMutex);
 
+	std::string lowerFilter = filterBuffer;
+	std::ranges::transform(lowerFilter, lowerFilter.begin(), ::tolower);
+
 	int index = 0;
 	for (const auto& entry : logBuffer)
 	{
 		if (!ShouldShowLogType(entry.type)) continue;
-		if (!PassesFilter(entry)) continue;
+		if (!PassesFilter(entry, lowerFilter)) continue;
 
 		RenderLogEntry(entry, index++);
 	}

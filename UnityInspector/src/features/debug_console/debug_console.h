@@ -58,5 +58,5 @@ private:
 	[[nodiscard]] ImU32 GetLogColor(LogType type) const;
 	[[nodiscard]] const char* GetLogTypeString(LogType type) const;
 	[[nodiscard]] bool ShouldShowLogType(LogType type) const;
-	[[nodiscard]] bool PassesFilter(const LogEntry& entry) const;
+	[[nodiscard]] bool PassesFilter(const LogEntry& entry, std::string_view lowerFilter) const;
 };

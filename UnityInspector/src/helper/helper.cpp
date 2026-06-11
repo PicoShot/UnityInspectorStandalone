@@ -1780,4 +1780,25 @@ namespace Helper
 
 		return SafeInvokeSetter(comp, method, &value);
 	}
+
+	bool CaseInsensitiveFind(std::string_view haystack, std::string_view lowerNeedle)
+	{
+		if (lowerNeedle.empty()) return true;
+		if (haystack.size() < lowerNeedle.size()) return false;
+
+		for (size_t i = 0; i <= haystack.size() - lowerNeedle.size(); ++i)
+		{
+			bool match = true;
+			for (size_t j = 0; j < lowerNeedle.size(); ++j)
+			{
+				if (static_cast<char>(std::tolower(static_cast<unsigned char>(haystack[i + j]))) != lowerNeedle[j])
+				{
+					match = false;
+					break;
+				}
+			}
+			if (match) return true;
+		}
+		return false;
+	}
 }

@@ -31,43 +31,62 @@ namespace
 	}
 }
 
+MemoryScanner::~MemoryScanner()
+{
+	stopRequested = true;
+	if (scanThread.joinable())
+		scanThread.join();
+}
+
 void MemoryScanner::Update(float deltaTime)
 {
 	(void)deltaTime;
 
 	if (pendingOperation != ScanOperation::None && !scanInProgress)
 	{
-		scanInProgress = true;
-		try
+		if (pendingOperation == ScanOperation::Reset)
 		{
-			UR::ThreadAttach();
+			ResetScan();
+			pendingOperation = ScanOperation::None;
+		}
+		else
+		{
+			scanInProgress = true;
+			stopRequested = false;
 
-			switch (pendingOperation)
+			if (scanThread.joinable())
+				scanThread.join();
+
+			const ScanOperation op = pendingOperation;
+			pendingOperation = ScanOperation::None;
+
+			scanThread = std::thread([this, op]()
 			{
-			case ScanOperation::FirstScan:
-				PerformFirstScan();
-				break;
-			case ScanOperation::NextScan:
-				PerformNextScan();
-				break;
-			case ScanOperation::Reset:
-				ResetScan();
-				break;
-			default:
-				break;
-			}
+				try
+				{
+					UR::ThreadAttach();
+
+					if (op == ScanOperation::FirstScan)
+					{
+						PerformFirstScan();
+					}
+					else if (op == ScanOperation::NextScan)
+					{
+						PerformNextScan();
+					}
+				}
+				catch (const std::exception& e)
+				{
+					statusText = std::string("Scan error: ") + e.what();
+					scanInProgress = false;
+				}
+				catch (...)
+				{
+					statusText = "Scan error: unknown exception";
+					scanInProgress = false;
+				}
+			});
 		}
-		catch (const std::exception& e)
-		{
-			statusText = std::string("Scan error: ") + e.what();
-			scanInProgress = false;
-		}
-		catch (...)
-		{
-			statusText = "Scan error: unknown exception";
-			scanInProgress = false;
-		}
-		pendingOperation = ScanOperation::None;
 	}
 }
 
@@ -145,6 +164,7 @@ void MemoryScanner::Render()
 		}
 
 		ImGui::SameLine();
+		std::unique_lock<std::mutex> resultsLock(resultsMutex);
 		ImGui::TextDisabled("Results: %zu / %zu", currentResults.size(), MAX_RESULTS);
 
 		if (!statusText.empty() && !scanInProgress)
@@ -170,7 +190,7 @@ void MemoryScanner::Render()
 			ImGui::TableHeadersRow();
 
 			std::string filterLower = resultFilterBuffer;
-			std::ranges::transform(filterLower, filterLower.begin(), tolower);
+			std::ranges::transform(filterLower, filterLower.begin(), ::tolower);
 
 			for (size_t i = 0; i < currentResults.size(); ++i)
 			{
@@ -178,15 +198,11 @@ void MemoryScanner::Render()
 
 				if (!filterLower.empty())
 				{
-					auto contains = [&](const std::string& s)
-					{
-						std::string lower = s;
-						std::ranges::transform(lower, lower.begin(), tolower);
-						return lower.find(filterLower) != std::string::npos;
-					};
-					if (!contains(result.className) && !contains(result.namespaze) &&
-						!contains(result.fieldName) && !contains(result.objectName) &&
-						!contains(FormatFieldValue(result)))
+					if (!Helper::CaseInsensitiveFind(result.className, filterLower) &&
+						!Helper::CaseInsensitiveFind(result.namespaze, filterLower) &&
+						!Helper::CaseInsensitiveFind(result.fieldName, filterLower) &&
+						!Helper::CaseInsensitiveFind(result.objectName, filterLower) &&
+						!Helper::CaseInsensitiveFind(FormatFieldValue(result), filterLower))
 					{
 						continue;
 					}
@@ -331,7 +347,7 @@ void MemoryScanner::SyncValueToBuffer()
 
 void MemoryScanner::PerformFirstScan()
 {
-	currentResults.clear();
+	std::vector<ScanField> tempResults;
 
 	if (comparison == ScanComparison::Exact)
 	{
@@ -373,31 +389,45 @@ void MemoryScanner::PerformFirstScan()
 		printf("[MemoryScanner] First scan: %s = %s\n", GetValueTypeName(selectedType), valueBuffer);
 
 	statusText = "Scanning static fields...";
-	ScanStaticFields(currentResults);
+	ScanStaticFields(tempResults);
 	if (debugLogging)
-		printf("[MemoryScanner] Static matches: %zu\n", currentResults.size());
+		printf("[MemoryScanner] Static matches: %zu\n", tempResults.size());
 
-	if (currentResults.size() < MAX_RESULTS)
+	if (!stopRequested && tempResults.size() < MAX_RESULTS)
 	{
 		statusText = "Scanning objects...";
-		ScanUnityObjectFields(currentResults);
+		ScanUnityObjectFields(tempResults);
 	}
 
-	statusText = "Scan complete. " + std::to_string(currentResults.size()) + " matches.";
-	if (debugLogging)
-		printf("[MemoryScanner] Total matches: %zu\n", currentResults.size());
-	hasDoneFirstScan = true;
+	if (!stopRequested)
+	{
+		std::scoped_lock lock(resultsMutex);
+		currentResults = std::move(tempResults);
+		statusText = "Scan complete. " + std::to_string(currentResults.size()) + " matches.";
+		if (debugLogging)
+			printf("[MemoryScanner] Total matches: %zu\n", currentResults.size());
+		hasDoneFirstScan = true;
+	}
 	scanInProgress = false;
 	selectedResultIndex = -1;
 }
 
 void MemoryScanner::PerformNextScan()
 {
-	std::vector<ScanField> newResults;
-	newResults.reserve(currentResults.size());
-
-	for (auto& field : currentResults)
+	std::vector<ScanField> localResults;
 	{
+		std::scoped_lock lock(resultsMutex);
+		localResults = currentResults;
+	}
+
+	std::vector<ScanField> newResults;
+	newResults.reserve(localResults.size());
+
+	for (auto& field : localResults)
+	{
+		if (stopRequested)
+			break;
+
 		char currentValue[sizeof(double)] = {};
 		if (!ReadFieldValue(field, currentValue))
 			continue;
@@ -431,14 +461,19 @@ void MemoryScanner::PerformNextScan()
 		}
 	}
 
-	currentResults = std::move(newResults);
-	statusText = "Next scan complete. " + std::to_string(currentResults.size()) + " matches.";
+	if (!stopRequested)
+	{
+		std::scoped_lock lock(resultsMutex);
+		currentResults = std::move(newResults);
+		statusText = "Next scan complete. " + std::to_string(currentResults.size()) + " matches.";
+	}
 	scanInProgress = false;
 	selectedResultIndex = -1;
 }
 
 void MemoryScanner::ResetScan()
 {
+	std::scoped_lock lock(resultsMutex);
 	currentResults.clear();
 	hasDoneFirstScan = false;
 	statusText.clear();
@@ -446,18 +481,22 @@ void MemoryScanner::ResetScan()
 	scanInProgress = false;
 }
 
-void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
+void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out)
 {
 	if (out.size() >= MAX_RESULTS)
 		return;
 
 	for (const auto& assembly : UR::assembly)
 	{
+		if (stopRequested)
+			return;
 		if (!assembly)
 			continue;
 
 		for (const auto& klass : assembly->classes)
 		{
+			if (stopRequested)
+				return;
 			if (!klass || !klass->address)
 				continue;
 
@@ -473,6 +512,8 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 
 			for (const auto& field : klass->fields)
 			{
+				if (stopRequested)
+					return;
 				if (out.size() >= MAX_RESULTS)
 					return;
 				if (!field || !field->static_field || !field->type)
@@ -572,6 +613,8 @@ void MemoryScanner::ScanUnityObjectFields(std::vector<ScanField>& out)
 
 	for (void* obj : allObjects)
 	{
+		if (stopRequested)
+			break;
 		if (!obj)
 			continue;
 		if (out.size() >= MAX_RESULTS)
@@ -605,6 +648,8 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
                                        std::unordered_set<VisitedKey, VisitedKeyHash>& visited, int depth,
                                        const std::string& objName)
 {
+	if (stopRequested)
+		return;
 	if (!obj || !klass)
 		return;
 	if (depth > MAX_SCAN_DEPTH)
@@ -623,6 +668,9 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
 	void* currentClass = klass;
 	while (currentClass)
 	{
+		if (stopRequested)
+			return;
+
 		if (!includeSystemNamespaces)
 		{
 			const char* ns = UR::Invoke<const char*, void*>(
@@ -643,6 +691,8 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
 		while ((field = UR::Invoke<void*, void*, void*>(
 			mono ? "mono_class_get_fields" : "il2cpp_class_get_fields", currentClass, &iter)))
 		{
+			if (stopRequested)
+				return;
 			if (out.size() >= MAX_RESULTS)
 				break;
 

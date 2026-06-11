@@ -455,31 +455,17 @@ void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 	}
 }
 
-bool Inspector::PassesComponentFilter(const std::string& componentName, const char* pSearchBuffer) const
+bool Inspector::PassesComponentFilter(const std::string& componentName, std::string_view lowerSearch) const
 {
-	if (!pSearchBuffer || pSearchBuffer[0] == '\0') return true;
-
-	std::string lowerName = componentName;
-	std::string lowerSearch = pSearchBuffer;
-	std::ranges::transform(lowerName, lowerName.begin(), tolower);
-	std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
-
-	return lowerName.find(lowerSearch) != std::string::npos;
+	if (lowerSearch.empty()) return true;
+	return Helper::CaseInsensitiveFind(componentName, lowerSearch);
 }
 
-bool Inspector::PassesFieldFilter(const ComponentFieldInfo& field, const char* pSearchBuffer, const bool editableOnly,
+bool Inspector::PassesFieldFilter(const ComponentFieldInfo& field, std::string_view lowerSearch, const bool editableOnly,
                                   const bool staticOnly, const bool instanceOnly) const
 {
-	if (pSearchBuffer && pSearchBuffer[0] != '\0')
-	{
-		std::string lowerName = field.name;
-		std::string lowerSearch = pSearchBuffer;
-		std::ranges::transform(lowerName, lowerName.begin(), tolower);
-		std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
-
-		if (lowerName.find(lowerSearch) == std::string::npos)
-			return false;
-	}
+	if (!lowerSearch.empty() && !Helper::CaseInsensitiveFind(field.name, lowerSearch))
+		return false;
 
 	if (editableOnly && field.editableType == EditableType::None)
 		return false;
@@ -493,19 +479,11 @@ bool Inspector::PassesFieldFilter(const ComponentFieldInfo& field, const char* p
 	return true;
 }
 
-bool Inspector::PassesPropertyFilter(const ComponentPropertyInfo& prop, const char* pSearchBuffer,
+bool Inspector::PassesPropertyFilter(const ComponentPropertyInfo& prop, std::string_view lowerSearch,
                                      const bool editableOnly) const
 {
-	if (pSearchBuffer && pSearchBuffer[0] != '\0')
-	{
-		std::string lowerName = prop.name;
-		std::string lowerSearch = pSearchBuffer;
-		std::ranges::transform(lowerName, lowerName.begin(), tolower);
-		std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
-
-		if (lowerName.find(lowerSearch) == std::string::npos)
-			return false;
-	}
+	if (!lowerSearch.empty() && !Helper::CaseInsensitiveFind(prop.name, lowerSearch))
+		return false;
 
 	if (editableOnly && !prop.canWrite)
 		return false;
@@ -513,19 +491,11 @@ bool Inspector::PassesPropertyFilter(const ComponentPropertyInfo& prop, const ch
 	return true;
 }
 
-bool Inspector::PassesMethodFilter(const ComponentMethodInfo& method, const char* pSearchBuffer, const bool staticOnly,
+bool Inspector::PassesMethodFilter(const ComponentMethodInfo& method, std::string_view lowerSearch, const bool staticOnly,
                                    const bool instanceOnly) const
 {
-	if (pSearchBuffer && pSearchBuffer[0] != '\0')
-	{
-		std::string lowerName = method.name;
-		std::string lowerSearch = pSearchBuffer;
-		std::ranges::transform(lowerName, lowerName.begin(), tolower);
-		std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
-
-		if (lowerName.find(lowerSearch) == std::string::npos)
-			return false;
-	}
+	if (!lowerSearch.empty() && !Helper::CaseInsensitiveFind(method.name, lowerSearch))
+		return false;
 
 	if (staticOnly && !method.isStatic)
 		return false;
