@@ -126,4 +126,5 @@ namespace Helper
 
 	bool SafeGetComponentEnabled(UT::Component* comp, bool& outEnabled);
 	bool SafeSetComponentEnabled(UT::Component* comp, bool value);
+	bool CaseInsensitiveFind(std::string_view haystack, std::string_view lowerNeedle);
 }

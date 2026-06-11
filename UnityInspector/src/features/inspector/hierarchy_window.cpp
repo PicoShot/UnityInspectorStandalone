@@ -2,22 +2,6 @@
 #include "inspector.h"
 #include "helper/helper.h"
 
-static bool CaseInsensitiveFind(const std::string& haystack, const char* needle)
-{
-	if (!needle || needle[0] == '\0') return true;
-
-	std::string lower;
-	for (const char* p = needle; *p; p++)
-		lower += static_cast<char>(std::tolower(static_cast<unsigned char>(*p)));
-
-	std::string lowerName;
-	lowerName.reserve(haystack.size());
-	for (const char c : haystack)
-		lowerName += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-
-	return lowerName.find(lower) != std::string::npos;
-}
-
 static void AppendNodeTree(const HierarchyNode& node, std::string& out, int depth)
 {
 	for (int i = 0; i < depth; i++)
@@ -41,13 +25,13 @@ static void AppendNodeTree(const HierarchyNode& node, std::string& out, int dept
 	}
 }
 
-bool Inspector::NodeMatchesSearch(const HierarchyNode& node) const
+bool Inspector::NodeMatchesSearch(const HierarchyNode& node, std::string_view lowerSearch) const
 {
-	if (searchBuffer[0] == '\0') return true;
-	if (CaseInsensitiveFind(node.name, searchBuffer)) return true;
+	if (lowerSearch.empty()) return true;
+	if (Helper::CaseInsensitiveFind(node.name, lowerSearch)) return true;
 	for (const auto& child : node.children)
 	{
-		if (NodeMatchesSearch(child)) return true;
+		if (NodeMatchesSearch(child, lowerSearch)) return true;
 	}
 	return false;
 }
@@ -62,13 +46,13 @@ void Inspector::SetAllNodesExpanded(std::vector<HierarchyNode>& nodes, bool expa
 	}
 }
 
-void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
+void Inspector::RenderHierarchyNode(HierarchyNode& node, std::string_view lowerSearch, const int depth)
 {
 	if (!Helper::SafeIsAlive(node.gameObject)) return;
 
-	const bool searching = searchBuffer[0] != '\0';
+	const bool searching = !lowerSearch.empty();
 
-	if (searching && !NodeMatchesSearch(node))
+	if (searching && !NodeMatchesSearch(node, lowerSearch))
 		return;
 
 	if (searching)
@@ -181,7 +165,7 @@ void Inspector::RenderHierarchyNode(HierarchyNode& node, const int depth)
 	if (hasChildren && nodeOpen)
 	{
 		for (auto& child : node.children)
-			RenderHierarchyNode(child, depth + 1);
+			RenderHierarchyNode(child, lowerSearch, depth + 1);
 		ImGui::TreePop();
 	}
 

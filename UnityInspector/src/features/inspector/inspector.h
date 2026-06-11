@@ -125,8 +125,8 @@ private:
 
 	void RefreshHierarchy();
 	void BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform);
-	void RenderHierarchyNode(HierarchyNode& node, int depth = 0);
-	bool NodeMatchesSearch(const HierarchyNode& node) const;
+	void RenderHierarchyNode(HierarchyNode& node, std::string_view lowerSearch = "", int depth = 0);
+	bool NodeMatchesSearch(const HierarchyNode& node, std::string_view lowerSearch) const;
 	void SetAllNodesExpanded(std::vector<HierarchyNode>& nodes, bool expanded);
 
 	void OpenObjectInNewTab(UT::GameObject* obj);
@@ -158,11 +158,11 @@ private:
 	void DrawSelectedObjectBoundingBox() const;
 	void ProcessObjectPicker();
 
-	bool PassesComponentFilter(const std::string& componentName, const char* pSearchBuffer) const;
-	bool PassesFieldFilter(const ComponentFieldInfo& field, const char* pSearchBuffer, bool editableOnly,
+	bool PassesComponentFilter(const std::string& componentName, std::string_view lowerSearch) const;
+	bool PassesFieldFilter(const ComponentFieldInfo& field, std::string_view lowerSearch, bool editableOnly,
 	                       bool staticOnly, bool instanceOnly) const;
-	bool PassesPropertyFilter(const ComponentPropertyInfo& prop, const char* pSearchBuffer, bool editableOnly) const;
-	bool PassesMethodFilter(const ComponentMethodInfo& method, const char* pSearchBuffer, bool staticOnly,
+	bool PassesPropertyFilter(const ComponentPropertyInfo& prop, std::string_view lowerSearch, bool editableOnly) const;
+	bool PassesMethodFilter(const ComponentMethodInfo& method, std::string_view lowerSearch, bool staticOnly,
 	                        bool instanceOnly) const;
 
 	std::string GetComponentTypeName(UT::Component* component) const;

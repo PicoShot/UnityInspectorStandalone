@@ -102,9 +102,11 @@ void Inspector::Render()
 					}
 					else
 					{
+						std::string lowerSearch = searchBuffer;
+						std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
 						for (auto& node : rootNodes)
 						{
-							RenderHierarchyNode(node);
+							RenderHierarchyNode(node, lowerSearch);
 						}
 					}
 				}
@@ -154,18 +156,17 @@ void Inspector::Render()
 					}
 					else
 					{
+						std::string lowerSearch;
+						if (staticSearchBuffer[0] != '\0')
+						{
+							lowerSearch = staticSearchBuffer;
+							std::ranges::transform(lowerSearch, lowerSearch.begin(), ::tolower);
+						}
+
 						for (const auto& node : staticInstances)
 						{
-							if (staticSearchBuffer[0] != '\0')
-							{
-								std::string lowerFullName = node.fullName;
-								std::string lowerSearch = staticSearchBuffer;
-								std::ranges::transform(lowerFullName, lowerFullName.begin(), tolower);
-								std::ranges::transform(lowerSearch, lowerSearch.begin(), tolower);
-
-								if (lowerFullName.find(lowerSearch) == std::string::npos)
-									continue;
-							}
+							if (!lowerSearch.empty() && !Helper::CaseInsensitiveFind(node.fullName, lowerSearch))
+								continue;
 
 							if (ImGui::Selectable(node.fullName.c_str()))
 							{
