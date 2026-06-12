@@ -259,11 +259,21 @@ void FieldEditor::Close()
 
 void FieldEditor::Render()
 {
+	static int s_IdCounter = 0;
+
 	if (!state.showWindow || !state.targetField) return;
+
+	if (state.windowTitle != state.lastTitle)
+	{
+		state.lastTitle = state.windowTitle;
+		state.windowId = ++s_IdCounter;
+	}
+
+	const std::string uniqueTitle = state.windowTitle + "###FieldEditor_" + std::to_string(state.windowId);
 
 	ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
 
-	if (ImGui::Begin(state.windowTitle.c_str(), &state.showWindow))
+	if (ImGui::Begin(uniqueTitle.c_str(), &state.showWindow))
 	{
 		const UR::Field* field = state.targetField;
 

@@ -6,17 +6,23 @@ void Inspector::RenderMethodInvokePopup()
 {
 	if (!invokeState.showPopup) return;
 
+	const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+	ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 	ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
 
-	const std::string title = "Invoke: " + invokeState.method.name + "###MethodInvoke";
-	if (ImGui::Begin(title.c_str(), &invokeState.showPopup))
+	if (ImGui::Begin("Invoke Method###MethodInvoke", &invokeState.showPopup, ImGuiWindowFlags_NoCollapse))
 	{
 		ImGui::Text("Method: %s", invokeState.method.name.c_str());
 		ImGui::Text("Return Type: %s", invokeState.method.returnTypeName.c_str());
 		if (invokeState.method.isStatic)
 		{
 			ImGui::SameLine();
-			ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "[Static]");
+			ImGui::TextDisabled("(static)");
+		}
+		if (invokeState.method.isVirtual)
+		{
+			ImGui::SameLine();
+			ImGui::TextDisabled("(virtual)");
 		}
 
 		ImGui::Separator();
@@ -30,22 +36,19 @@ void Inspector::RenderMethodInvokePopup()
 			ImGui::Text("Parameters:");
 			for (size_t i = 0; i < invokeState.method.parameters.size(); i++)
 			{
-				const auto& [name, typeName] = invokeState.method.parameters[i];
-				const auto paramType = invokeState.method.parameterEditableTypes[i];
-
 				ImGui::PushID(static_cast<int>(i));
 
+				const auto& [name, typeName] = invokeState.method.parameters[i];
 				std::string label = std::format("{} ({})", name, typeName);
 				ImGui::Text("%s", label.c_str());
-				ImGui::SameLine();
+
+				const auto paramType = invokeState.method.parameterEditableTypes[i];
 
 				char buf[256] = {};
 				if (i < invokeState.parameterValues.size() && !invokeState.parameterValues[i].empty())
-				{
 					strncpy_s(buf, invokeState.parameterValues[i].c_str(), sizeof(buf) - 1);
-				}
 
-				ImGui::SetNextItemWidth(-1);
+				ImGui::PushItemWidth(-1);
 				switch (paramType)
 				{
 				case EditableType::Int:
@@ -54,54 +57,73 @@ void Inspector::RenderMethodInvokePopup()
 				case EditableType::Decimal:
 					if (ImGui::InputText("##param", buf, sizeof(buf), ImGuiInputTextFlags_CharsDecimal))
 					{
-						invokeState.parameterValues[i] = buf;
+						if (i < invokeState.parameterValues.size())
+							invokeState.parameterValues[i] = buf;
 					}
 					break;
 				case EditableType::Bool:
+				{
+					bool val = (buf[0] == '1' || buf[0] == 't' || buf[0] == 'T');
+					if (ImGui::Checkbox("##param", &val))
 					{
-						bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
-						if (ImGui::Checkbox("##param", &val))
-						{
+						if (i < invokeState.parameterValues.size())
 							invokeState.parameterValues[i] = val ? "true" : "false";
-						}
-						break;
-					}
-				case EditableType::Enum:
-					{
-						const std::string& enumTypeName = invokeState.method.parameters[i].second;
-						if (const auto enumVals = GetEnumValues(enumTypeName); !enumVals.empty())
-						{
-							int currentIdx = 0;
-							const int currentVal = std::atoi(invokeState.parameterValues[i].c_str());
-							for (size_t j = 0; j < enumVals.size(); j++)
-							{
-								if (enumVals[j].second == currentVal)
-								{
-									currentIdx = static_cast<int>(j);
-									break;
-								}
-							}
-							std::vector<const char*> names;
-							for (const auto& key : enumVals | std::views::keys) names.push_back(key.c_str());
-							if (ImGui::Combo("##param", &currentIdx, names.data(), static_cast<int>(names.size())))
-							{
-								invokeState.parameterValues[i] = std::to_string(enumVals[currentIdx].second);
-							}
-						}
-						else
-						{
-							if (ImGui::InputText("##param", buf, sizeof(buf)))
-								invokeState.parameterValues[i] = buf;
-						}
-						break;
-					}
-				default:
-					if (ImGui::InputText("##param", buf, sizeof(buf)))
-					{
-						invokeState.parameterValues[i] = buf;
 					}
 					break;
 				}
+				case EditableType::Enum:
+				{
+					const std::string enumTypeName = invokeState.method.parameters[i].second;
+					if (const auto enumVals = GetEnumValues(enumTypeName); !enumVals.empty())
+					{
+						int currentVal = 0;
+						try { currentVal = std::stoi(buf); } catch (...) {}
+						int selectedIdx = 0;
+						for (size_t j = 0; j < enumVals.size(); j++)
+						{
+							if (enumVals[j].second == currentVal)
+							{
+								selectedIdx = static_cast<int>(j);
+								break;
+							}
+						}
+						std::string comboLabel = std::format("{} ({})", enumVals[selectedIdx].first, enumVals[selectedIdx].second);
+						if (ImGui::BeginCombo("##param", comboLabel.c_str()))
+						{
+							for (size_t j = 0; j < enumVals.size(); j++)
+							{
+								bool isSelected = (j == selectedIdx);
+								std::string itemLabel = std::format("{} ({})", enumVals[j].first, enumVals[j].second);
+								if (ImGui::Selectable(itemLabel.c_str(), isSelected))
+								{
+									if (i < invokeState.parameterValues.size())
+										invokeState.parameterValues[i] = std::to_string(enumVals[j].second);
+								}
+								if (isSelected)
+									ImGui::SetItemDefaultFocus();
+							}
+							ImGui::EndCombo();
+						}
+					}
+					else
+					{
+						if (ImGui::InputText("##param", buf, sizeof(buf)))
+						{
+							if (i < invokeState.parameterValues.size())
+								invokeState.parameterValues[i] = buf;
+						}
+					}
+					break;
+				}
+				default:
+					if (ImGui::InputText("##param", buf, sizeof(buf)))
+					{
+						if (i < invokeState.parameterValues.size())
+							invokeState.parameterValues[i] = buf;
+					}
+					break;
+				}
+				ImGui::PopItemWidth();
 
 				ImGui::PopID();
 			}
@@ -124,123 +146,92 @@ void Inspector::RenderMethodInvokePopup()
 				}
 				else
 				{
-					const EditableType retType = DetermineEditableType(invokeState.method.returnTypeName);
-					invokeState.resultPointer = result;
-					invokeState.resultEditableType = retType;
-					void* unboxed = UR::Invoke<void*, void*>(
-						Config::state.unityMode == UnityResolve::Mode::Mono
-							? "mono_object_unbox"
-							: "il2cpp_object_unbox", result);
+					const std::string returnTypeName = invokeState.method.returnTypeName;
+					const EditableType retType = DetermineEditableType(returnTypeName);
 
-					if (unboxed)
+					if (void* unboxed = UR::Invoke<void*, void*>(
+						Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_object_unbox" : "il2cpp_object_unbox",
+						result))
 					{
 						switch (retType)
 						{
 						case EditableType::Int:
-							invokeState.resultText = std::to_string(*static_cast<int*>(unboxed));
+							invokeState.resultText = std::to_string(*static_cast<int32_t*>(unboxed));
 							break;
 						case EditableType::Float:
-							invokeState.resultText = std::to_string(*static_cast<float*>(unboxed));
+							invokeState.resultText = std::format("{:.6f}", *static_cast<float*>(unboxed));
 							break;
 						case EditableType::Double:
-							invokeState.resultText = std::to_string(*static_cast<double*>(unboxed));
+							invokeState.resultText = std::format("{:.6f}", *static_cast<double*>(unboxed));
 							break;
-					case EditableType::Bool:
-						invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
-						break;
-				case EditableType::String:
-					{
-						if (const auto* str = static_cast<UT::String*>(result))
+						case EditableType::Bool:
+							invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
+							break;
+						case EditableType::String:
 						{
-							invokeState.resultText = "\"" + str->ToString() + "\"";
+							if (const UT::String* str = *static_cast<UT::String**>(unboxed))
+								invokeState.resultText = str->ToString();
+							else
+								invokeState.resultText = "null";
+							break;
 						}
-						else
+						case EditableType::Decimal:
+							invokeState.resultText = std::format("{:.6f}", *static_cast<float*>(unboxed));
+							break;
+						case EditableType::Enum:
+							invokeState.resultText = std::to_string(*static_cast<int32_t*>(unboxed));
+							break;
+						case EditableType::Vector2:
 						{
-							invokeState.resultText = "(null)";
+							const auto& v = *static_cast<UT::Vector2*>(unboxed);
+							invokeState.resultText = std::format("({:.3f}, {:.3f})", v.x, v.y);
+							break;
 						}
-						break;
-					}
-				case EditableType::Decimal:
-					{
-						const auto* parts = static_cast<int32_t*>(unboxed);
-						const int scale = (parts[0] >> 16) & 0x1F;
-						const bool negative = (parts[0] & 0x80000000) != 0;
-						const int64_t lo = static_cast<uint32_t>(parts[2]);
-						const int64_t mid = static_cast<uint32_t>(parts[3]);
-						const int64_t hi = static_cast<uint32_t>(parts[1]);
-						const double unscaled = static_cast<double>(lo) + static_cast<double>(mid) * 4294967296.0 +
-							static_cast<double>(hi) * 18446744073709551616.0;
-						const double value = unscaled / std::pow(10.0, scale) * (negative ? -1.0 : 1.0);
-						invokeState.resultText = std::format("{:.6f}", value);
-						break;
-					}
-				case EditableType::Enum:
-					{
-						const int val = *static_cast<int*>(unboxed);
-						const auto& retTypeName = invokeState.method.returnTypeName;
-						const auto enumVals = GetEnumValues(retTypeName);
-						std::string enumName;
-						for (const auto& [fst, snd] : enumVals)
+						case EditableType::Vector3:
 						{
-							if (snd == val) { enumName = fst; break; }
+							const auto& v = *static_cast<UT::Vector3*>(unboxed);
+							invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f})", v.x, v.y, v.z);
+							break;
 						}
-						if (!enumName.empty())
-							invokeState.resultText = std::format("{} ({})", enumName, val);
-						else
-							invokeState.resultText = std::to_string(val);
-						break;
-					}
-				case EditableType::Vector2:
-					{
-						const auto* v = static_cast<float*>(unboxed);
-						invokeState.resultText = std::format("({:.3f}, {:.3f})", v[0], v[1]);
-						break;
-					}
-				case EditableType::Vector3:
-					{
-						const auto* v = static_cast<float*>(unboxed);
-						invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f})", v[0], v[1], v[2]);
-						break;
-					}
-				case EditableType::Vector4:
-					{
-						const auto* v = static_cast<float*>(unboxed);
-						invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v[0], v[1], v[2], v[3]);
-						break;
-					}
-				case EditableType::Quaternion:
-					{
-						const auto* v = static_cast<float*>(unboxed);
-						invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v[0], v[1], v[2], v[3]);
-						break;
-					}
-				case EditableType::Color:
-					{
-						const auto* v = static_cast<float*>(unboxed);
-						invokeState.resultText = std::format("RGBA({:.2f}, {:.2f}, {:.2f}, {:.2f})", v[0], v[1], v[2], v[3]);
-						break;
-					}
-					default:
-							invokeState.resultText = std::format("(object: 0x{:X})",
-							                                     reinterpret_cast<uintptr_t>(result));
+						case EditableType::Vector4:
+						{
+							const auto& v = *static_cast<UT::Vector4*>(unboxed);
+							invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v.x, v.y, v.z, v.w);
+							break;
+						}
+						case EditableType::Quaternion:
+						{
+							const auto& v = *static_cast<UT::Quaternion*>(unboxed);
+							invokeState.resultText = std::format("({:.3f}, {:.3f}, {:.3f}, {:.3f})", v.x, v.y, v.z, v.w);
+							break;
+						}
+						case EditableType::Color:
+						{
+							const auto& v = *static_cast<UT::Color*>(unboxed);
+							invokeState.resultText = std::format("RGBA({:.2f}, {:.2f}, {:.2f}, {:.2f})", v.r, v.g, v.b, v.a);
+							break;
+						}
+						default:
+							invokeState.resultText = std::format("0x{:X}", reinterpret_cast<uintptr_t>(unboxed));
+							invokeState.resultPointer = unboxed;
+							invokeState.resultEditableType = retType;
 							break;
 						}
 					}
 					else
 					{
-						invokeState.resultText = std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
+						invokeState.resultText = std::format("0x{:X}", reinterpret_cast<uintptr_t>(result));
 					}
 				}
 			}
 			else
 			{
-				if (invokeState.method.returnTypeName == "void" || invokeState.method.returnTypeName == "System.Void")
+				invokeState.resultText = "(null)";
+				if (!invokeState.method.returnTypeName.empty() &&
+					invokeState.method.returnTypeName != "void" &&
+					invokeState.method.returnTypeName != "System.Void")
 				{
-					invokeState.resultText = "(completed)";
-				}
-				else
-				{
-					invokeState.resultText = "(null or error)";
+					invokeState.resultText += " or error";
 				}
 			}
 		}
@@ -264,9 +255,10 @@ void Inspector::RenderMethodInvokePopup()
 					{
 						void* klass = Helper::SafeGetObjectClass(invokeState.resultPointer);
 						InspectionTarget nextTarget;
+						nextTarget.gameObject = nullptr;
 						nextTarget.instance = invokeState.resultPointer;
-						nextTarget.name = invokeState.method.name + "()";
 						nextTarget.classHandle = klass;
+						nextTarget.name = invokeState.method.returnTypeName;
 
 						nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(invokeState.resultPointer));
 						nextTarget.cachedComponentNames.push_back(invokeState.method.returnTypeName);
