@@ -6832,6 +6832,8 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         // Outer Decoration Sizes
         // (we need to clear ScrollbarSize immediatly as CalcWindowAutoFitSize() needs it and can be called from other locations).
         const ImVec2 scrollbar_sizes_from_last_frame = window->ScrollbarSizes;
+        window->DecoOuterSizeX1 = 0.0f;
+        window->DecoOuterSizeX2 = 0.0f;
         float gap_height = (!(window->Flags & ImGuiWindowFlags_NoTitleBar) && !(window->Flags & ImGuiWindowFlags_ChildWindow)) ? 6.0f : 0.0f;
         window->DecoOuterSizeY1 = window->TitleBarHeight() + window->MenuBarHeight() + gap_height;
         window->DecoOuterSizeY2 = 0.0f;
@@ -12477,8 +12479,19 @@ static int ImGui::FindWindowFocusIndex(ImGuiWindow* window)
     IM_UNUSED(g);
     int order = window->FocusOrder;
     IM_ASSERT(window->RootWindow == window); // No child window (not testing _ChildWindow because of docking)
-    IM_ASSERT(g.WindowsFocusOrder[order] == window);
-    return order;
+    if (order >= 0 && order < g.WindowsFocusOrder.Size && g.WindowsFocusOrder[order] == window)
+        return order;
+    
+    // Fallback: search the focus list to find and repair the focus order index
+    for (int n = 0; n < g.WindowsFocusOrder.Size; n++)
+    {
+        if (g.WindowsFocusOrder[n] == window)
+        {
+            window->FocusOrder = (short)n;
+            return n;
+        }
+    }
+    return 0;
 }
 
 static ImGuiWindow* FindWindowNavFocusable(int i_start, int i_stop, int dir) // FIXME-OPT O(N)
