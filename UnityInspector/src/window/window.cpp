@@ -57,12 +57,12 @@ namespace Window
 		colors[ImGuiCol_CheckMark] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
 		
 		style.IndentSpacing = 20;
-		style.ScrollbarSize = 12;
+		style.ScrollbarSize = 10;
 		style.GrabMinSize = 10;
-		style.WindowBorderSize = 0;
+		style.WindowBorderSize = 1;
 		style.ChildBorderSize = 0;
 		style.PopupBorderSize = 0;
-		style.WindowRounding = 10;
+		style.WindowRounding = 8;
 		style.ChildRounding = 8;
 		style.FrameRounding = 6;
 		style.PopupRounding = 8;
