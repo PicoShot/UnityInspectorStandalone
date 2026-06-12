@@ -7812,6 +7812,10 @@ ImGuiTabBar::ImGuiTabBar()
     memset(this, 0, sizeof(*this));
     CurrFrameVisible = PrevFrameVisible = -1;
     LastTabItemIdx = -1;
+    LastSelectedTabId = 0;
+    AnimSelectedTabX1 = AnimSelectedTabX2 = 0.0f;
+    AnimTabTransitionT = 1.0f;
+    AnimContentVtxStart = AnimContentCmdStart = 0;
 }
 
 static inline int TabItemGetSectionIdx(const ImGuiTabItem* tab)
@@ -7944,6 +7948,43 @@ void    ImGui::EndTabBar()
     // Fallback in case no TabItem have been submitted
     if (tab_bar->WantLayout)
         TabBarLayout(tab_bar);
+
+    // Update selection highlight animations and transition progress
+    ImGuiTabItem* selected_tab = TabBarFindTabByID(tab_bar, tab_bar->SelectedTabId);
+    if (selected_tab != NULL)
+    {
+        float target_x1 = selected_tab->Offset;
+        float target_x2 = selected_tab->Offset + selected_tab->Width;
+
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+
+        if (tab_bar->LastSelectedTabId == 0)
+        {
+            tab_bar->AnimSelectedTabX1 = target_x1;
+            tab_bar->AnimSelectedTabX2 = target_x2;
+            tab_bar->AnimTabTransitionT = 1.0f;
+        }
+        else if (tab_bar->LastSelectedTabId != tab_bar->SelectedTabId)
+        {
+            tab_bar->AnimTabTransitionT = 0.0f;
+        }
+
+        const float interpolation_speed = 12.0f;
+        tab_bar->AnimSelectedTabX1 = ImLerp(tab_bar->AnimSelectedTabX1, target_x1, ImMin(dt * interpolation_speed, 1.0f));
+        tab_bar->AnimSelectedTabX2 = ImLerp(tab_bar->AnimSelectedTabX2, target_x2, ImMin(dt * interpolation_speed, 1.0f));
+        tab_bar->AnimTabTransitionT = ImMin(tab_bar->AnimTabTransitionT + dt * 5.0f, 1.0f);
+
+        tab_bar->LastSelectedTabId = tab_bar->SelectedTabId;
+
+        // Draw animated active tab indicator pill at the bottom of the active tab header
+        ImVec2 min_pos = tab_bar->BarRect.Min + ImVec2(tab_bar->AnimSelectedTabX1 - tab_bar->ScrollingAnim + 4.0f, tab_bar->BarRect.GetHeight() - 3.0f);
+        ImVec2 max_pos = tab_bar->BarRect.Min + ImVec2(tab_bar->AnimSelectedTabX2 - tab_bar->ScrollingAnim - 4.0f, tab_bar->BarRect.GetHeight() - 1.0f);
+        
+        window->DrawList->PushClipRect(ImVec2(tab_bar->ScrollingRectMinX, tab_bar->BarRect.Min.y), ImVec2(tab_bar->ScrollingRectMaxX, tab_bar->BarRect.Max.y + 2.0f), true);
+        window->DrawList->AddRectFilled(min_pos, max_pos, GetColorU32(ImGuiCol_TabActive), 1.5f);
+        window->DrawList->PopClipRect();
+    }
 
     // Restore the last visible height if no tab is visible, this reduce vertical flicker/movement when a tabs gets removed without calling SetTabItemClosed().
     const bool tab_bar_appearing = (tab_bar->PrevFrameVisible + 1 < g.FrameCount);
@@ -8564,6 +8605,17 @@ bool    ImGui::BeginTabItem(const char* label, bool* p_open, ImGuiTabItemFlags f
     return ret;
 }
 
+static bool IsDescendantOf(ImGuiWindow* child, ImGuiWindow* parent)
+{
+    while (child)
+    {
+        if (child == parent)
+            return true;
+        child = child->ParentWindow;
+    }
+    return false;
+}
+
 void    ImGui::EndTabItem()
 {
     ImGuiContext& g = *GImGui;
@@ -8579,6 +8631,42 @@ void    ImGui::EndTabItem()
     }
     IM_ASSERT(tab_bar->LastTabItemIdx >= 0);
     ImGuiTabItem* tab = &tab_bar->Tabs[tab_bar->LastTabItemIdx];
+
+    // Post-process parent window draw list and child windows submitted in this tab
+    if (tab_bar->AnimTabTransitionT < 0.999f)
+    {
+        float t = tab_bar->AnimTabTransitionT;
+
+        // 1. Apply fade to vertices submitted directly in the parent window for this tab
+        int vtx_end = window->DrawList->VtxBuffer.Size;
+        for (int i = tab_bar->AnimContentVtxStart; i < vtx_end; i++)
+        {
+            ImDrawVert& v = window->DrawList->VtxBuffer[i];
+            ImU32 col = v.col;
+            ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+            a = (ImU32)(a * t);
+            v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+        }
+
+        // 2. Find and fade all descendant child windows submitted during this tab
+        for (int n = 0; n < g.Windows.Size; n++)
+        {
+            ImGuiWindow* w = g.Windows[n];
+            if (w != window && w->Active && (w->Flags & ImGuiWindowFlags_ChildWindow) && IsDescendantOf(w, window))
+            {
+                int vtx_size = w->DrawList->VtxBuffer.Size;
+                for (int i = 0; i < vtx_size; i++)
+                {
+                    ImDrawVert& v = w->DrawList->VtxBuffer[i];
+                    ImU32 col = v.col;
+                    ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+                    a = (ImU32)(a * t);
+                    v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+                }
+            }
+        }
+    }
+
     if (!(tab->Flags & ImGuiTabItemFlags_NoPushId))
         PopID();
 }
@@ -8703,6 +8791,11 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
         ItemAdd(ImRect(), id, NULL, ImGuiItemFlags_NoNav);
         if (is_tab_button)
             return false;
+        if (tab_contents_visible)
+        {
+            tab_bar->AnimContentVtxStart = window->DrawList->VtxBuffer.Size;
+            tab_bar->AnimContentCmdStart = window->DrawList->CmdBuffer.Size;
+        }
         return tab_contents_visible;
     }
 
@@ -8736,6 +8829,11 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
         if (want_clip_rect)
             PopClipRect();
         window->DC.CursorPos = backup_main_cursor_pos;
+        if (tab_contents_visible)
+        {
+            tab_bar->AnimContentVtxStart = window->DrawList->VtxBuffer.Size;
+            tab_bar->AnimContentCmdStart = window->DrawList->CmdBuffer.Size;
+        }
         return tab_contents_visible;
     }
 
@@ -8818,6 +8916,13 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
     IM_ASSERT(!is_tab_button || !(tab_bar->SelectedTabId == tab->ID && is_tab_button)); // TabItemButton should not be selected
     if (is_tab_button)
         return pressed;
+
+    if (tab_contents_visible)
+    {
+        tab_bar->AnimContentVtxStart = window->DrawList->VtxBuffer.Size;
+        tab_bar->AnimContentCmdStart = window->DrawList->CmdBuffer.Size;
+    }
+
     return tab_contents_visible;
 }
 

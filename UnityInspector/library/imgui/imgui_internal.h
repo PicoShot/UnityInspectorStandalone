@@ -2608,6 +2608,12 @@ struct IMGUI_API ImGuiTabBar
     float               ItemSpacingY;
     ImVec2              FramePadding;           // style.FramePadding locked at the time of BeginTabBar()
     ImVec2              BackupCursorPos;
+    ImGuiID             LastSelectedTabId;
+    float               AnimSelectedTabX1;
+    float               AnimSelectedTabX2;
+    float               AnimTabTransitionT;
+    int                 AnimContentVtxStart;
+    int                 AnimContentCmdStart;
     ImGuiTextBuffer     TabsNames;              // For non-docking tab bar we re-append names in a contiguous buffer.
 
     ImGuiTabBar();
