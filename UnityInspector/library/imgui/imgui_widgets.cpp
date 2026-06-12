@@ -6182,6 +6182,27 @@ bool ImGui::TreeNodeUpdateNextOpen(ImGuiID id, ImGuiTreeNodeFlags flags)
     return is_open;
 }
 
+static void RenderArrowRotated(ImDrawList* draw_list, ImVec2 pos, ImU32 col, float angle, float scale)
+{
+    ImGuiContext& g = *GImGui;
+    const float h = g.FontSize * 1.00f;
+    float r = h * 0.40f * scale;
+    ImVec2 center = pos + ImVec2(h * 0.50f, h * 0.50f * scale);
+
+    ImVec2 a_orig = ImVec2(+0.750f, +0.000f) * r;
+    ImVec2 b_orig = ImVec2(-0.750f, +0.866f) * r;
+    ImVec2 c_orig = ImVec2(-0.750f, -0.866f) * r;
+
+    float cos_a = ImCos(angle);
+    float sin_a = ImSin(angle);
+
+    ImVec2 a(a_orig.x * cos_a - a_orig.y * sin_a, a_orig.x * sin_a + a_orig.y * cos_a);
+    ImVec2 b(b_orig.x * cos_a - b_orig.y * sin_a, b_orig.x * sin_a + b_orig.y * cos_a);
+    ImVec2 c(c_orig.x * cos_a - c_orig.y * sin_a, c_orig.x * sin_a + c_orig.y * cos_a);
+
+    draw_list->AddTriangleFilled(center + a, center + b, center + c, col);
+}
+
 bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* label, const char* label_end)
 {
     ImGuiWindow* window = GetCurrentWindow();
@@ -6234,7 +6255,59 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     }
 
     // Compute open and multi-select states before ItemAdd() as it clear NextItem data.
+    const bool is_leaf = (flags & ImGuiTreeNodeFlags_Leaf) != 0;
     bool is_open = TreeNodeUpdateNextOpen(id, flags);
+    bool actual_open = is_open;
+    bool can_animate = !is_leaf && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen);
+    float anim_progress = actual_open ? 1.0f : 0.0f;
+
+    if (can_animate)
+    {
+        ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
+        ImGuiID anim_progress_key = id ^ 0x12345678;
+        ImGuiID was_open_key = id ^ 0x55555555;
+
+        // Initialize state on first run
+        bool was_open = false;
+        if (storage->GetInt(was_open_key, -1) == -1)
+        {
+            was_open = actual_open;
+            storage->SetInt(was_open_key, actual_open ? 1 : 0);
+        }
+        else
+        {
+            was_open = storage->GetInt(was_open_key) != 0;
+        }
+
+        anim_progress = storage->GetFloat(anim_progress_key, actual_open ? 1.0f : 0.0f);
+
+        // Detect toggle transitions
+        if (actual_open != was_open)
+        {
+            anim_progress = actual_open ? 0.0f : 1.0f;
+            storage->SetInt(was_open_key, actual_open ? 1 : 0);
+        }
+
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+
+        float target = actual_open ? 1.0f : 0.0f;
+        if (anim_progress != target)
+        {
+            float speed = 4.0f; // Smooth 250ms speed
+            if (anim_progress < target)
+                anim_progress = ImMin(anim_progress + dt * speed, target);
+            else
+                anim_progress = ImMax(anim_progress - dt * speed, target);
+            storage->SetFloat(anim_progress_key, anim_progress);
+        }
+
+        if (anim_progress > 0.0f)
+        {
+            is_open = true;
+        }
+    }
+
     bool item_add = ItemAdd(interact_bb, id);
     g.LastItemData.StatusFlags |= ImGuiItemStatusFlags_HasDisplayRect;
     g.LastItemData.DisplayRect = frame_bb;
@@ -6261,7 +6334,6 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
             window->DC.TreeJumpToParentOnPopMask |= (1 << window->DC.TreeDepth);
         }
 
-    const bool is_leaf = (flags & ImGuiTreeNodeFlags_Leaf) != 0;
     if (!item_add)
     {
         if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
@@ -6376,7 +6448,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
         if (flags & ImGuiTreeNodeFlags_Bullet)
             RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.60f, text_pos.y + g.FontSize * 0.5f), text_col);
         else if (!is_leaf)
-            RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, is_open ? ((flags & ImGuiTreeNodeFlags_UpsideDownArrow) ? ImGuiDir_Up : ImGuiDir_Down) : ImGuiDir_Right, 1.0f);
+            RenderArrowRotated(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, anim_progress * (IM_PI * 0.5f), 1.0f);
         else // Leaf without bullet, left-adjusted text
             text_pos.x -= text_offset_x -padding.x;
         if (flags & ImGuiTreeNodeFlags_ClipLabelForTrailingButton)
@@ -6391,13 +6463,22 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
         if (hovered || selected)
         {
             const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
-            RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, false);
+            RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, false, 4.0f);
+        }
+        if (selected)
+        {
+            float line_w = 3.0f;
+            float line_h = IM_TRUNC(frame_bb.GetHeight() * 0.6f);
+            float y_center = IM_TRUNC(frame_bb.Min.y + frame_bb.GetHeight() * 0.5f);
+            ImVec2 bar_min(frame_bb.Min.x + 2.0f, IM_TRUNC(y_center - line_h * 0.5f));
+            ImVec2 bar_max(frame_bb.Min.x + 2.0f + line_w, IM_TRUNC(y_center + line_h * 0.5f));
+            window->DrawList->AddRectFilled(bar_min, bar_max, GetColorU32(ImGuiCol_SliderGrabActive), 1.5f);
         }
         RenderNavHighlight(frame_bb, id, nav_highlight_flags);
         if (flags & ImGuiTreeNodeFlags_Bullet)
             RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.5f, text_pos.y + g.FontSize * 0.5f), text_col);
         else if (!is_leaf)
-            RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, is_open ? ((flags & ImGuiTreeNodeFlags_UpsideDownArrow) ? ImGuiDir_Up : ImGuiDir_Down) : ImGuiDir_Right, 0.70f);
+            RenderArrowRotated(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, anim_progress * (IM_PI * 0.5f), 0.70f);
         if (g.LogEnabled)
             LogSetNextTextDecoration(">", NULL);
     }
@@ -6411,68 +6492,13 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     else
         RenderText(text_pos, label, label_end, false);
 
-    bool actual_open = is_open;
-    bool can_animate = !is_leaf && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen);
-
-    if (can_animate)
+    if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
     {
-        ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
-        ImGuiID anim_progress_key = id ^ 0x12345678;
-        ImGuiID was_open_key = id ^ 0x55555555;
+        TreePushOverrideID(id);
 
-        // Initialize state on first run
-        bool was_open = false;
-        if (storage->GetInt(was_open_key, -1) == -1)
+        if (can_animate)
         {
-            was_open = actual_open;
-            storage->SetInt(was_open_key, actual_open ? 1 : 0);
-        }
-        else
-        {
-            was_open = storage->GetInt(was_open_key) != 0;
-        }
-
-        float anim_progress = 0.0f;
-        if (storage->GetFloat(anim_progress_key, -1.0f) == -1.0f)
-        {
-            anim_progress = actual_open ? 1.0f : 0.0f;
-            storage->SetFloat(anim_progress_key, anim_progress);
-        }
-        else
-        {
-            anim_progress = storage->GetFloat(anim_progress_key);
-        }
-
-        // Detect toggle transitions
-        if (actual_open != was_open)
-        {
-            anim_progress = actual_open ? 0.0f : 1.0f;
-            storage->SetInt(was_open_key, actual_open ? 1 : 0);
-        }
-
-        float dt = g.IO.DeltaTime;
-        if (dt <= 0.0f) dt = 1.0f / 60.0f;
-
-        float target = actual_open ? 1.0f : 0.0f;
-        if (anim_progress != target)
-        {
-            float speed = 4.0f; // Smooth 250ms speed
-            if (anim_progress < target)
-                anim_progress = ImMin(anim_progress + dt * speed, target);
-            else
-                anim_progress = ImMax(anim_progress - dt * speed, target);
-            storage->SetFloat(anim_progress_key, anim_progress);
-        }
-
-        if (anim_progress > 0.0f)
-        {
-            is_open = true;
-        }
-
-        if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
-        {
-            TreePushOverrideID(id);
-
+            ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
             ImGuiTreeAnimState anim_state;
             anim_state.ID = id;
             anim_state.StartPosY = window->DC.CursorPos.y;
@@ -6487,11 +6513,6 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
 
             window->TreeAnimStack.push_back(anim_state);
         }
-    }
-    else
-    {
-        if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
-            TreePushOverrideID(id);
     }
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | (is_leaf ? 0 : ImGuiItemStatusFlags_Openable) | (is_open ? ImGuiItemStatusFlags_Opened : 0));
