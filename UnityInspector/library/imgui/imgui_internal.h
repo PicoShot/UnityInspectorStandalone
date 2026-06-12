@@ -2403,6 +2403,15 @@ struct IMGUI_API ImGuiWindowTempData
     ImVector<float>         TextWrapPosStack;       // Store text wrap pos to restore (attention: .back() is not == TextWrapPos)
 };
 
+struct ImGuiTreeAnimState
+{
+    ImGuiID     ID;
+    float       StartPosY;
+    float       AnimProgress;
+    float       LastHeight;
+    int         VtxStartIndex;
+};
+
 // Storage for one window
 struct IMGUI_API ImGuiWindow
 {
@@ -2511,6 +2520,7 @@ struct IMGUI_API ImGuiWindow
     bool                    FadingOut;
     float                   AnimCollapseT;
     bool                    Collapsing;
+    ImVector<ImGuiTreeAnimState> TreeAnimStack;
 
     int                     MemoryDrawListIdxCapacity;          // Backup of last idx/vtx count, so when waking up the window we can preallocate and avoid iterative alloc/copy
     int                     MemoryDrawListVtxCapacity;

@@ -6404,8 +6404,89 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     else
         RenderText(text_pos, label, label_end, false);
 
-    if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
-        TreePushOverrideID(id);
+    bool actual_open = is_open;
+    bool can_animate = !is_leaf && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen);
+
+    if (can_animate)
+    {
+        ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
+        ImGuiID anim_progress_key = id ^ 0x12345678;
+        ImGuiID was_open_key = id ^ 0x55555555;
+
+        // Initialize state on first run
+        bool was_open = false;
+        if (storage->GetInt(was_open_key, -1) == -1)
+        {
+            was_open = actual_open;
+            storage->SetInt(was_open_key, actual_open ? 1 : 0);
+        }
+        else
+        {
+            was_open = storage->GetInt(was_open_key) != 0;
+        }
+
+        float anim_progress = 0.0f;
+        if (storage->GetFloat(anim_progress_key, -1.0f) == -1.0f)
+        {
+            anim_progress = actual_open ? 1.0f : 0.0f;
+            storage->SetFloat(anim_progress_key, anim_progress);
+        }
+        else
+        {
+            anim_progress = storage->GetFloat(anim_progress_key);
+        }
+
+        // Detect toggle transitions
+        if (actual_open != was_open)
+        {
+            anim_progress = actual_open ? 0.0f : 1.0f;
+            storage->SetInt(was_open_key, actual_open ? 1 : 0);
+        }
+
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+
+        float target = actual_open ? 1.0f : 0.0f;
+        if (anim_progress != target)
+        {
+            float speed = 4.0f; // Smooth 250ms speed
+            if (anim_progress < target)
+                anim_progress = ImMin(anim_progress + dt * speed, target);
+            else
+                anim_progress = ImMax(anim_progress - dt * speed, target);
+            storage->SetFloat(anim_progress_key, anim_progress);
+        }
+
+        if (anim_progress > 0.0f)
+        {
+            is_open = true;
+        }
+
+        if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
+        {
+            TreePushOverrideID(id);
+
+            ImGuiTreeAnimState anim_state;
+            anim_state.ID = id;
+            anim_state.StartPosY = window->DC.CursorPos.y;
+            anim_state.AnimProgress = anim_progress;
+            anim_state.LastHeight = storage->GetFloat(id ^ 0x87654321, 0.0f);
+            anim_state.VtxStartIndex = window->DrawList->VtxBuffer.Size;
+
+            float current_height = anim_state.LastHeight * anim_progress;
+            ImVec2 clip_min(window->ClipRect.Min.x, anim_state.StartPosY);
+            ImVec2 clip_max(window->ClipRect.Max.x, anim_state.StartPosY + current_height);
+            PushClipRect(clip_min, clip_max, true);
+
+            window->TreeAnimStack.push_back(anim_state);
+        }
+    }
+    else
+    {
+        if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
+            TreePushOverrideID(id);
+    }
+
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | (is_leaf ? 0 : ImGuiItemStatusFlags_Openable) | (is_open ? ImGuiItemStatusFlags_Opened : 0));
     return is_open;
 }
@@ -6439,6 +6520,22 @@ void ImGui::TreePop()
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
+
+    // Draw indent guide line before calling Unindent()
+    if (window->TreeAnimStack.Size > 0 && window->TreeAnimStack.back().ID == window->IDStack.back())
+    {
+        ImGuiTreeAnimState anim_state = window->TreeAnimStack.back();
+        float t = anim_state.AnimProgress;
+        float current_height = (window->DC.CursorPos.y - anim_state.StartPosY) * t;
+        float x = window->DC.CursorPos.x - g.Style.IndentSpacing * 0.5f;
+        window->DrawList->AddLine(
+            ImVec2(x, anim_state.StartPosY),
+            ImVec2(x, anim_state.StartPosY + current_height),
+            GetColorU32(ImGuiCol_Separator, 0.4f),
+            1.0f
+        );
+    }
+
     Unindent();
 
     window->DC.TreeDepth--;
@@ -6456,6 +6553,37 @@ void ImGui::TreePop()
     window->DC.TreeJumpToParentOnPopMask &= tree_depth_mask - 1;
 
     IM_ASSERT(window->IDStack.Size > 1); // There should always be 1 element in the IDStack (pushed during window creation). If this triggers you called TreePop/PopID too much.
+
+    // Apply tree collapse animation
+    if (window->TreeAnimStack.Size > 0 && window->TreeAnimStack.back().ID == window->IDStack.back())
+    {
+        ImGuiTreeAnimState anim_state = window->TreeAnimStack.back();
+        window->TreeAnimStack.pop_back();
+
+        float end_y = window->DC.CursorPos.y;
+        float full_height = end_y - anim_state.StartPosY;
+        ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
+        storage->SetFloat(anim_state.ID ^ 0x87654321, full_height);
+
+        PopClipRect();
+
+        // Apply fade to vertices submitted during the children block
+        int vtx_end = window->DrawList->VtxBuffer.Size;
+        float t = anim_state.AnimProgress;
+        for (int i = anim_state.VtxStartIndex; i < vtx_end; i++)
+        {
+            ImDrawVert& v = window->DrawList->VtxBuffer[i];
+            ImU32 col = v.col;
+            ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+            a = (ImU32)(a * t);
+            v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+        }
+
+        // Adjust cursor Y positions
+        window->DC.CursorPos.y = anim_state.StartPosY + full_height * t;
+        window->DC.CursorMaxPos.y = ImMax(window->DC.CursorMaxPos.y, window->DC.CursorPos.y);
+    }
+
     PopID();
 }
 

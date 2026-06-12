@@ -6724,6 +6724,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         window->HasCloseButton = (p_open != NULL);
         window->ClipRect = ImVec4(-FLT_MAX, -FLT_MAX, +FLT_MAX, +FLT_MAX);
         window->IDStack.resize(1);
+        window->TreeAnimStack.resize(0);
         window->DrawList->_ResetForNewFrame();
         window->DC.CurrentTableIdx = -1;
 
