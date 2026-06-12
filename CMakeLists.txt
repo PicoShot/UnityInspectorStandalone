@@ -17,9 +17,4 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 
-if(DEFINED ENV{CI})
-    target_compile_definitions(UnityInspector PRIVATE JM_XORSTR_SEED="12:00:00")
-    message(STATUS "CI detected: set static seed for xorstr")
-endif()
-
 add_subdirectory(UnityInspector)
