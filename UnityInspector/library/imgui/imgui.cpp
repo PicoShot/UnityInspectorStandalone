@@ -3760,7 +3760,7 @@ void ImGui::CallContextHooks(ImGuiContext* ctx, ImGuiContextHookType hook_type)
 //-----------------------------------------------------------------------------
 
 // ImGuiWindow is mostly a dumb struct. It merely has a constructor and a few helper methods
-ImGuiWindow::ImGuiWindow(ImGuiContext* ctx, const char* name) : DrawListInst(NULL)
+ImGuiWindow::ImGuiWindow(ImGuiContext* ctx, const char* name) : DrawListInst(NULL), AnimDrawListInst(NULL)
 {
     memset(this, 0, sizeof(*this));
     Ctx = ctx;
@@ -3782,6 +3782,8 @@ ImGuiWindow::ImGuiWindow(ImGuiContext* ctx, const char* name) : DrawListInst(NUL
     DrawList = &DrawListInst;
     DrawList->_Data = &Ctx->DrawListSharedData;
     DrawList->_OwnerName = Name;
+    AnimDrawListInst._Data = &Ctx->DrawListSharedData;
+    AnimDrawListInst._OwnerName = Name;
     NavPreferredScoringPosRel[0] = NavPreferredScoringPosRel[1] = ImVec2(FLT_MAX, FLT_MAX);
 }
 
@@ -4881,17 +4883,78 @@ static void AddWindowToSortBuffer(ImVector<ImGuiWindow*>* out_sorted_windows, Im
     }
 }
 
-static void AddWindowToDrawData(ImGuiWindow* window, int layer)
+static void AddWindowToDrawData(ImGuiWindow* window, int layer, bool parent_fading_out = false)
 {
     ImGuiContext& g = *GImGui;
     ImGuiViewportP* viewport = g.Viewports[0];
     g.IO.MetricsRenderWindows++;
     if (window->DrawList->_Splitter._Count > 1)
         window->DrawList->ChannelsMerge(); // Merge if user forgot to merge back. Also required in Docking branch for ImGuiWindowFlags_DockNodeHost windows.
-    ImGui::AddDrawListToDrawDataEx(&viewport->DrawDataP, viewport->DrawDataBuilder.Layers[layer], window->DrawList);
+
+    ImGuiWindow* root = window->RootWindow;
+    bool is_tooltip = (root->Flags & ImGuiWindowFlags_Tooltip) != 0;
+    float anim_alpha = is_tooltip ? 1.0f : root->AnimAlpha;
+    float anim_scale = is_tooltip ? 1.0f : root->AnimScale;
+
+    if (anim_alpha < 0.999f || anim_scale < 0.999f)
+    {
+        ImDrawList* anim_draw_list = &window->AnimDrawListInst;
+
+        // Copy vertices, indices, and draw commands into our animated draw list
+        anim_draw_list->CmdBuffer.resize(window->DrawList->CmdBuffer.Size);
+        if (window->DrawList->CmdBuffer.Size > 0)
+            memcpy(anim_draw_list->CmdBuffer.Data, window->DrawList->CmdBuffer.Data, window->DrawList->CmdBuffer.Size * sizeof(ImDrawCmd));
+
+        anim_draw_list->IdxBuffer.resize(window->DrawList->IdxBuffer.Size);
+        if (window->DrawList->IdxBuffer.Size > 0)
+            memcpy(anim_draw_list->IdxBuffer.Data, window->DrawList->IdxBuffer.Data, window->DrawList->IdxBuffer.Size * sizeof(ImDrawIdx));
+
+        anim_draw_list->VtxBuffer.resize(window->DrawList->VtxBuffer.Size);
+        if (window->DrawList->VtxBuffer.Size > 0)
+            memcpy(anim_draw_list->VtxBuffer.Data, window->DrawList->VtxBuffer.Data, window->DrawList->VtxBuffer.Size * sizeof(ImDrawVert));
+
+        anim_draw_list->Flags = window->DrawList->Flags;
+        anim_draw_list->_VtxCurrentIdx = window->DrawList->_VtxCurrentIdx;
+        anim_draw_list->_VtxWritePtr = anim_draw_list->VtxBuffer.Data + anim_draw_list->VtxBuffer.Size;
+        anim_draw_list->_IdxWritePtr = anim_draw_list->IdxBuffer.Data + anim_draw_list->IdxBuffer.Size;
+
+        ImVec2 center = root->Pos + root->Size * 0.5f;
+
+        // Scale and fade vertices
+        for (int i = 0; i < anim_draw_list->VtxBuffer.Size; i++)
+        {
+            ImDrawVert& v = anim_draw_list->VtxBuffer[i];
+            v.pos = center + (v.pos - center) * anim_scale;
+
+            ImU32 col = v.col;
+            ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+            a = (ImU32)(a * anim_alpha);
+            v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+        }
+
+        // Scale clipping rects
+        for (int i = 0; i < anim_draw_list->CmdBuffer.Size; i++)
+        {
+            ImDrawCmd& cmd = anim_draw_list->CmdBuffer[i];
+            ImVec4 cr = cmd.ClipRect;
+            ImVec2 min_val = ImVec2(cr.x, cr.y);
+            ImVec2 max_val = ImVec2(cr.z, cr.w);
+            min_val = center + (min_val - center) * anim_scale;
+            max_val = center + (max_val - center) * anim_scale;
+            cmd.ClipRect = ImVec4(min_val.x, min_val.y, max_val.x, max_val.y);
+        }
+
+        ImGui::AddDrawListToDrawDataEx(&viewport->DrawDataP, viewport->DrawDataBuilder.Layers[layer], anim_draw_list);
+    }
+    else
+    {
+        ImGui::AddDrawListToDrawDataEx(&viewport->DrawDataP, viewport->DrawDataBuilder.Layers[layer], window->DrawList);
+    }
+
+    bool is_fading = root->FadingOut || parent_fading_out;
     for (ImGuiWindow* child : window->DC.ChildWindows)
-        if (IsWindowActiveAndVisible(child)) // Clipped children may have been marked not active
-            AddWindowToDrawData(child, layer);
+        if (IsWindowActiveAndVisible(child) || is_fading)
+            AddWindowToDrawData(child, layer, is_fading);
 }
 
 static inline int GetWindowDisplayLayer(ImGuiWindow* window)
@@ -5190,71 +5253,28 @@ void ImGui::Render()
         {
             window->AnimAlpha = ImMax(window->AnimAlpha - dt * fade_speed, 0.0f);
             window->AnimScale = ImMax(window->AnimScale - dt * scale_speed, 0.95f);
+            if (window->AnimAlpha <= 0.0f)
+                window->FadingOut = false;
         }
 
-        if (window->AnimAlpha < 0.999f || window->AnimScale < 0.999f)
-        {
-            // Swap out VtxBuffer and CmdBuffer to keep original pointers consistent
-            ImVector<ImDrawVert> original_vtx;
-            original_vtx.swap(window->DrawList->VtxBuffer);
-            ImDrawVert* original_write_ptr = window->DrawList->_VtxWritePtr;
-
-            ImVector<ImDrawCmd> original_cmds;
-            original_cmds.swap(window->DrawList->CmdBuffer);
-
-            // Populate temporary buffers
-            window->DrawList->VtxBuffer.resize(original_vtx.Size);
-            if (original_vtx.Size > 0)
-                memcpy(window->DrawList->VtxBuffer.Data, original_vtx.Data, original_vtx.Size * sizeof(ImDrawVert));
-            window->DrawList->_VtxWritePtr = window->DrawList->VtxBuffer.Data + window->DrawList->VtxBuffer.Size;
-
-            window->DrawList->CmdBuffer.resize(original_cmds.Size);
-            if (original_cmds.Size > 0)
-                memcpy(window->DrawList->CmdBuffer.Data, original_cmds.Data, original_cmds.Size * sizeof(ImDrawCmd));
-
-            ImVec2 center = window->Pos + window->Size * 0.5f;
-
-            for (int i = 0; i < window->DrawList->VtxBuffer.Size; i++)
-            {
-                ImDrawVert& v = window->DrawList->VtxBuffer[i];
-                v.pos = center + (v.pos - center) * window->AnimScale;
-
-                ImU32 col = v.col;
-                ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
-                a = (ImU32)(a * window->AnimAlpha);
-                v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
-            }
-
-            for (int i = 0; i < window->DrawList->CmdBuffer.Size; i++)
-            {
-                ImDrawCmd& cmd = window->DrawList->CmdBuffer[i];
-                ImVec4 cr = cmd.ClipRect;
-                ImVec2 min_val = ImVec2(cr.x, cr.y);
-                ImVec2 max_val = ImVec2(cr.z, cr.w);
-                min_val = center + (min_val - center) * window->AnimScale;
-                max_val = center + (max_val - center) * window->AnimScale;
-                cmd.ClipRect = ImVec4(min_val.x, min_val.y, max_val.x, max_val.y);
-            }
-
-            AddRootWindowToDrawData(window);
-
-            // Swap back original buffers and restore write pointer
-            original_vtx.swap(window->DrawList->VtxBuffer);
-            window->DrawList->_VtxWritePtr = original_write_ptr;
-
-            original_cmds.swap(window->DrawList->CmdBuffer);
-        }
-        else
-        {
-            AddRootWindowToDrawData(window);
-        }
+        AddRootWindowToDrawData(window);
     };
 
     for (ImGuiWindow* window : g.Windows)
     {
         IM_MSVC_WARNING_SUPPRESS(6011); // Static Analysis false positive "warning C6011: Dereferencing NULL pointer 'window'"
         bool is_active = IsWindowActiveAndVisible(window);
-        bool is_fading_out = (window->WasActive && !window->Active && window->AnimAlpha > 0.001f);
+        
+        if (is_active)
+        {
+            window->FadingOut = false;
+        }
+        else if (window->WasActive && !window->Active && !(window->Flags & ImGuiWindowFlags_ChildWindow))
+        {
+            window->FadingOut = true;
+        }
+
+        bool is_fading_out = window->FadingOut;
 
         if ((is_active || is_fading_out) && (window->Flags & ImGuiWindowFlags_ChildWindow) == 0 && window != windows_to_render_top_most[0] && window != windows_to_render_top_most[1])
         {
