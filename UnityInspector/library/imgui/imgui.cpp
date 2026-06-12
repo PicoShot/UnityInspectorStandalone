@@ -5242,21 +5242,19 @@ void ImGui::Render()
         if (dt <= 0.0f) dt = 1.0f / 60.0f;
 
         const float fade_speed = 7.0f;
-        const float scale_speed = 7.0f;
 
         if (!is_fading_out)
         {
             window->AnimAlpha = ImMin(window->AnimAlpha + dt * fade_speed, 1.0f);
-            window->AnimScale = ImMin(window->AnimScale + dt * scale_speed, 1.0f);
         }
         else
         {
             window->AnimAlpha = ImMax(window->AnimAlpha - dt * fade_speed, 0.0f);
-            window->AnimScale = ImMax(window->AnimScale - dt * scale_speed, 0.95f);
             if (window->AnimAlpha <= 0.0f)
                 window->FadingOut = false;
         }
 
+        window->AnimScale = 1.0f;
         AddRootWindowToDrawData(window);
     };
 
@@ -6282,14 +6280,35 @@ void ImGui::RenderWindowDecorations(ImGuiWindow* window, const ImRect& title_bar
         // Draw Shadow first!
         if (!(flags & ImGuiWindowFlags_ChildWindow) && !(flags & ImGuiWindowFlags_NoBackground))
         {
+            float gap_height = (!(flags & ImGuiWindowFlags_NoTitleBar)) ? 6.0f : 0.0f;
+
+            // Draw titlebar shadow
+            if (!(flags & ImGuiWindowFlags_NoTitleBar))
+            {
+                ImVec2 tb_min = window->Pos;
+                ImVec2 tb_max = window->Pos + ImVec2(window->Size.x, window->TitleBarHeight());
+                int shadow_layers = 12;
+                float max_shadow_alpha = 35.0f;
+                for (int i = 1; i <= shadow_layers; i++)
+                {
+                    float offset = (float)i * 0.8f;
+                    float alpha = max_shadow_alpha * (1.0f - (float)i / (float)shadow_layers);
+                    ImU32 shadow_col = IM_COL32(0, 0, 0, (int)alpha);
+                    window->DrawList->AddRect(tb_min - ImVec2(offset, offset), tb_max + ImVec2(offset, offset), shadow_col, window_rounding + offset, 0, 1.0f);
+                }
+            }
+
+            // Draw window body shadow
+            ImVec2 body_min = window->Pos + ImVec2(0.0f, (flags & ImGuiWindowFlags_NoTitleBar) ? 0.0f : (window->TitleBarHeight() + gap_height));
+            ImVec2 body_max = window->Pos + window->Size;
             int shadow_layers = 16;
-            float max_shadow_alpha = 40.0f; // out of 255
+            float max_shadow_alpha = 40.0f;
             for (int i = 1; i <= shadow_layers; i++)
             {
                 float offset = (float)i * 0.8f;
                 float alpha = max_shadow_alpha * (1.0f - (float)i / (float)shadow_layers);
                 ImU32 shadow_col = IM_COL32(0, 0, 0, (int)alpha);
-                window->DrawList->AddRect(window->Pos - ImVec2(offset, offset), window->Pos + window->Size + ImVec2(offset, offset), shadow_col, window_rounding + offset, 0, 1.0f);
+                window->DrawList->AddRect(body_min - ImVec2(offset, offset), body_max + ImVec2(offset, offset), shadow_col, window_rounding + offset, 0, 1.0f);
             }
         }
 
@@ -6306,14 +6325,16 @@ void ImGui::RenderWindowDecorations(ImGuiWindow* window, const ImRect& title_bar
             }
             if (override_alpha)
                 bg_col = (bg_col & ~IM_COL32_A_MASK) | (IM_F32_TO_INT8_SAT(alpha) << IM_COL32_A_SHIFT);
-            window->DrawList->AddRectFilled(window->Pos + ImVec2(0, window->TitleBarHeight()), window->Pos + window->Size, bg_col, window_rounding, (flags & ImGuiWindowFlags_NoTitleBar) ? 0 : ImDrawFlags_RoundCornersBottom);
+
+            float gap_height = (!(flags & ImGuiWindowFlags_NoTitleBar) && !(flags & ImGuiWindowFlags_ChildWindow)) ? 6.0f : 0.0f;
+            window->DrawList->AddRectFilled(window->Pos + ImVec2(0, window->TitleBarHeight() + gap_height), window->Pos + window->Size, bg_col, window_rounding, 0);
         }
 
         // Title bar
         if (!(flags & ImGuiWindowFlags_NoTitleBar))
         {
             ImU32 title_bar_col = GetColorU32(title_bar_is_highlight ? ImGuiCol_TitleBgActive : ImGuiCol_TitleBg);
-            window->DrawList->AddRectFilled(title_bar_rect.Min, title_bar_rect.Max, title_bar_col, window_rounding, ImDrawFlags_RoundCornersTop);
+            window->DrawList->AddRectFilled(title_bar_rect.Min, title_bar_rect.Max, title_bar_col, window_rounding, 0);
         }
 
         // Menu bar
@@ -6547,7 +6568,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         if (!(flags & ImGuiWindowFlags_ChildWindow))
         {
             window->AnimAlpha = 0.0f;
-            window->AnimScale = 0.95f;
+            window->AnimScale = 1.0f;
         }
     }
 
@@ -6773,9 +6794,8 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         // Outer Decoration Sizes
         // (we need to clear ScrollbarSize immediatly as CalcWindowAutoFitSize() needs it and can be called from other locations).
         const ImVec2 scrollbar_sizes_from_last_frame = window->ScrollbarSizes;
-        window->DecoOuterSizeX1 = 0.0f;
-        window->DecoOuterSizeX2 = 0.0f;
-        window->DecoOuterSizeY1 = window->TitleBarHeight() + window->MenuBarHeight();
+        float gap_height = (!(window->Flags & ImGuiWindowFlags_NoTitleBar) && !(window->Flags & ImGuiWindowFlags_ChildWindow)) ? 6.0f : 0.0f;
+        window->DecoOuterSizeY1 = window->TitleBarHeight() + window->MenuBarHeight() + gap_height;
         window->DecoOuterSizeY2 = 0.0f;
         window->ScrollbarSizes = ImVec2(0.0f, 0.0f);
 
