@@ -2659,6 +2659,15 @@ struct IMGUI_API ImGuiWindowTempData
     ImVector<float>         TextWrapPosStack;       // Store text wrap pos to restore (attention: .back() is not == TextWrapPos)
 };
 
+struct ImGuiTreeAnimState
+{
+    ImGuiID     ID;
+    float       StartPosY;
+    float       AnimProgress;
+    float       LastHeight;
+    int         VtxStartIndex;
+};
+
 // Storage for one window
 struct IMGUI_API ImGuiWindow
 {
@@ -2753,6 +2762,7 @@ struct IMGUI_API ImGuiWindow
 
     ImDrawList*             DrawList;                           // == &DrawListInst (for backward compatibility reason with code using imgui_internal.h we keep this a pointer)
     ImDrawList              DrawListInst;
+    ImDrawList              AnimDrawListInst;
     ImGuiWindow*            ParentWindow;                       // If we are a child _or_ popup _or_ docked window, this is pointing to our parent. Otherwise NULL.
     ImGuiWindow*            ParentWindowInBeginStack;
     ImGuiWindow*            RootWindow;                         // Point to ourself or first ancestor that is not a child window. Doesn't cross through popups/dock nodes.
@@ -2766,6 +2776,18 @@ struct IMGUI_API ImGuiWindow
     ImRect                  NavRectRel[ImGuiNavLayer_COUNT];    // Reference rectangle, in window relative space
     ImVec2                  NavPreferredScoringPosRel[ImGuiNavLayer_COUNT]; // Preferred X/Y position updated when moving on a given axis, reset to FLT_MAX.
     ImGuiID                 NavRootFocusScopeId;                // Focus Scope ID at the time of Begin()
+
+    // Custom animations
+    float                   AnimAlpha;
+    float                   AnimScale;
+    bool                    FadingOut;
+    float                   AnimCollapseT;
+    bool                    Collapsing;
+    ImVector<ImGuiTreeAnimState> TreeAnimStack;
+    ImGuiID                 PrevItemId;
+    int                     PrevItemVtxStart;
+    int                     PrevItemSplitterCount;
+    float                   PrevItemAlpha;
 
     int                     MemoryDrawListIdxCapacity;          // Backup of last idx/vtx count, so when waking up the window we can preallocate and avoid iterative alloc/copy
     int                     MemoryDrawListVtxCapacity;
@@ -2783,8 +2805,9 @@ public:
 
     // We don't use g.FontSize because the window may be != g.CurrentWindow.
     ImRect      Rect() const            { return ImRect(Pos.x, Pos.y, Pos.x + Size.x, Pos.y + Size.y); }
+
     ImRect      TitleBarRect() const    { return ImRect(Pos, ImVec2(Pos.x + SizeFull.x, Pos.y + TitleBarHeight)); }
-    ImRect      MenuBarRect() const     { float y1 = Pos.y + TitleBarHeight; return ImRect(Pos.x, y1, Pos.x + SizeFull.x, y1 + MenuBarHeight); }
+    ImRect      MenuBarRect() const     { float gap_height = (!(Flags & ImGuiWindowFlags_NoTitleBar) && !(Flags & ImGuiWindowFlags_ChildWindow)) ? 6.0f : 0.0f; float y1 = Pos.y + TitleBarHeight + gap_height; return ImRect(Pos.x, y1, Pos.x + SizeFull.x, y1 + MenuBarHeight); }
 
     // [OBSOLETE] ImGuiWindow::CalcFontSize() was removed in 1.92.0 because error-prone/misleading. You can use window->FontRefSize for a copy of g.FontSize at the time of the last Begin() call for this window.
     //float     CalcFontSize() const    { ImGuiContext& g = *Ctx; return g.FontSizeBase * FontWindowScale * FontWindowScaleParents;
@@ -2870,6 +2893,12 @@ struct IMGUI_API ImGuiTabBar
     float               ItemSpacingY;
     ImVec2              FramePadding;           // style.FramePadding locked at the time of BeginTabBar()
     ImVec2              BackupCursorPos;
+    ImGuiID             LastSelectedTabId;
+    float               AnimSelectedTabX1;
+    float               AnimSelectedTabX2;
+    float               AnimTabTransitionT;
+    int                 AnimContentVtxStart;
+    int                 AnimContentCmdStart;
     ImGuiTextBuffer     TabsNames;              // For non-docking tab bar we re-append names in a contiguous buffer.
 
     ImGuiTabBar();
@@ -3795,6 +3824,20 @@ namespace ImGui
     //inline void   FocusableItemUnregister(ImGuiWindow* window)                        // -> unnecessary: TempInputText() uses ImGuiInputTextFlags_MergedItem
 #endif
 
+    inline float AnimateWidgetFloat(ImGuiID id, bool active, float min_val, float max_val, float speed)
+    {
+        ImGuiContext& g = *GImGui;
+        ImGuiStorage* storage = g.CurrentWindow->DC.StateStorage ? g.CurrentWindow->DC.StateStorage : &g.CurrentWindow->StateStorage;
+        float current = storage->GetFloat(id, min_val);
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+        if (active)
+            current = ImMin(current + dt * speed, max_val);
+        else
+            current = ImMax(current - dt * speed, min_val);
+        storage->SetFloat(id, current);
+        return current;
+    }
 } // namespace ImGui
 
 

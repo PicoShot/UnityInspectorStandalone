@@ -949,13 +949,30 @@ bool ImGui::CollapseButton(ImGuiID id, const ImVec2& pos)
     if (is_clipped)
         return pressed;
 
-    // Render
     ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
     ImU32 text_col = GetColorU32(ImGuiCol_Text);
     if (hovered || held)
-        window->DrawList->AddRectFilled(bb.Min, bb.Max, bg_col);
+        window->DrawList->AddCircleFilled(bb.GetCenter() + ImVec2(0.0f, -0.5f), g.FontSize * 0.5f + 1.0f, bg_col);
+    
     RenderNavCursor(bb, id, ImGuiNavRenderCursorFlags_Compact);
-    RenderArrow(window->DrawList, bb.Min, text_col, window->Collapsed ? ImGuiDir_Right : ImGuiDir_Down, 1.0f);
+
+    // Draw animated rotating arrow
+    float angle = window->AnimCollapseT * (3.14159265f * 0.5f);
+    const float h = g.FontSize * 1.00f;
+    float r = h * 0.40f * 1.0f;
+    ImVec2 center = bb.Min + ImVec2(h * 0.50f, h * 0.50f);
+
+    ImVec2 a_vec = ImVec2(+0.750f, +0.000f) * r;
+    ImVec2 b_vec = ImVec2(-0.750f, +0.866f) * r;
+    ImVec2 c_vec = ImVec2(-0.750f, -0.866f) * r;
+
+    float cos_a = ImCos(angle);
+    float sin_a = ImSin(angle);
+    ImVec2 rotated_a = ImVec2(a_vec.x * cos_a - a_vec.y * sin_a, a_vec.x * sin_a + a_vec.y * cos_a);
+    ImVec2 rotated_b = ImVec2(b_vec.x * cos_a - b_vec.y * sin_a, b_vec.x * sin_a + b_vec.y * cos_a);
+    ImVec2 rotated_c = ImVec2(c_vec.x * cos_a - c_vec.y * sin_a, c_vec.x * sin_a + c_vec.y * cos_a);
+
+    window->DrawList->AddTriangleFilled(center + rotated_a, center + rotated_b, center + rotated_c, text_col);
 
     // Switch to moving the window after mouse is moved beyond the initial drag threshold
     if (IsItemActive() && IsMouseDragging(0))
@@ -1283,27 +1300,56 @@ bool ImGui::Checkbox(const char* label, bool* v)
         MarkItemEdited(id);
     }
 
+    // Smooth check/uncheck state and hover animations
+    float switch_t = AnimateWidgetFloat(id, *v, 0.0f, 1.0f, 12.0f);
+    float hover_t = AnimateWidgetFloat(id + 1, hovered, 0.0f, 1.0f, 12.0f);
+
     const ImRect check_bb(pos, pos + ImVec2(square_sz, square_sz));
     const bool mixed_value = (g.LastItemData.ItemFlags & ImGuiItemFlags_MixedValue) != 0;
     if (is_visible)
     {
         RenderNavCursor(total_bb, id);
-        ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : (mixed_value || checked) ? ImGuiCol_CheckboxSelectedBg : ImGuiCol_FrameBg);
-        ImU32 check_col = GetColorU32(ImGuiCol_CheckMark);
-        RenderFrame(check_bb.Min, check_bb.Max, bg_col, true, style.FrameRounding);
+
+        // Modern flat checkbox frame styling
+        float rounding = style.FrameRounding;
+        
+        // Background color of the checkbox box
+        ImVec4 bg_col_vec = (mixed_value || *v) ? style.Colors[ImGuiCol_CheckboxSelectedBg] : style.Colors[ImGuiCol_FrameBg];
+        if (hover_t > 0.0f)
+        {
+            bg_col_vec.x = ImMin(bg_col_vec.x + hover_t * 0.05f, 1.0f);
+            bg_col_vec.y = ImMin(bg_col_vec.y + hover_t * 0.05f, 1.0f);
+            bg_col_vec.z = ImMin(bg_col_vec.z + hover_t * 0.05f, 1.0f);
+        }
+        window->DrawList->AddRectFilled(check_bb.Min, check_bb.Max, GetColorU32(bg_col_vec), rounding);
+
+        // Draw active/hover border
+        ImU32 border_col = GetColorU32(hovered ? ImGuiCol_SeparatorActive : ImGuiCol_Separator);
+        window->DrawList->AddRect(check_bb.Min, check_bb.Max, border_col, rounding, 0, 1.0f);
+
         if (mixed_value)
         {
             // Undocumented tristate/mixed/indeterminate checkbox (#2644)
-            // This may seem awkwardly designed because the aim is to make ImGuiItemFlags_MixedValue supported by all widgets (not just checkbox)
             ImVec2 pad(ImMax(1.0f, IM_TRUNC(square_sz / 3.6f)), ImMax(1.0f, IM_TRUNC(square_sz / 3.6f)));
-            window->DrawList->AddRectFilled(check_bb.Min + pad, check_bb.Max - pad, check_col, style.FrameRounding);
+            window->DrawList->AddRectFilled(check_bb.Min + pad, check_bb.Max - pad, GetColorU32(ImGuiCol_CheckMark), rounding);
         }
-        else if (*v)
+        else if (switch_t > 0.0f)
         {
-            const float pad = ImMax(1.0f, IM_TRUNC(square_sz / 6.0f));
-            RenderCheckMark(window->DrawList, check_bb.Min + ImVec2(pad, pad), check_col, square_sz - pad * 2.0f);
+            float target_pad = ImMax(2.0f, IM_TRUNC(square_sz / 4.0f));
+            // Interpolate padding from square_sz * 0.5f (size = 0) to target_pad (fully open)
+            float pad = ImLerp(square_sz * 0.5f, target_pad, switch_t);
+            
+            ImVec2 inner_min = check_bb.Min + ImVec2(pad, pad);
+            ImVec2 inner_max = check_bb.Max - ImVec2(pad, pad);
+            // Inner box is filled with CheckMark color (which is White in our theme)
+            ImU32 fill_col = GetColorU32(ImGuiCol_CheckMark);
+            ImU32 a = (fill_col >> IM_COL32_A_SHIFT) & 0xFF;
+            a = static_cast<ImU32>(a * switch_t);
+            fill_col = (fill_col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+            window->DrawList->AddRectFilled(inner_min, inner_max, fill_col, ImMin(3.0f, rounding));
         }
     }
+
     const ImVec2 label_pos = ImVec2(check_bb.Max.x + style.ItemInnerSpacing.x, check_bb.Min.y + style.FramePadding.y);
     if (g.LogEnabled)
         LogRenderedText(&label_pos, mixed_value ? "[~]" : *v ? "[x]" : "[ ]");
@@ -6842,6 +6888,27 @@ bool ImGui::TreeNodeUpdateNextOpen(ImGuiID storage_id, ImGuiTreeNodeFlags flags)
     return is_open;
 }
 
+static void RenderArrowRotated(ImDrawList* draw_list, ImVec2 pos, ImU32 col, float angle, float scale)
+{
+    ImGuiContext& g = *GImGui;
+    const float h = g.FontSize * 1.00f;
+    float r = h * 0.40f * scale;
+    ImVec2 center = pos + ImVec2(h * 0.50f, h * 0.50f * scale);
+
+    ImVec2 a_orig = ImVec2(+0.750f, +0.000f) * r;
+    ImVec2 b_orig = ImVec2(-0.750f, +0.866f) * r;
+    ImVec2 c_orig = ImVec2(-0.750f, -0.866f) * r;
+
+    float cos_a = ImCos(angle);
+    float sin_a = ImSin(angle);
+
+    ImVec2 a(a_orig.x * cos_a - a_orig.y * sin_a, a_orig.x * sin_a + a_orig.y * cos_a);
+    ImVec2 b(b_orig.x * cos_a - b_orig.y * sin_a, b_orig.x * sin_a + b_orig.y * cos_a);
+    ImVec2 c(c_orig.x * cos_a - c_orig.y * sin_a, c_orig.x * sin_a + c_orig.y * cos_a);
+
+    draw_list->AddTriangleFilled(center + a, center + b, center + c, col);
+}
+
 // Store ImGuiTreeNodeStackData for just submitted node.
 // Currently only supports 32 level deep and we are fine with (1 << Depth) overflowing into a zero, easy to increase.
 static void TreeNodeStoreStackData(ImGuiTreeNodeFlags flags, float x1)
@@ -6911,9 +6978,59 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     if ((flags & (ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanLabelWidth | ImGuiTreeNodeFlags_SpanAllColumns)) == 0)
         interact_bb.Max.x = frame_bb.Min.x + text_width + (label_size.x > 0.0f ? style.ItemSpacing.x * 2.0f : 0.0f);
 
-    // Compute open and multi-select states before ItemAdd() as it clear NextItem data.
     ImGuiID storage_id = (g.NextItemData.HasFlags & ImGuiNextItemDataFlags_HasStorageID) ? g.NextItemData.StorageId : id;
+    const bool is_leaf = (flags & ImGuiTreeNodeFlags_Leaf) != 0;
     bool is_open = TreeNodeUpdateNextOpen(storage_id, flags);
+    bool actual_open = is_open;
+    bool can_animate = !is_leaf && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen);
+    float anim_progress = actual_open ? 1.0f : 0.0f;
+
+    if (can_animate)
+    {
+        ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
+        ImGuiID anim_progress_key = id ^ 0x12345678;
+        ImGuiID was_open_key = id ^ 0x55555555;
+
+        // Initialize state on first run
+        bool was_open = false;
+        if (storage->GetInt(was_open_key, -1) == -1)
+        {
+            was_open = actual_open;
+            storage->SetInt(was_open_key, actual_open ? 1 : 0);
+        }
+        else
+        {
+            was_open = storage->GetInt(was_open_key) != 0;
+        }
+
+        anim_progress = storage->GetFloat(anim_progress_key, actual_open ? 1.0f : 0.0f);
+
+        // Detect toggle transitions
+        if (actual_open != was_open)
+        {
+            anim_progress = actual_open ? 0.0f : 1.0f;
+            storage->SetInt(was_open_key, actual_open ? 1 : 0);
+        }
+
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+
+        float target = actual_open ? 1.0f : 0.0f;
+        if (anim_progress != target)
+        {
+            float speed = 4.0f; // Smooth 250ms speed
+            if (anim_progress < target)
+                anim_progress = ImMin(anim_progress + dt * speed, target);
+            else
+                anim_progress = ImMax(anim_progress - dt * speed, target);
+            storage->SetFloat(anim_progress_key, anim_progress);
+        }
+
+        if (anim_progress > 0.0f)
+        {
+            is_open = true;
+        }
+    }
 
     bool is_visible;
     if (span_all_columns || span_all_columns_label)
@@ -6950,7 +7067,6 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
                 store_tree_node_stack_data = true;
     }
 
-    const bool is_leaf = (flags & ImGuiTreeNodeFlags_Leaf) != 0;
     if (!is_visible)
     {
         if ((flags & ImGuiTreeNodeFlags_DrawLinesToNodes) && (window->DC.TreeRecordsClippedNodesY2Mask & (1 << (window->DC.TreeDepth - 1))))
@@ -7084,66 +7200,103 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
         g.LastItemData.StatusFlags |= ImGuiItemStatusFlags_ToggledSelection;
 
     // Render
+    if (window->DC.TreeDepth > 0)
     {
-        const ImU32 text_col = GetColorU32(ImGuiCol_Text);
-        ImGuiNavRenderCursorFlags nav_render_cursor_flags = ImGuiNavRenderCursorFlags_Compact;
-        if (is_multi_select)
-            nav_render_cursor_flags |= ImGuiNavRenderCursorFlags_AlwaysDraw; // Always show the nav rectangle
-        if (display_frame)
-        {
-            // Framed type
-            const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
-            RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, true, style.FrameRounding);
-            RenderNavCursor(frame_bb, id, nav_render_cursor_flags);
-            if (span_all_columns && !span_all_columns_label)
-                TablePopBackgroundChannel();
-            if (flags & ImGuiTreeNodeFlags_Bullet)
-                RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.60f, text_pos.y + g.FontSize * 0.5f), text_col);
-            else if (!is_leaf)
-                RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, is_open ? ((flags & ImGuiTreeNodeFlags_UpsideDownArrow) ? ImGuiDir_Up : ImGuiDir_Down) : ImGuiDir_Right, 1.0f);
-            else // Leaf without bullet, left-adjusted text
-                text_pos.x -= text_offset_x - padding.x;
-            if (flags & ImGuiTreeNodeFlags_ClipLabelForTrailingButton)
-                frame_bb.Max.x -= g.FontSize + style.FramePadding.x;
-            if (g.LogEnabled)
-                LogSetNextTextDecoration("###", "###");
-        }
-        else
-        {
-            // Unframed typed for tree nodes
-            if (hovered || selected)
-            {
-                const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
-                RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, false);
-            }
-            RenderNavCursor(frame_bb, id, nav_render_cursor_flags);
-            if (span_all_columns && !span_all_columns_label)
-                TablePopBackgroundChannel();
-            if (flags & ImGuiTreeNodeFlags_Bullet)
-                RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.5f, text_pos.y + g.FontSize * 0.5f), text_col);
-            else if (!is_leaf)
-                RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, is_open ? ((flags & ImGuiTreeNodeFlags_UpsideDownArrow) ? ImGuiDir_Up : ImGuiDir_Down) : ImGuiDir_Right, 0.70f);
-            if (g.LogEnabled)
-                LogSetNextTextDecoration(">", NULL);
-        }
-
-        if (draw_tree_lines)
-            TreeNodeDrawLineToChildNode(ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.5f));
-
-        // Label
-        if (display_frame)
-            RenderTextClipped(text_pos, frame_bb.Max, label, label_end, &label_size);
-        else
-            RenderText(text_pos, label, label_end, false);
-
-        if (span_all_columns_label)
-            TablePopBackgroundChannel();
+        float y = IM_TRUNC(frame_bb.Min.y + frame_height * 0.5f);
+        float x1 = IM_TRUNC(frame_bb.Min.x - style.IndentSpacing * 0.5f);
+        float x2 = IM_TRUNC(frame_bb.Min.x + padding.x);
+        window->DrawList->AddLine(ImVec2(x1, y), ImVec2(x2, y), GetColorU32(ImGuiCol_Separator, 0.4f), 1.0f);
     }
+
+    const ImU32 text_col = GetColorU32(ImGuiCol_Text);
+    ImGuiNavRenderCursorFlags nav_render_cursor_flags = ImGuiNavRenderCursorFlags_Compact;
+    if (is_multi_select)
+        nav_render_cursor_flags |= ImGuiNavRenderCursorFlags_AlwaysDraw; // Always show the nav rectangle
+
+    if (display_frame)
+    {
+        // Framed type
+        const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
+        RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, true, style.FrameRounding);
+        RenderNavCursor(frame_bb, id, nav_render_cursor_flags);
+        if (span_all_columns && !span_all_columns_label)
+            TablePopBackgroundChannel();
+        if (flags & ImGuiTreeNodeFlags_Bullet)
+            RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.60f, text_pos.y + g.FontSize * 0.5f), text_col);
+        else if (!is_leaf)
+            RenderArrowRotated(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, anim_progress * (IM_PI * 0.5f), 1.0f);
+        else // Leaf without bullet, left-adjusted text
+            text_pos.x -= text_offset_x - padding.x;
+        if (flags & ImGuiTreeNodeFlags_ClipLabelForTrailingButton)
+            frame_bb.Max.x -= g.FontSize + style.FramePadding.x;
+
+        if (g.LogEnabled)
+            LogSetNextTextDecoration("###", "###");
+    }
+    else
+    {
+        // Unframed typed for tree nodes
+        if (hovered || selected)
+        {
+            const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
+            RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, false, 4.0f);
+        }
+        if (selected)
+        {
+            float line_w = 3.0f;
+            float line_h = IM_TRUNC(frame_bb.GetHeight() * 0.6f);
+            float y_center = IM_TRUNC(frame_bb.Min.y + frame_bb.GetHeight() * 0.5f);
+            ImVec2 bar_min(frame_bb.Min.x + 2.0f, IM_TRUNC(y_center - line_h * 0.5f));
+            ImVec2 bar_max(frame_bb.Min.x + 2.0f + line_w, IM_TRUNC(y_center + line_h * 0.5f));
+            window->DrawList->AddRectFilled(bar_min, bar_max, GetColorU32(ImGuiCol_SliderGrabActive), 1.5f);
+        }
+        RenderNavCursor(frame_bb, id, nav_render_cursor_flags);
+        if (span_all_columns && !span_all_columns_label)
+            TablePopBackgroundChannel();
+        if (flags & ImGuiTreeNodeFlags_Bullet)
+            RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.5f, text_pos.y + g.FontSize * 0.5f), text_col);
+        else if (!is_leaf)
+            RenderArrowRotated(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, anim_progress * (IM_PI * 0.5f), 0.70f);
+        if (g.LogEnabled)
+            LogSetNextTextDecoration(">", NULL);
+    }
+
+    if (draw_tree_lines)
+        TreeNodeDrawLineToChildNode(ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.5f));
+
+    // Label
+    if (display_frame)
+        RenderTextClipped(text_pos, frame_bb.Max, label, label_end, &label_size);
+    else
+        RenderText(text_pos, label, label_end, false);
+
+    if (span_all_columns_label)
+        TablePopBackgroundChannel();
 
     if (is_open && store_tree_node_stack_data)
         TreeNodeStoreStackData(flags, text_pos.x - text_offset_x); // Call before TreePushOverrideID()
     if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
-        TreePushOverrideID(id); // Could use TreePush(label) but this avoid computing twice
+    {
+        TreePushOverrideID(id);
+
+        if (can_animate)
+        {
+            ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
+            ImGuiTreeAnimState anim_state;
+            anim_state.ID = id;
+            anim_state.StartPosY = window->DC.CursorPos.y;
+            anim_state.AnimProgress = anim_progress;
+            anim_state.LastHeight = storage->GetFloat(id ^ 0x87654321, 0.0f);
+            anim_state.VtxStartIndex = window->DrawList->VtxBuffer.Size;
+
+            float current_height = anim_state.LastHeight * anim_progress;
+            ImVec2 clip_min(window->ClipRect.Min.x, anim_state.StartPosY);
+            ImVec2 clip_max(window->ClipRect.Max.x, anim_state.StartPosY + current_height);
+            PushClipRect(clip_min, clip_max, true);
+
+            window->TreeAnimStack.push_back(anim_state);
+        }
+    }
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | (is_leaf ? 0 : ImGuiItemStatusFlags_Openable) | (is_open ? ImGuiItemStatusFlags_Opened : 0));
     return is_open;
@@ -7236,6 +7389,22 @@ void ImGui::TreePop()
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
+
+    // Draw indent guide line before calling Unindent()
+    if (window->TreeAnimStack.Size > 0 && window->TreeAnimStack.back().ID == window->IDStack.back())
+    {
+        ImGuiTreeAnimState anim_state = window->TreeAnimStack.back();
+        float t = anim_state.AnimProgress;
+        float current_height = (window->DC.CursorPos.y - anim_state.StartPosY) * t;
+        float x = window->DC.CursorPos.x - g.Style.IndentSpacing * 0.5f;
+        window->DrawList->AddLine(
+            ImVec2(x, anim_state.StartPosY),
+            ImVec2(x, anim_state.StartPosY + current_height),
+            GetColorU32(ImGuiCol_Separator, 0.4f),
+            1.0f
+        );
+    }
+
     Unindent();
 
     window->DC.TreeDepth--;
@@ -7261,6 +7430,37 @@ void ImGui::TreePop()
     }
 
     IM_ASSERT(window->IDStack.Size > 1); // There should always be 1 element in the IDStack (pushed during window creation). If this triggers you called TreePop/PopID too much.
+
+    // Apply tree collapse animation
+    if (window->TreeAnimStack.Size > 0 && window->TreeAnimStack.back().ID == window->IDStack.back())
+    {
+        ImGuiTreeAnimState anim_state = window->TreeAnimStack.back();
+        window->TreeAnimStack.pop_back();
+
+        float end_y = window->DC.CursorPos.y;
+        float full_height = end_y - anim_state.StartPosY;
+        ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
+        storage->SetFloat(anim_state.ID ^ 0x87654321, full_height);
+
+        PopClipRect();
+
+        // Apply fade to vertices submitted during the children block
+        int vtx_end = window->DrawList->VtxBuffer.Size;
+        float t = anim_state.AnimProgress;
+        for (int i = anim_state.VtxStartIndex; i < vtx_end; i++)
+        {
+            ImDrawVert& v = window->DrawList->VtxBuffer[i];
+            ImU32 col = v.col;
+            ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+            a = (ImU32)(a * t);
+            v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+        }
+
+        // Adjust cursor Y positions
+        window->DC.CursorPos.y = anim_state.StartPosY + full_height * t;
+        window->DC.CursorMaxPos.y = ImMax(window->DC.CursorMaxPos.y, window->DC.CursorPos.y);
+    }
+
     PopID();
 }
 
@@ -9745,6 +9945,10 @@ ImGuiTabBar::ImGuiTabBar()
     memset((void*)this, 0, sizeof(*this));
     CurrFrameVisible = PrevFrameVisible = -1;
     LastTabItemIdx = -1;
+    LastSelectedTabId = 0;
+    AnimSelectedTabX1 = AnimSelectedTabX2 = 0.0f;
+    AnimTabTransitionT = 1.0f;
+    AnimContentVtxStart = AnimContentCmdStart = 0;
 }
 
 static inline int TabItemGetSectionIdx(const ImGuiTabItem* tab)
@@ -9889,6 +10093,43 @@ void    ImGui::EndTabBar()
     // Fallback in case no TabItem have been submitted
     if (tab_bar->WantLayout)
         TabBarLayout(tab_bar);
+
+    // Update selection highlight animations and transition progress
+    ImGuiTabItem* selected_tab = TabBarFindTabByID(tab_bar, tab_bar->SelectedTabId);
+    if (selected_tab != NULL)
+    {
+        float target_x1 = selected_tab->Offset;
+        float target_x2 = selected_tab->Offset + selected_tab->Width;
+
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+
+        if (tab_bar->LastSelectedTabId == 0)
+        {
+            tab_bar->AnimSelectedTabX1 = target_x1;
+            tab_bar->AnimSelectedTabX2 = target_x2;
+            tab_bar->AnimTabTransitionT = 1.0f;
+        }
+        else if (tab_bar->LastSelectedTabId != tab_bar->SelectedTabId)
+        {
+            tab_bar->AnimTabTransitionT = 0.0f;
+        }
+
+        const float interpolation_speed = 12.0f;
+        tab_bar->AnimSelectedTabX1 = ImLerp(tab_bar->AnimSelectedTabX1, target_x1, ImMin(dt * interpolation_speed, 1.0f));
+        tab_bar->AnimSelectedTabX2 = ImLerp(tab_bar->AnimSelectedTabX2, target_x2, ImMin(dt * interpolation_speed, 1.0f));
+        tab_bar->AnimTabTransitionT = ImMin(tab_bar->AnimTabTransitionT + dt * 5.0f, 1.0f);
+
+        tab_bar->LastSelectedTabId = tab_bar->SelectedTabId;
+
+        // Draw animated active tab indicator pill at the bottom of the active tab header
+        ImVec2 min_pos = tab_bar->BarRect.Min + ImVec2(tab_bar->AnimSelectedTabX1 - tab_bar->ScrollingAnim + 4.0f, tab_bar->BarRect.GetHeight() - 3.0f);
+        ImVec2 max_pos = tab_bar->BarRect.Min + ImVec2(tab_bar->AnimSelectedTabX2 - tab_bar->ScrollingAnim - 4.0f, tab_bar->BarRect.GetHeight() - 1.0f);
+        
+        window->DrawList->PushClipRect(ImVec2(tab_bar->ScrollingRectMinX, tab_bar->BarRect.Min.y), ImVec2(tab_bar->ScrollingRectMaxX, tab_bar->BarRect.Max.y + 2.0f), true);
+        window->DrawList->AddRectFilled(min_pos, max_pos, GetColorU32(ImGuiCol_TabActive), 1.5f);
+        window->DrawList->PopClipRect();
+    }
 
     // Restore the last visible height if no tab is visible, this reduce vertical flicker/movement when a tabs gets removed without calling SetTabItemClosed().
     const bool tab_bar_appearing = (tab_bar->PrevFrameVisible + 1 < g.FrameCount);
@@ -10542,6 +10783,17 @@ bool    ImGui::BeginTabItem(const char* label, bool* p_open, ImGuiTabItemFlags f
     return ret;
 }
 
+static bool IsDescendantOf(ImGuiWindow* child, ImGuiWindow* parent)
+{
+    while (child)
+    {
+        if (child == parent)
+            return true;
+        child = child->ParentWindow;
+    }
+    return false;
+}
+
 void    ImGui::EndTabItem()
 {
     ImGuiContext& g = *GImGui;
@@ -10553,6 +10805,42 @@ void    ImGui::EndTabItem()
     IM_ASSERT_USER_ERROR_RET(tab_bar != NULL, "Needs to be called between BeginTabBar() and EndTabBar()!");
     IM_ASSERT(tab_bar->LastTabItemIdx >= 0);
     ImGuiTabItem* tab = &tab_bar->Tabs[tab_bar->LastTabItemIdx];
+
+    // Post-process parent window draw list and child windows submitted in this tab
+    if (tab_bar->AnimTabTransitionT < 0.999f)
+    {
+        float t = tab_bar->AnimTabTransitionT;
+
+        // 1. Apply fade to vertices submitted directly in the parent window for this tab
+        int vtx_end = window->DrawList->VtxBuffer.Size;
+        for (int i = tab_bar->AnimContentVtxStart; i < vtx_end; i++)
+        {
+            ImDrawVert& v = window->DrawList->VtxBuffer[i];
+            ImU32 col = v.col;
+            ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+            a = (ImU32)(a * t);
+            v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+        }
+
+        // 2. Find and fade all descendant child windows submitted during this tab
+        for (int n = 0; n < g.Windows.Size; n++)
+        {
+            ImGuiWindow* w = g.Windows[n];
+            if (w != window && w->Active && (w->Flags & ImGuiWindowFlags_ChildWindow) && IsDescendantOf(w, window))
+            {
+                int vtx_size = w->DrawList->VtxBuffer.Size;
+                for (int i = 0; i < vtx_size; i++)
+                {
+                    ImDrawVert& v = w->DrawList->VtxBuffer[i];
+                    ImU32 col = v.col;
+                    ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+                    a = (ImU32)(a * t);
+                    v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+                }
+            }
+        }
+    }
+
     if (!(tab->Flags & ImGuiTabItemFlags_NoPushId))
         PopID();
 }
@@ -10686,6 +10974,11 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
         ItemAdd(ImRect(), id, NULL, ImGuiItemFlags_NoNav);
         if (is_tab_button)
             return false;
+        if (tab_contents_visible)
+        {
+            tab_bar->AnimContentVtxStart = window->DrawList->VtxBuffer.Size;
+            tab_bar->AnimContentCmdStart = window->DrawList->CmdBuffer.Size;
+        }
         return tab_contents_visible;
     }
 
@@ -10719,6 +11012,11 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
         if (want_clip_rect)
             PopClipRect();
         window->DC.CursorPos = backup_main_cursor_pos;
+        if (tab_contents_visible)
+        {
+            tab_bar->AnimContentVtxStart = window->DrawList->VtxBuffer.Size;
+            tab_bar->AnimContentCmdStart = window->DrawList->CmdBuffer.Size;
+        }
         return tab_contents_visible;
     }
 
@@ -10826,6 +11124,13 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
     IM_ASSERT(!is_tab_button || !(tab_bar->SelectedTabId == tab->ID && is_tab_button)); // TabItemButton should not be selected
     if (is_tab_button)
         return pressed;
+
+    if (tab_contents_visible)
+    {
+        tab_bar->AnimContentVtxStart = window->DrawList->VtxBuffer.Size;
+        tab_bar->AnimContentCmdStart = window->DrawList->CmdBuffer.Size;
+    }
+
     return tab_contents_visible;
 }
 
@@ -10865,26 +11170,30 @@ ImVec2 ImGui::TabItemCalcSize(ImGuiWindow*)
 
 void ImGui::TabItemBackground(ImDrawList* draw_list, const ImRect& bb, ImGuiTabItemFlags flags, ImU32 col)
 {
-    // While rendering tabs, we trim 1 pixel off the top of our bounding box so they can fit within a regular frame height while looking "detached" from it.
     ImGuiContext& g = *GImGui;
     const float width = bb.GetWidth();
     IM_UNUSED(flags);
     IM_ASSERT(width > 0.0f);
-    const float rounding = ImMax(0.0f, ImMin((flags & ImGuiTabItemFlags_Button) ? g.Style.FrameRounding : g.Style.TabRounding, width * 0.5f - 1.0f));
-    const float y1 = bb.Min.y + 1.0f;
-    const float y2 = bb.Max.y - g.Style.TabBarBorderSize;
-    draw_list->PathLineTo(ImVec2(bb.Min.x, y2));
-    draw_list->PathArcToFast(ImVec2(bb.Min.x + rounding, y1 + rounding), rounding, 6, 9);
-    draw_list->PathArcToFast(ImVec2(bb.Max.x - rounding, y1 + rounding), rounding, 9, 12);
-    draw_list->PathLineTo(ImVec2(bb.Max.x, y2));
-    draw_list->PathFillConvex(col);
-    if (g.Style.TabBorderSize > 0.0f)
+
+    float rounding = g.Style.FrameRounding;
+
+    // Detect if this is selected or hovered based on its color
+    bool is_active = (col == GetColorU32(ImGuiCol_TabActive) || col == GetColorU32(ImGuiCol_TabUnfocusedActive));
+    bool is_hovered = (col == GetColorU32(ImGuiCol_TabHovered));
+
+    if (is_active)
     {
-        draw_list->PathLineTo(ImVec2(bb.Min.x + 0.5f, y2));
-        draw_list->PathArcToFast(ImVec2(bb.Min.x + rounding + 0.5f, y1 + rounding + 0.5f), rounding, 6, 9);
-        draw_list->PathArcToFast(ImVec2(bb.Max.x - rounding - 0.5f, y1 + rounding + 0.5f), rounding, 9, 12);
-        draw_list->PathLineTo(ImVec2(bb.Max.x - 0.5f, y2));
-        draw_list->PathStroke(GetColorU32(ImGuiCol_Border), g.Style.TabBorderSize);
+        ImRect capsule_bb = bb;
+        capsule_bb.Min += ImVec2(2.0f, 2.0f);
+        capsule_bb.Max -= ImVec2(2.0f, 2.0f);
+        draw_list->AddRectFilled(capsule_bb.Min, capsule_bb.Max, col, rounding);
+    }
+    else if (is_hovered)
+    {
+        ImRect capsule_bb = bb;
+        capsule_bb.Min += ImVec2(2.0f, 2.0f);
+        capsule_bb.Max -= ImVec2(2.0f, 2.0f);
+        draw_list->AddRectFilled(capsule_bb.Min, capsule_bb.Max, col, rounding);
     }
 }
 
