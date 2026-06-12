@@ -2504,6 +2504,10 @@ struct IMGUI_API ImGuiWindow
     ImVec2                  NavPreferredScoringPosRel[ImGuiNavLayer_COUNT]; // Preferred X/Y position updated when moving on a given axis, reset to FLT_MAX.
     ImGuiID                 NavRootFocusScopeId;                // Focus Scope ID at the time of Begin()
 
+    // Custom animations
+    float                   AnimAlpha;
+    float                   AnimScale;
+
     int                     MemoryDrawListIdxCapacity;          // Backup of last idx/vtx count, so when waking up the window we can preallocate and avoid iterative alloc/copy
     int                     MemoryDrawListVtxCapacity;
     bool                    MemoryCompacted;                    // Set when window extraneous data have been garbage collected
@@ -3426,6 +3430,20 @@ namespace ImGui
     inline bool     IsKeyPressedMap(ImGuiKey key, bool repeat = true)                   { IM_ASSERT(IsNamedKey(key)); return IsKeyPressed(key, repeat); } // Removed in 1.87: Mapping from named key is always identity!
 #endif
 
+    inline float AnimateWidgetFloat(ImGuiID id, bool active, float min_val, float max_val, float speed)
+    {
+        ImGuiContext& g = *GImGui;
+        ImGuiStorage* storage = g.CurrentWindow->DC.StateStorage ? g.CurrentWindow->DC.StateStorage : &g.CurrentWindow->StateStorage;
+        float current = storage->GetFloat(id, min_val);
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+        if (active)
+            current = ImMin(current + dt * speed, max_val);
+        else
+            current = ImMax(current - dt * speed, min_val);
+        storage->SetFloat(id, current);
+        return current;
+    }
 } // namespace ImGui
 
 

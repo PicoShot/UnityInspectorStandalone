@@ -5172,15 +5172,101 @@ void ImGui::Render()
     ImGuiWindow* windows_to_render_top_most[2];
     windows_to_render_top_most[0] = (g.NavWindowingTarget && !(g.NavWindowingTarget->Flags & ImGuiWindowFlags_NoBringToFrontOnFocus)) ? g.NavWindowingTarget->RootWindow : NULL;
     windows_to_render_top_most[1] = (g.NavWindowingTarget ? g.NavWindowingListWindow : NULL);
+
+    auto render_window_with_animations = [](ImGuiWindow* window, bool is_fading_out) {
+        ImGuiContext& g = *GImGui;
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+
+        const float fade_speed = 7.0f;
+        const float scale_speed = 7.0f;
+
+        if (!is_fading_out)
+        {
+            window->AnimAlpha = ImMin(window->AnimAlpha + dt * fade_speed, 1.0f);
+            window->AnimScale = ImMin(window->AnimScale + dt * scale_speed, 1.0f);
+        }
+        else
+        {
+            window->AnimAlpha = ImMax(window->AnimAlpha - dt * fade_speed, 0.0f);
+            window->AnimScale = ImMax(window->AnimScale - dt * scale_speed, 0.95f);
+        }
+
+        if (window->AnimAlpha < 0.999f || window->AnimScale < 0.999f)
+        {
+            // Swap out VtxBuffer and CmdBuffer to keep original pointers consistent
+            ImVector<ImDrawVert> original_vtx;
+            original_vtx.swap(window->DrawList->VtxBuffer);
+            ImDrawVert* original_write_ptr = window->DrawList->_VtxWritePtr;
+
+            ImVector<ImDrawCmd> original_cmds;
+            original_cmds.swap(window->DrawList->CmdBuffer);
+
+            // Populate temporary buffers
+            window->DrawList->VtxBuffer.resize(original_vtx.Size);
+            if (original_vtx.Size > 0)
+                memcpy(window->DrawList->VtxBuffer.Data, original_vtx.Data, original_vtx.Size * sizeof(ImDrawVert));
+            window->DrawList->_VtxWritePtr = window->DrawList->VtxBuffer.Data + window->DrawList->VtxBuffer.Size;
+
+            window->DrawList->CmdBuffer.resize(original_cmds.Size);
+            if (original_cmds.Size > 0)
+                memcpy(window->DrawList->CmdBuffer.Data, original_cmds.Data, original_cmds.Size * sizeof(ImDrawCmd));
+
+            ImVec2 center = window->Pos + window->Size * 0.5f;
+
+            for (int i = 0; i < window->DrawList->VtxBuffer.Size; i++)
+            {
+                ImDrawVert& v = window->DrawList->VtxBuffer[i];
+                v.pos = center + (v.pos - center) * window->AnimScale;
+
+                ImU32 col = v.col;
+                ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+                a = (ImU32)(a * window->AnimAlpha);
+                v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+            }
+
+            for (int i = 0; i < window->DrawList->CmdBuffer.Size; i++)
+            {
+                ImDrawCmd& cmd = window->DrawList->CmdBuffer[i];
+                ImVec4 cr = cmd.ClipRect;
+                ImVec2 min_val = ImVec2(cr.x, cr.y);
+                ImVec2 max_val = ImVec2(cr.z, cr.w);
+                min_val = center + (min_val - center) * window->AnimScale;
+                max_val = center + (max_val - center) * window->AnimScale;
+                cmd.ClipRect = ImVec4(min_val.x, min_val.y, max_val.x, max_val.y);
+            }
+
+            AddRootWindowToDrawData(window);
+
+            // Swap back original buffers and restore write pointer
+            original_vtx.swap(window->DrawList->VtxBuffer);
+            window->DrawList->_VtxWritePtr = original_write_ptr;
+
+            original_cmds.swap(window->DrawList->CmdBuffer);
+        }
+        else
+        {
+            AddRootWindowToDrawData(window);
+        }
+    };
+
     for (ImGuiWindow* window : g.Windows)
     {
         IM_MSVC_WARNING_SUPPRESS(6011); // Static Analysis false positive "warning C6011: Dereferencing NULL pointer 'window'"
-        if (IsWindowActiveAndVisible(window) && (window->Flags & ImGuiWindowFlags_ChildWindow) == 0 && window != windows_to_render_top_most[0] && window != windows_to_render_top_most[1])
-            AddRootWindowToDrawData(window);
+        bool is_active = IsWindowActiveAndVisible(window);
+        bool is_fading_out = (window->WasActive && !window->Active && window->AnimAlpha > 0.001f);
+
+        if ((is_active || is_fading_out) && (window->Flags & ImGuiWindowFlags_ChildWindow) == 0 && window != windows_to_render_top_most[0] && window != windows_to_render_top_most[1])
+        {
+            render_window_with_animations(window, is_fading_out);
+        }
     }
     for (int n = 0; n < IM_ARRAYSIZE(windows_to_render_top_most); n++)
-        if (windows_to_render_top_most[n] && IsWindowActiveAndVisible(windows_to_render_top_most[n])) // NavWindowingTarget is always temporarily displayed as the top-most window
-            AddRootWindowToDrawData(windows_to_render_top_most[n]);
+    {
+        ImGuiWindow* window = windows_to_render_top_most[n];
+        if (window && IsWindowActiveAndVisible(window))
+            render_window_with_animations(window, false);
+    }
 
     // Draw software mouse cursor if requested by io.MouseDrawCursor flag
     if (g.IO.MouseDrawCursor && g.MouseCursor != ImGuiMouseCursor_None)
@@ -6173,6 +6259,20 @@ void ImGui::RenderWindowDecorations(ImGuiWindow* window, const ImRect& title_bar
     }
     else
     {
+        // Draw Shadow first!
+        if (!(flags & ImGuiWindowFlags_ChildWindow) && !(flags & ImGuiWindowFlags_NoBackground))
+        {
+            int shadow_layers = 16;
+            float max_shadow_alpha = 40.0f; // out of 255
+            for (int i = 1; i <= shadow_layers; i++)
+            {
+                float offset = (float)i * 0.8f;
+                float alpha = max_shadow_alpha * (1.0f - (float)i / (float)shadow_layers);
+                ImU32 shadow_col = IM_COL32(0, 0, 0, (int)alpha);
+                window->DrawList->AddRect(window->Pos - ImVec2(offset, offset), window->Pos + window->Size + ImVec2(offset, offset), shadow_col, window_rounding + offset, 0, 1.0f);
+            }
+        }
+
         // Window background
         if (!(flags & ImGuiWindowFlags_NoBackground))
         {
@@ -6398,6 +6498,9 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
     if (window_just_created)
         window = CreateNewWindow(name, flags);
 
+    if (window->AnimScale == 0.0f)
+        window->AnimScale = 0.95f;
+
     // Automatically disable manual moving/resizing when NoInputs is set
     if ((flags & ImGuiWindowFlags_NoInputs) == ImGuiWindowFlags_NoInputs)
         flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize;
@@ -6419,7 +6522,14 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
     }
     window->Appearing = window_just_activated_by_user;
     if (window->Appearing)
+    {
         SetWindowConditionAllowFlags(window, ImGuiCond_Appearing, true);
+        if (!(flags & ImGuiWindowFlags_ChildWindow))
+        {
+            window->AnimAlpha = 0.0f;
+            window->AnimScale = 0.95f;
+        }
+    }
 
     // Update Flags, LastFrameActive, BeginOrderXXX fields
     if (first_begin_of_the_frame)

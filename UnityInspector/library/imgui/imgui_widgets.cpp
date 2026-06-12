@@ -1126,27 +1126,50 @@ bool ImGui::Checkbox(const char* label, bool* v)
         MarkItemEdited(id);
     }
 
+    // Smooth check/uncheck state and hover animations
+    float switch_t = AnimateWidgetFloat(id, *v, 0.0f, 1.0f, 12.0f);
+    float hover_t = AnimateWidgetFloat(id + 1, hovered, 0.0f, 1.0f, 12.0f);
+
     const ImRect check_bb(pos, pos + ImVec2(square_sz, square_sz));
     RenderNavHighlight(total_bb, id);
-    RenderFrame(check_bb.Min, check_bb.Max, GetColorU32((held && hovered) ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), true, style.FrameRounding);
-    ImU32 check_col = GetColorU32(ImGuiCol_CheckMark);
-    bool mixed_value = (g.LastItemData.InFlags & ImGuiItemFlags_MixedValue) != 0;
-    if (mixed_value)
+
+    // Modern flat checkbox frame styling
+    float rounding = style.FrameRounding;
+    
+    // Background color of the checkbox box
+    ImVec4 bg_col_vec = style.Colors[ImGuiCol_FrameBg];
+    if (hover_t > 0.0f)
     {
-        // Undocumented tristate/mixed/indeterminate checkbox (#2644)
-        // This may seem awkwardly designed because the aim is to make ImGuiItemFlags_MixedValue supported by all widgets (not just checkbox)
-        ImVec2 pad(ImMax(1.0f, IM_TRUNC(square_sz / 3.6f)), ImMax(1.0f, IM_TRUNC(square_sz / 3.6f)));
-        window->DrawList->AddRectFilled(check_bb.Min + pad, check_bb.Max - pad, check_col, style.FrameRounding);
+        bg_col_vec.x = ImMin(bg_col_vec.x + hover_t * 0.05f, 1.0f);
+        bg_col_vec.y = ImMin(bg_col_vec.y + hover_t * 0.05f, 1.0f);
+        bg_col_vec.z = ImMin(bg_col_vec.z + hover_t * 0.05f, 1.0f);
     }
-    else if (*v)
+    window->DrawList->AddRectFilled(check_bb.Min, check_bb.Max, GetColorU32(bg_col_vec), rounding);
+
+    // Draw active/hover border
+    ImU32 border_col = GetColorU32(hovered ? ImGuiCol_SeparatorActive : ImGuiCol_Separator);
+    window->DrawList->AddRect(check_bb.Min, check_bb.Max, border_col, rounding, 0, 1.0f);
+
+    // Draw the inner filled box when checked
+    if (switch_t > 0.0f)
     {
-        const float pad = ImMax(1.0f, IM_TRUNC(square_sz / 6.0f));
-        RenderCheckMark(window->DrawList, check_bb.Min + ImVec2(pad, pad), check_col, square_sz - pad * 2.0f);
+        float target_pad = ImMax(2.0f, IM_TRUNC(square_sz / 4.0f));
+        // Interpolate padding from square_sz * 0.5f (size = 0) to target_pad (fully open)
+        float pad = ImLerp(square_sz * 0.5f, target_pad, switch_t);
+        
+        ImVec2 inner_min = check_bb.Min + ImVec2(pad, pad);
+        ImVec2 inner_max = check_bb.Max - ImVec2(pad, pad);
+        // Inner box is filled with CheckMark color (which is White in our theme)
+        ImU32 fill_col = GetColorU32(ImGuiCol_CheckMark);
+        ImU32 a = (fill_col >> IM_COL32_A_SHIFT) & 0xFF;
+        a = static_cast<ImU32>(a * switch_t);
+        fill_col = (fill_col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+        window->DrawList->AddRectFilled(inner_min, inner_max, fill_col, ImMin(3.0f, rounding));
     }
 
     ImVec2 label_pos = ImVec2(check_bb.Max.x + style.ItemInnerSpacing.x, check_bb.Min.y + style.FramePadding.y);
     if (g.LogEnabled)
-        LogRenderedText(&label_pos, mixed_value ? "[~]" : *v ? "[x]" : "[ ]");
+        LogRenderedText(&label_pos, *v ? "[x]" : "[ ]");
     if (label_size.x > 0.0f)
         RenderText(label_pos, label);
 
@@ -8818,26 +8841,30 @@ ImVec2 ImGui::TabItemCalcSize(ImGuiWindow*)
 
 void ImGui::TabItemBackground(ImDrawList* draw_list, const ImRect& bb, ImGuiTabItemFlags flags, ImU32 col)
 {
-    // While rendering tabs, we trim 1 pixel off the top of our bounding box so they can fit within a regular frame height while looking "detached" from it.
     ImGuiContext& g = *GImGui;
     const float width = bb.GetWidth();
     IM_UNUSED(flags);
     IM_ASSERT(width > 0.0f);
-    const float rounding = ImMax(0.0f, ImMin((flags & ImGuiTabItemFlags_Button) ? g.Style.FrameRounding : g.Style.TabRounding, width * 0.5f - 1.0f));
-    const float y1 = bb.Min.y + 1.0f;
-    const float y2 = bb.Max.y - g.Style.TabBarBorderSize;
-    draw_list->PathLineTo(ImVec2(bb.Min.x, y2));
-    draw_list->PathArcToFast(ImVec2(bb.Min.x + rounding, y1 + rounding), rounding, 6, 9);
-    draw_list->PathArcToFast(ImVec2(bb.Max.x - rounding, y1 + rounding), rounding, 9, 12);
-    draw_list->PathLineTo(ImVec2(bb.Max.x, y2));
-    draw_list->PathFillConvex(col);
-    if (g.Style.TabBorderSize > 0.0f)
+
+    float rounding = g.Style.FrameRounding;
+
+    // Detect if this is selected or hovered based on its color
+    bool is_active = (col == GetColorU32(ImGuiCol_TabActive) || col == GetColorU32(ImGuiCol_TabUnfocusedActive));
+    bool is_hovered = (col == GetColorU32(ImGuiCol_TabHovered));
+
+    if (is_active)
     {
-        draw_list->PathLineTo(ImVec2(bb.Min.x + 0.5f, y2));
-        draw_list->PathArcToFast(ImVec2(bb.Min.x + rounding + 0.5f, y1 + rounding + 0.5f), rounding, 6, 9);
-        draw_list->PathArcToFast(ImVec2(bb.Max.x - rounding - 0.5f, y1 + rounding + 0.5f), rounding, 9, 12);
-        draw_list->PathLineTo(ImVec2(bb.Max.x - 0.5f, y2));
-        draw_list->PathStroke(GetColorU32(ImGuiCol_Border), 0, g.Style.TabBorderSize);
+        ImRect capsule_bb = bb;
+        capsule_bb.Min += ImVec2(2.0f, 2.0f);
+        capsule_bb.Max -= ImVec2(2.0f, 2.0f);
+        draw_list->AddRectFilled(capsule_bb.Min, capsule_bb.Max, col, rounding);
+    }
+    else if (is_hovered)
+    {
+        ImRect capsule_bb = bb;
+        capsule_bb.Min += ImVec2(2.0f, 2.0f);
+        capsule_bb.Max -= ImVec2(2.0f, 2.0f);
+        draw_list->AddRectFilled(capsule_bb.Min, capsule_bb.Max, col, rounding);
     }
 }
 
