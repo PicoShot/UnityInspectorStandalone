@@ -1469,7 +1469,7 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 	{
 		if (showBoth)
 			ImGui::BeginChild("WorldTransform", ImVec2(childWidth, 0),
-			                  ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
+			                  ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
 
 		ImGui::TextDisabled("World Position");
 		const auto pos = transform->GetPosition();
@@ -1500,7 +1500,7 @@ void Inspector::RenderTransformSection(UT::Transform* transform, InspectedObject
 	{
 		if (showBoth)
 			ImGui::BeginChild("LocalTransform", ImVec2(childWidth, 0),
-			                  ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
+			                  ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
 
 		ImGui::TextDisabled("Local Position");
 		const auto localPos = transform->GetLocalPosition();
@@ -2336,7 +2336,16 @@ void Inspector::RenderMethodsSection(void* instance, const std::vector<Component
 
 			if (canInvoke)
 			{
-				if (ImGui::SmallButton("Invoke"))
+				ImVec2 cursor = ImGui::GetCursorScreenPos();
+				ImGui::InvisibleButton("Invoke", ImVec2(60, 18));
+				bool clicked = ImGui::IsItemClicked();
+				bool hovered = ImGui::IsItemHovered();
+				ImU32 bg = hovered ? IM_COL32(80, 140, 220, 255) : IM_COL32(60, 60, 60, 255);
+				ImGui::GetWindowDrawList()->AddRectFilled(
+					ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), bg, 3.0f);
+				ImGui::GetWindowDrawList()->AddText(
+					ImVec2(cursor.x + 8, cursor.y + 1), IM_COL32(255,255,255,255), "Invoke");
+				if (clicked)
 				{
 					invokeState.showPopup = true;
 					invokeState.targetInstance = instance;
@@ -2345,6 +2354,8 @@ void Inspector::RenderMethodsSection(void* instance, const std::vector<Component
 					invokeState.parameterValues.resize(method->parameters.size());
 					invokeState.resultText.clear();
 					invokeState.hasResult = false;
+					invokeState.resultPointer = nullptr;
+					invokeState.resultEditableType = EditableType::None;
 				}
 			}
 			else

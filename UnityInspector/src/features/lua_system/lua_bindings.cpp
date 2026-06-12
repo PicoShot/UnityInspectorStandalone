@@ -1837,8 +1837,8 @@ namespace LuaBindings
 		                                                  {
 			                                                  self->AddRect(
 				                                                  ImVec2(a.x, a.y), ImVec2(b.x, b.y), col,
-				                                                  rounding.value_or(0.0f), flags.value_or(0),
-				                                                  thickness.value_or(1.0f));
+				                                                  rounding.value_or(0.0f), thickness.value_or(1.0f),
+				                                                  flags.value_or(0));
 		                                                  },
 		                                                  "AddRectFilled",
 		                                                  [](ImDrawList* self, const UT::Vector2& a,

@@ -26,6 +26,8 @@ struct FieldEditorState
 {
 	bool showWindow = false;
 	std::string windowTitle;
+	std::string lastTitle;
+	int windowId = 0;
 
 	UR::Field* targetField = nullptr;
 	void* targetInstance = nullptr;

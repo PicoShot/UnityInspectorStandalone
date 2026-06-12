@@ -411,10 +411,10 @@ void Inspector::RefreshHierarchy()
 
 void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 {
+	if (!tab.gameObject || !Helper::SafeIsAlive(tab.gameObject)) return;
+
 	tab.navigationStack.clear();
 	tab.objectPath.clear();
-
-	if (!tab.gameObject || !Helper::SafeIsAlive(tab.gameObject)) return;
 
 	if (UT::Transform* transform = nullptr; Helper::SafeGetTransform(tab.gameObject, transform) && transform)
 	{
