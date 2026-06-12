@@ -6358,6 +6358,13 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
         g.LastItemData.StatusFlags |= ImGuiItemStatusFlags_ToggledSelection;
 
     // Render
+    if (window->DC.TreeDepth > 0)
+    {
+        float y = IM_TRUNC(frame_bb.Min.y + frame_height * 0.5f);
+        float x1 = IM_TRUNC(frame_bb.Min.x - style.IndentSpacing * 0.5f);
+        float x2 = IM_TRUNC(frame_bb.Min.x + padding.x);
+        window->DrawList->AddLine(ImVec2(x1, y), ImVec2(x2, y), GetColorU32(ImGuiCol_Separator, 0.4f), 1.0f);
+    }
     const ImU32 text_col = GetColorU32(ImGuiCol_Text);
     ImGuiNavHighlightFlags nav_highlight_flags = ImGuiNavHighlightFlags_TypeThin;
     if (display_frame)
