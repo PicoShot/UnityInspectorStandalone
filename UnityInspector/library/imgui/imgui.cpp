@@ -6731,6 +6731,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         window->ClipRect = ImVec4(-FLT_MAX, -FLT_MAX, +FLT_MAX, +FLT_MAX);
         window->IDStack.resize(1);
         window->TreeAnimStack.resize(0);
+        window->PrevItemId = 0;
         window->DrawList->_ResetForNewFrame();
         window->DC.CurrentTableIdx = -1;
 
@@ -7285,10 +7286,15 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
     return !window->SkipItems;
 }
 
+static void FinalizeLastItemAnim(ImGuiWindow* window);
+
 void ImGui::End()
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
+
+    // Finalize the last item of the window
+    FinalizeLastItemAnim(window);
 
     // Error checking: verify that user hasn't called End() too many times!
     if (g.CurrentWindowStack.Size <= 1 && g.WithinFrameScopeWithImplicitWindow)
@@ -9888,6 +9894,33 @@ void ImGui::ItemSize(const ImVec2& size, float text_baseline_y)
         SameLine();
 }
 
+static void FinalizeLastItemAnim(ImGuiWindow* window)
+{
+    if (window->PrevItemId != 0)
+    {
+        // Only apply if the draw list hasn't been reorganized since we captured the vertex start
+        if (window->DrawList->_Splitter._Count <= 1
+            && window->PrevItemSplitterCount <= 1
+            && window->PrevItemVtxStart <= window->DrawList->VtxBuffer.Size)
+        {
+            int vtx_end = window->DrawList->VtxBuffer.Size;
+            float alpha = window->PrevItemAlpha;
+            if (alpha < 1.0f && window->PrevItemVtxStart >= 0)
+            {
+                for (int i = window->PrevItemVtxStart; i < vtx_end; i++)
+                {
+                    ImDrawVert& v = window->DrawList->VtxBuffer[i];
+                    ImU32 col = v.col;
+                    ImU32 a = (col >> IM_COL32_A_SHIFT) & 0xFF;
+                    a = (ImU32)(a * alpha);
+                    v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+                }
+            }
+        }
+        window->PrevItemId = 0;
+    }
+}
+
 // Declare item bounding box for clipping and interaction.
 // Note that the size can be different than the one provided to ItemSize(). Typically, widgets that spread over available surface
 // declare their minimum size requirement to ItemSize() and provide a larger region to ItemAdd() which is used drawing/interaction.
@@ -9895,6 +9928,49 @@ bool ImGui::ItemAdd(const ImRect& bb, ImGuiID id, const ImRect* nav_bb_arg, ImGu
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
+
+    // Finalize the previous item first
+    FinalizeLastItemAnim(window);
+
+    // Track fade-in animation for new items (only when not inside a split draw channel)
+    if (id != 0 && !(window->Flags & ImGuiWindowFlags_NoInputs) && window->DrawList->_Splitter._Count <= 1)
+    {
+        ImGuiStorage* storage = window->DC.StateStorage ? window->DC.StateStorage : &window->StateStorage;
+        ImGuiID anim_alpha_key = id ^ 0x88888888;
+        ImGuiID last_frame_key = id ^ 0xbbbbbbbb;
+
+        float prev_alpha = storage->GetFloat(anim_alpha_key, -1.0f);
+        int last_frame = storage->GetInt(last_frame_key, 0);
+
+        bool is_new = (prev_alpha < 0.0f) || (g.FrameCount - last_frame > 1);
+        if (is_new)
+        {
+            prev_alpha = 0.0f;
+            storage->SetFloat(anim_alpha_key, prev_alpha);
+        }
+
+        storage->SetInt(last_frame_key, g.FrameCount);
+
+        float dt = g.IO.DeltaTime;
+        if (dt <= 0.0f) dt = 1.0f / 60.0f;
+
+        float speed = 6.0f;
+        if (g.ActiveId == id || g.HoveredId == id || window->Appearing)
+        {
+            prev_alpha = 1.0f;
+        }
+        else
+        {
+            prev_alpha = ImMin(prev_alpha + dt * speed, 1.0f);
+        }
+
+        storage->SetFloat(anim_alpha_key, prev_alpha);
+
+        window->PrevItemId = id;
+        window->PrevItemVtxStart = window->DrawList->VtxBuffer.Size;
+        window->PrevItemSplitterCount = window->DrawList->_Splitter._Count;
+        window->PrevItemAlpha = prev_alpha;
+    }
 
     // Set item data
     // (DisplayRect is left untouched, made valid when ImGuiItemStatusFlags_HasDisplayRect is set)

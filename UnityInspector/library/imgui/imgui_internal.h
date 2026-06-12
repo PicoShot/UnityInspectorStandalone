@@ -2521,6 +2521,10 @@ struct IMGUI_API ImGuiWindow
     float                   AnimCollapseT;
     bool                    Collapsing;
     ImVector<ImGuiTreeAnimState> TreeAnimStack;
+    ImGuiID                 PrevItemId;
+    int                     PrevItemVtxStart;
+    int                     PrevItemSplitterCount;
+    float                   PrevItemAlpha;
 
     int                     MemoryDrawListIdxCapacity;          // Backup of last idx/vtx count, so when waking up the window we can preallocate and avoid iterative alloc/copy
     int                     MemoryDrawListVtxCapacity;
