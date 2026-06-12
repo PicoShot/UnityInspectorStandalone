@@ -5251,7 +5251,7 @@ void ImGui::Render()
         if (dt <= 0.0f) dt = 1.0f / 60.0f;
 
         const float fade_speed = 7.0f;
-        const float collapse_speed = 7.0f;
+        const float collapse_speed = 3.5f;
 
         if (!is_fading_out)
         {
@@ -6811,6 +6811,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
                 {
                     window->Collapsed = false;
                     window->Collapsing = false;
+                    window->AnimCollapseT = 0.0f;
                     use_current_size_for_scrollbar_y = true;
                 }
                 else

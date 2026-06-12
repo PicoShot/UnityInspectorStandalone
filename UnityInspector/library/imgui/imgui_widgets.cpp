@@ -852,7 +852,23 @@ bool ImGui::CollapseButton(ImGuiID id, const ImVec2& pos)
     ImU32 text_col = GetColorU32(ImGuiCol_Text);
     if (hovered || held)
         window->DrawList->AddCircleFilled(bb.GetCenter() + ImVec2(0.0f, -0.5f), g.FontSize * 0.5f + 1.0f, bg_col);
-    RenderArrow(window->DrawList, bb.Min, text_col, window->Collapsed ? ImGuiDir_Right : ImGuiDir_Down, 1.0f);
+    // Draw animated rotating arrow
+    float angle = window->AnimCollapseT * (3.14159265f * 0.5f);
+    const float h = g.FontSize * 1.00f;
+    float r = h * 0.40f * 1.0f;
+    ImVec2 center = bb.Min + ImVec2(h * 0.50f, h * 0.50f);
+
+    ImVec2 a_vec = ImVec2(+0.750f, +0.000f) * r;
+    ImVec2 b_vec = ImVec2(-0.750f, +0.866f) * r;
+    ImVec2 c_vec = ImVec2(-0.750f, -0.866f) * r;
+
+    float cos_a = ImCos(angle);
+    float sin_a = ImSin(angle);
+    ImVec2 rotated_a = ImVec2(a_vec.x * cos_a - a_vec.y * sin_a, a_vec.x * sin_a + a_vec.y * cos_a);
+    ImVec2 rotated_b = ImVec2(b_vec.x * cos_a - b_vec.y * sin_a, b_vec.x * sin_a + b_vec.y * cos_a);
+    ImVec2 rotated_c = ImVec2(c_vec.x * cos_a - c_vec.y * sin_a, c_vec.x * sin_a + c_vec.y * cos_a);
+
+    window->DrawList->AddTriangleFilled(center + rotated_a, center + rotated_b, center + rotated_c, text_col);
 
     // Switch to moving the window after mouse is moved beyond the initial drag threshold
     if (IsItemActive() && IsMouseDragging(0))
