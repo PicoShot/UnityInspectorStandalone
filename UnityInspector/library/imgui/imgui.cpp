@@ -4894,7 +4894,7 @@ static void AddWindowToDrawData(ImGuiWindow* window, int layer, bool parent_fadi
 
     ImGuiWindow* root = window->RootWindow;
     bool is_tooltip = (root->Flags & ImGuiWindowFlags_Tooltip) != 0;
-    float anim_alpha = is_tooltip ? 1.0f : root->AnimAlpha;
+    float anim_alpha = root->AnimAlpha;
     float anim_scale = is_tooltip ? 1.0f : root->AnimScale;
     float anim_collapse = is_tooltip ? 1.0f : root->AnimCollapseT;
 
@@ -6355,6 +6355,12 @@ void ImGui::RenderWindowDecorations(ImGuiWindow* window, const ImRect& title_bar
             }
             if (override_alpha)
                 bg_col = (bg_col & ~IM_COL32_A_MASK) | (IM_F32_TO_INT8_SAT(alpha) << IM_COL32_A_SHIFT);
+
+            if (flags & ImGuiWindowFlags_Tooltip)
+            {
+                float tooltip_alpha = 0.85f;
+                bg_col = (bg_col & ~IM_COL32_A_MASK) | (IM_F32_TO_INT8_SAT(tooltip_alpha) << IM_COL32_A_SHIFT);
+            }
 
             float gap_height = (!(flags & ImGuiWindowFlags_NoTitleBar) && !(flags & ImGuiWindowFlags_ChildWindow)) ? 6.0f : 0.0f;
             window->DrawList->AddRectFilled(window->Pos + ImVec2(0, window->TitleBarHeight() + gap_height), window->Pos + window->Size, bg_col, window_rounding, 0);
@@ -10609,7 +10615,14 @@ bool ImGui::BeginTooltipEx(ImGuiTooltipFlags tooltip_flags, ImGuiWindowFlags ext
                 ImFormatString(window_name, IM_ARRAYSIZE(window_name), "##Tooltip_%02d", ++g.TooltipOverrideCount);
             }
     ImGuiWindowFlags flags = ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize;
+    
+    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+    PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
+
     Begin(window_name, NULL, flags | extra_window_flags);
+
+    PopStyleVar(3);
     // 2023-03-09: Added bool return value to the API, but currently always returning true.
     // If this ever returns false we need to update BeginDragDropSource() accordingly.
     //if (!ret)
