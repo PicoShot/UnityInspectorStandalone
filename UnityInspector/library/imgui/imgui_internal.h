@@ -2509,6 +2509,8 @@ struct IMGUI_API ImGuiWindow
     float                   AnimAlpha;
     float                   AnimScale;
     bool                    FadingOut;
+    float                   AnimCollapseT;
+    bool                    Collapsing;
 
     int                     MemoryDrawListIdxCapacity;          // Backup of last idx/vtx count, so when waking up the window we can preallocate and avoid iterative alloc/copy
     int                     MemoryDrawListVtxCapacity;

@@ -3784,6 +3784,7 @@ ImGuiWindow::ImGuiWindow(ImGuiContext* ctx, const char* name) : DrawListInst(NUL
     DrawList->_OwnerName = Name;
     AnimDrawListInst._Data = &Ctx->DrawListSharedData;
     AnimDrawListInst._OwnerName = Name;
+    AnimCollapseT = 1.0f;
     NavPreferredScoringPosRel[0] = NavPreferredScoringPosRel[1] = ImVec2(FLT_MAX, FLT_MAX);
 }
 
@@ -4895,8 +4896,9 @@ static void AddWindowToDrawData(ImGuiWindow* window, int layer, bool parent_fadi
     bool is_tooltip = (root->Flags & ImGuiWindowFlags_Tooltip) != 0;
     float anim_alpha = is_tooltip ? 1.0f : root->AnimAlpha;
     float anim_scale = is_tooltip ? 1.0f : root->AnimScale;
+    float anim_collapse = is_tooltip ? 1.0f : root->AnimCollapseT;
 
-    if (anim_alpha < 0.999f || anim_scale < 0.999f)
+    if (anim_alpha < 0.999f || anim_scale < 0.999f || anim_collapse < 0.999f)
     {
         ImDrawList* anim_draw_list = &window->AnimDrawListInst;
 
@@ -4932,7 +4934,8 @@ static void AddWindowToDrawData(ImGuiWindow* window, int layer, bool parent_fadi
             v.col = (col & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
         }
 
-        // Scale clipping rects
+        // Scale and clip clipping rects
+        float animated_bottom = root->Pos.y + root->Size.y;
         for (int i = 0; i < anim_draw_list->CmdBuffer.Size; i++)
         {
             ImDrawCmd& cmd = anim_draw_list->CmdBuffer[i];
@@ -4941,6 +4944,12 @@ static void AddWindowToDrawData(ImGuiWindow* window, int layer, bool parent_fadi
             ImVec2 max_val = ImVec2(cr.z, cr.w);
             min_val = center + (min_val - center) * anim_scale;
             max_val = center + (max_val - center) * anim_scale;
+
+            // Cap the bottom at the animated window height
+            max_val.y = ImMin(max_val.y, animated_bottom);
+            if (max_val.y < min_val.y)
+                max_val.y = min_val.y;
+
             cmd.ClipRect = ImVec4(min_val.x, min_val.y, max_val.x, max_val.y);
         }
 
@@ -5242,6 +5251,7 @@ void ImGui::Render()
         if (dt <= 0.0f) dt = 1.0f / 60.0f;
 
         const float fade_speed = 7.0f;
+        const float collapse_speed = 7.0f;
 
         if (!is_fading_out)
         {
@@ -5252,6 +5262,26 @@ void ImGui::Render()
             window->AnimAlpha = ImMax(window->AnimAlpha - dt * fade_speed, 0.0f);
             if (window->AnimAlpha <= 0.0f)
                 window->FadingOut = false;
+        }
+
+        // Animate collapse/expand
+        if (window->Collapsed)
+        {
+            window->AnimCollapseT = 0.0f;
+            window->Collapsing = false;
+        }
+        else if (window->Collapsing)
+        {
+            window->AnimCollapseT = ImMax(window->AnimCollapseT - dt * collapse_speed, 0.0f);
+            if (window->AnimCollapseT <= 0.0f)
+            {
+                window->Collapsed = true;
+                window->Collapsing = false;
+            }
+        }
+        else
+        {
+            window->AnimCollapseT = ImMin(window->AnimCollapseT + dt * collapse_speed, 1.0f);
         }
 
         window->AnimScale = 1.0f;
@@ -6777,9 +6807,16 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
                 window->WantCollapseToggle = true;
             if (window->WantCollapseToggle)
             {
-                window->Collapsed = !window->Collapsed;
-                if (!window->Collapsed)
+                if (window->Collapsed)
+                {
+                    window->Collapsed = false;
+                    window->Collapsing = false;
                     use_current_size_for_scrollbar_y = true;
+                }
+                else
+                {
+                    window->Collapsing = true;
+                }
                 MarkIniSettingsDirty(window);
             }
         }
@@ -6835,7 +6872,10 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
 
         // Apply minimum/maximum window size constraints and final size
         window->SizeFull = CalcWindowSizeAfterConstraint(window, window->SizeFull);
-        window->Size = window->Collapsed && !(flags & ImGuiWindowFlags_ChildWindow) ? window->TitleBarRect().GetSize() : window->SizeFull;
+        float titlebar_h = window->TitleBarHeight() + gap_height;
+        float full_h = window->SizeFull.y;
+        float target_h = ImLerp(titlebar_h, full_h, window->AnimCollapseT);
+        window->Size = window->Collapsed && !(flags & ImGuiWindowFlags_ChildWindow) ? window->TitleBarRect().GetSize() : ImVec2(window->SizeFull.x, target_h);
 
         // POSITION
 
@@ -6976,7 +7016,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         window->InnerRect.Min.x = window->Pos.x + window->DecoOuterSizeX1;
         window->InnerRect.Min.y = window->Pos.y + window->DecoOuterSizeY1;
         window->InnerRect.Max.x = window->Pos.x + window->Size.x - window->DecoOuterSizeX2;
-        window->InnerRect.Max.y = window->Pos.y + window->Size.y - window->DecoOuterSizeY2;
+        window->InnerRect.Max.y = window->Pos.y + window->SizeFull.y - window->DecoOuterSizeY2;
 
         // Inner clipping rectangle.
         // Will extend a little bit outside the normal work region.
@@ -7056,7 +7096,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         const bool allow_scrollbar_x = !(flags & ImGuiWindowFlags_NoScrollbar) && (flags & ImGuiWindowFlags_HorizontalScrollbar);
         const bool allow_scrollbar_y = !(flags & ImGuiWindowFlags_NoScrollbar);
         const float work_rect_size_x = (window->ContentSizeExplicit.x != 0.0f ? window->ContentSizeExplicit.x : ImMax(allow_scrollbar_x ? window->ContentSize.x : 0.0f, window->Size.x - window->WindowPadding.x * 2.0f - (window->DecoOuterSizeX1 + window->DecoOuterSizeX2)));
-        const float work_rect_size_y = (window->ContentSizeExplicit.y != 0.0f ? window->ContentSizeExplicit.y : ImMax(allow_scrollbar_y ? window->ContentSize.y : 0.0f, window->Size.y - window->WindowPadding.y * 2.0f - (window->DecoOuterSizeY1 + window->DecoOuterSizeY2)));
+        const float work_rect_size_y = (window->ContentSizeExplicit.y != 0.0f ? window->ContentSizeExplicit.y : ImMax(allow_scrollbar_y ? window->ContentSize.y : 0.0f, window->SizeFull.y - window->WindowPadding.y * 2.0f - (window->DecoOuterSizeY1 + window->DecoOuterSizeY2)));
         window->WorkRect.Min.x = ImTrunc(window->InnerRect.Min.x - window->Scroll.x + ImMax(window->WindowPadding.x, window->WindowBorderSize));
         window->WorkRect.Min.y = ImTrunc(window->InnerRect.Min.y - window->Scroll.y + ImMax(window->WindowPadding.y, window->WindowBorderSize));
         window->WorkRect.Max.x = window->WorkRect.Min.x + work_rect_size_x;
@@ -7071,7 +7111,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         window->ContentRegionRect.Min.x = window->Pos.x - window->Scroll.x + window->WindowPadding.x + window->DecoOuterSizeX1;
         window->ContentRegionRect.Min.y = window->Pos.y - window->Scroll.y + window->WindowPadding.y + window->DecoOuterSizeY1;
         window->ContentRegionRect.Max.x = window->ContentRegionRect.Min.x + (window->ContentSizeExplicit.x != 0.0f ? window->ContentSizeExplicit.x : (window->Size.x - window->WindowPadding.x * 2.0f - (window->DecoOuterSizeX1 + window->DecoOuterSizeX2)));
-        window->ContentRegionRect.Max.y = window->ContentRegionRect.Min.y + (window->ContentSizeExplicit.y != 0.0f ? window->ContentSizeExplicit.y : (window->Size.y - window->WindowPadding.y * 2.0f - (window->DecoOuterSizeY1 + window->DecoOuterSizeY2)));
+        window->ContentRegionRect.Max.y = window->ContentRegionRect.Min.y + (window->ContentSizeExplicit.y != 0.0f ? window->ContentSizeExplicit.y : (window->SizeFull.y - window->WindowPadding.y * 2.0f - (window->DecoOuterSizeY1 + window->DecoOuterSizeY2)));
 
         // Setup drawing context
         // (NB: That term "drawing context / DC" lost its meaning a long time ago. Initially was meant to hold transient data only. Nowadays difference between window-> and window->DC-> is dubious.)
