@@ -17,8 +17,13 @@ if(MSVC)
 endif()
 
 add_library(kiero STATIC
-    kiero/kiero.cpp
+    kiero2/kiero_intern.cpp
+    kiero2/kiero_d3d11.cpp
 )
 
-target_include_directories(kiero PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(kiero PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/kiero)
+target_include_directories(kiero PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/kiero2)
+target_compile_definitions(kiero PUBLIC KIERO_BUILD_D3D11=1)
+target_compile_features(kiero PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(kiero PRIVATE /EHsc)
+endif()

@@ -4,7 +4,8 @@
 #include <psapi.h>
 #include <d3d11.h>
 #include <functional>
-#include "kiero/kiero.h"
+#include "kiero.hpp"
+#include "kiero_d3d11.hpp"
 #include "detours/HookManager.h"
 #pragma comment(lib, "d3d11.lib")
 namespace dx_hook {
@@ -23,12 +24,12 @@ namespace dx_hook {
             switch (mode) {
             case Mode::Kiero:
             {
-                if (kiero::Init(kiero::RenderType::D3D11) != kiero::Status::Success) {
+                kiero::D3D11Output output;
+                if (kiero::locate<kiero::Implementation_D3D11>(nullptr, &output) != kiero::Error_Nil)
                     return false;
-                }
-                if (kiero::Bind(8, MyPresent) == kiero::Status::Success) {
+                auto pPresent = reinterpret_cast<PresentFunc>(output.swapchain_methods[8]);
+                if (HookManager::Install(pPresent, MyPresent))
                     return true;
-                }
                 break;
             }
             case Mode::Steam:
@@ -134,7 +135,7 @@ namespace dx_hook {
             }
             switch (currentMode) {
             case Mode::Kiero:
-                kiero::Unbind(8);
+                HookManager::Detach(MyPresent);
                 break;
             case Mode::Steam:
                 // Restore the original Steam Present function

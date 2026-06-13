@@ -1,0 +1,7 @@
+#pragma once
+#ifndef KIERO_GENERATED_HPP
+#define KIERO_GENERATED_HPP
+
+@kiero_generated_includes@
+
+#endif // KIERO_GENERATED_HPP
