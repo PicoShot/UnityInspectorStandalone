@@ -2,7 +2,7 @@
 
 <div align="center">
 
-A powerful, universal runtime inspector and debugging tool for Unity games with support **Mono** and **IL2CPP** runtimes.
+A powerful, universal runtime inspector and debugging tool for Unity games with support for both **Mono** and **IL2CPP** runtimes.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Unity](https://img.shields.io/badge/Unity-Mono%20%7C%20IL2CPP-green.svg)](https://unity.com/)
