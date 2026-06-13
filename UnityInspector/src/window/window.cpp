@@ -7,10 +7,28 @@
 
 namespace Window
 {
-	static void SetDarkPlusTheme()
+	static void SetImGuiStyle()
 	{
 		auto& style = ImGui::GetStyle();
-		ImVec4* colors = style.Colors;
+		style.IndentSpacing = 20;
+		style.ScrollbarSize = 10;
+		style.GrabMinSize = 10;
+		style.WindowBorderSize = 1;
+		style.ChildBorderSize = 0;
+		style.PopupBorderSize = 0;
+		style.WindowRounding = 8;
+		style.ChildRounding = 8;
+		style.FrameRounding = 6;
+		style.PopupRounding = 8;
+		style.ScrollbarRounding = 12;
+		style.GrabRounding = 6;
+		style.TabRounding = 6;
+		style.WindowTitleAlign = ImVec2(0.5, 0.5);
+	}
+
+	static void SetDarkPlusTheme()
+	{
+		ImVec4* colors = ImGui::GetStyle().Colors;
 		colors[ImGuiCol_Text] = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
 		colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
 		colors[ImGuiCol_WindowBg] = ImVec4(0.09f, 0.09f, 0.10f, 0.98f);
@@ -67,30 +85,18 @@ namespace Window
 		colors[ImGuiCol_Tab] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 		colors[ImGuiCol_TabSelected] = ImVec4(1.00f, 1.00f, 1.00f, 0.14f);
 		colors[ImGuiCol_TabHovered] = ImVec4(1.00f, 1.00f, 1.00f, 0.08f);
-		colors[ImGuiCol_TabActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.14f);
 		colors[ImGuiCol_TabSelectedOverline] = ImVec4(0.43f, 0.34f, 0.88f, 1.00f);
 		colors[ImGuiCol_TabDimmed] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 		colors[ImGuiCol_TabDimmedSelected] = ImVec4(1.00f, 1.00f, 1.00f, 0.10f);
 		colors[ImGuiCol_TabDimmedSelectedOverline] = ImVec4(0.43f, 0.34f, 0.88f, 0.50f);
-		colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-		colors[ImGuiCol_TabUnfocusedActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.10f);
 		colors[ImGuiCol_CheckMark] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-		
-		style.IndentSpacing = 20;
-		style.ScrollbarSize = 10;
-		style.GrabMinSize = 10;
-		style.WindowBorderSize = 1;
-		style.ChildBorderSize = 0;
-		style.PopupBorderSize = 0;
-		style.WindowRounding = 8;
-		style.ChildRounding = 8;
-		style.FrameRounding = 6;
-		style.PopupRounding = 8;
-		style.ScrollbarRounding = 12;
-		style.GrabRounding = 6;
-		style.TabRounding = 6;
-		style.WindowTitleAlign = ImVec2(0.5, 0.5);
 	}
+
+	static void SetWhitePlusTheme()
+	{
+		ImVec4* colors = ImGui::GetStyle().Colors;
+	}
+
 
 	void ApplyTheme()
 	{
@@ -104,6 +110,10 @@ namespace Window
 			break;
 		case Theme::Classic:
 			ImGui::StyleColorsClassic();
+			break;
+		case Theme::WhitePlus:
+			ImGui::StyleColorsLight();
+			SetWhitePlusTheme();
 			break;
 		case Theme::DarkPlus:
 		default:
@@ -126,6 +136,7 @@ namespace Window
 		io.LogFilename = nullptr;
 		io.MouseDrawCursor = true;
 		ApplyTheme();
+		SetImGuiStyle();
 
 		if (ImGui_ImplWin32_Init(hwnd) && ImGui_ImplDX11_Init(device, context))
 		{

@@ -4,6 +4,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define WINDOWS_MODE 1
+#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
 // Standard
 #include <windows.h>
