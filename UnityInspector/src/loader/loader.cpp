@@ -22,7 +22,7 @@ namespace Loader
 
 		if (Config::settings.ini.internal_overlay)
 		{
-			if (dx_hook::Hk11::Build(Window::OnPresent, dx_hook::Hk11::Mode::Kiero))
+			if (graphics_hook::GH::Build(Window::OnPresent))
 			{
 				LOG_INFO("Successfully initialized DirectX Hook.");
 				hookSuccess = true;
@@ -57,7 +57,7 @@ namespace Loader
 		}
 		else
 		{
-			dx_hook::Hk11::SetWndProc(Window::MyWndProc);
+			graphics_hook::GH::SetWndProc(Window::MyWndProc);
 		}
 		return NULL;
 	}

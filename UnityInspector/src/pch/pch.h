@@ -9,7 +9,11 @@
 // Standard
 #include <windows.h>
 #include <d3d11.h>
+#include <d3d12.h>
+#include <dxgi1_6.h>
 #pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
 #include <cstdio>
 #include <cstdint>
 #include <vector>
@@ -40,13 +44,13 @@
 
 // Hook
 #include "detours/HookManager.h"
-#include "kiero/kiero.h"
-#include "d3d11hook/d3d11hook.hpp"
+#include "graphics_hook/graphics_hook.hpp"
 
 // ImGui
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/imgui_impl_dx11.h"
+#include "imgui/imgui_impl_dx12.h"
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/TextEditor.h"
 
