@@ -35,7 +35,7 @@ namespace Menu
 #endif
 
 			ImGui::Begin(menuTitle, &Config::state.showMenu,
-			             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize);
+			             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
 
 			if (ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton))
 			{

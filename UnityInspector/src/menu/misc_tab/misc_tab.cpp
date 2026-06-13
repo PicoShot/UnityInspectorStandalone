@@ -26,7 +26,7 @@ void MiscTab::Render()
 	ImGui::Spacing();
 
 	ImGui::Text("Theme");
-	const char* themes[] = {"Light", "Dark", "Classic", "Dark+"};
+	const char* themes[] = {"Light", "Dark", "Classic", "DarkPlus", "WhitePlus"};
 	int currentTheme = static_cast<int>(Config::settings.theme);
 	if (ImGui::Combo("##Theme", &currentTheme, themes, IM_ARRAYSIZE(themes)))
 	{

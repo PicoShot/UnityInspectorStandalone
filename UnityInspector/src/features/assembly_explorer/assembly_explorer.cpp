@@ -168,6 +168,9 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
 
 void AssemblyExplorer::RenderDivider(const char* id, float& widthToAdjust, float height) const
 {
+	if (height <= 0.0f)
+		return;
+
 	ImGui::PushID(id);
 
 	const ImVec2 pos = ImGui::GetCursorScreenPos();

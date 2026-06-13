@@ -6,7 +6,8 @@ enum class Theme
 	Light,
 	Dark,
 	Classic,
-	DarkPlus
+	DarkPlus,
+	WhitePlus
 };
 
 struct RuntimeState
