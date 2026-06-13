@@ -6982,7 +6982,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     const bool is_leaf = (flags & ImGuiTreeNodeFlags_Leaf) != 0;
     bool is_open = TreeNodeUpdateNextOpen(storage_id, flags);
     bool actual_open = is_open;
-    bool can_animate = !is_leaf && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen);
+    bool can_animate = !is_leaf;
     float anim_progress = actual_open ? 1.0f : 0.0f;
 
     if (can_animate)

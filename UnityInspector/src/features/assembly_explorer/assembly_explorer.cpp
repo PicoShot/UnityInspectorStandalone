@@ -252,8 +252,8 @@ void AssemblyExplorer::RenderAssemblyNode(AssemblyInfo& assembly)
 	const bool isSelected = (selectedAssembly == &assembly);
 
 	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth |
-		ImGuiTreeNodeFlags_OpenOnArrow |
-		ImGuiTreeNodeFlags_DefaultOpen;
+		ImGuiTreeNodeFlags_Leaf |
+		ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
 	if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -261,7 +261,7 @@ void AssemblyExplorer::RenderAssemblyNode(AssemblyInfo& assembly)
 
 	const std::string label = icon + assembly.name;
 
-	const bool nodeOpen = ImGui::TreeNodeEx(label.c_str(), flags);
+	ImGui::TreeNodeEx(label.c_str(), flags);
 
 	if (ImGui::IsItemClicked())
 	{
@@ -274,11 +274,6 @@ void AssemblyExplorer::RenderAssemblyNode(AssemblyInfo& assembly)
 		ImGui::Text("File: %s", assembly.fileName.c_str());
 		ImGui::Text("Classes: %d", assembly.classCount);
 		ImGui::EndTooltip();
-	}
-
-	if (nodeOpen)
-	{
-		ImGui::TreePop();
 	}
 
 	ImGui::PopID();
