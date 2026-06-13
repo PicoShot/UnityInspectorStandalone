@@ -6,14 +6,13 @@
 #define WINDOWS_MODE 1
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
-// Standard
+// Windows
 #include <windows.h>
-#include <d3d11.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
+#include <excpt.h>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi")
+
+// std
 #include <cstdio>
 #include <cstdint>
 #include <vector>
@@ -29,17 +28,22 @@
 #include <deque>
 #include <array>
 #include <utility>
-#include <excpt.h>
 #include <mutex>
 #include <atomic>
 #include <memory>
 #include <string>
 #include <cctype>
 #include <numbers>
-#include <dwmapi.h>
-#pragma comment(lib, "dwmapi")
 
-// SDK
+// Graphics
+#include <d3d11.h>
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
+
+// Unity SDK
 #include "unityresolve/UnityResolve.hpp"
 
 // Hook

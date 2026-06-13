@@ -1581,6 +1581,9 @@ namespace LuaBindings
 		);
 
 		lua.new_usertype<UR::Class>("Class",
+		                            "name", &UR::Class::m_name,
+		                            "namespaze", &UR::Class::namespaze,
+		                            "parent", &UR::Class::parent,
 		                            "GetName", &UR::Class::m_name,
 		                            "GetNamespace", &UR::Class::namespaze,
 		                            "GetParent", &UR::Class::parent,
@@ -1722,6 +1725,11 @@ namespace LuaBindings
 
 			                            return sol::make_object(lua.lua_state(), result);
 		                            }
+		);
+
+		lua.new_usertype<UR::Assembly>("Assembly",
+		                               "name", &UR::Assembly::name,
+		                               "file", &UR::Assembly::file
 		);
 
 		auto resolve = unity["Resolve"].get_or_create<sol::table>();

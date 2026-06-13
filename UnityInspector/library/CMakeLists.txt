@@ -17,10 +17,4 @@ if(MSVC)
     target_compile_options(imgui PRIVATE /EHsc)
 endif()
 
-set(KIERO_BUILD_D3D9 OFF CACHE BOOL "" FORCE)
-set(KIERO_BUILD_D3D10 OFF CACHE BOOL "" FORCE)
-set(KIERO_BUILD_VULKAN OFF CACHE BOOL "" FORCE)
-set(KIERO_BUILD_OPENGL OFF CACHE BOOL "" FORCE)
 add_subdirectory(kiero2)
-
-
