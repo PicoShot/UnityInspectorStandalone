@@ -363,7 +363,7 @@ LayerMask = {}
 -- Enums
 -- ============================================
 
-LightType = {
+Unity.LightType = {
     Spot = 0,
     Directional = 1,
     Point = 2,
@@ -375,13 +375,13 @@ LightType = {
     Tube = 7
 }
 
-LightShadows = {
+Unity.LightShadows = {
     None = 0,
     Hard = 1,
     Soft = 2
 }
 
-HumanBodyBones = {
+Unity.HumanBodyBones = {
     Hips = 0,
     LeftUpperLeg = 1,
     RightUpperLeg = 2,
@@ -443,6 +443,9 @@ HumanBodyBones = {
 -- ============================================
 -- Static Namespaces
 -- ============================================
+
+---@class Unity
+Unity = {}
 
 ---@class UnityGameObject
 ---@field Find fun(name: string): GameObject
