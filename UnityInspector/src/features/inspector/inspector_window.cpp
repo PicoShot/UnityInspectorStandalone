@@ -2566,16 +2566,21 @@ void Inspector::RenderTabContent(InspectedObjectTab& tab)
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
 	for (size_t i = 0; i < tab.navigationStack.size(); ++i)
 	{
+		ImGui::PushID(static_cast<int>(i));
 		if (i > 0)
 		{
 			ImGui::SameLine();
 			ImGui::TextDisabled(">");
 			ImGui::SameLine();
 		}
-		if (ImGui::Button(tab.navigationStack[i].name.c_str()))
+		const char* label = tab.navigationStack[i].name.c_str();
+		if (label[0] == '\0')
+			label = "(unnamed)";
+		if (ImGui::Button(label))
 		{
 			tab.navigationStack.resize(i + 1);
 		}
+		ImGui::PopID();
 	}
 	ImGui::PopStyleVar();
 	ImGui::Separator();

@@ -43,7 +43,7 @@ std::vector<ComponentFieldInfo> Inspector::GetObjectFields(void* obj, void* klas
 			info.classHandle = currentClass;
 
 			const char* fieldName = UR::Invoke<const char*, void*>(API("field_get_name"), field);
-			info.name = fieldName ? fieldName : "(unknown)";
+			info.name = fieldName && fieldName[0] ? fieldName : "(unnamed)";
 
 			info.offset = UR::Invoke<int, void*>(API("field_get_offset"), field);
 
@@ -117,7 +117,7 @@ std::vector<ComponentPropertyInfo> Inspector::GetObjectProperties(void* obj, voi
 			ComponentPropertyInfo info;
 
 			const char* propName = UR::Invoke<const char*, void*>(API("property_get_name"), prop);
-			info.name = propName ? propName : "(unknown)";
+			info.name = propName && propName[0] ? propName : "(unnamed)";
 
 			info.getterHandle = UR::Invoke<void*, void*>(API("property_get_get_method"), prop);
 			info.setterHandle = UR::Invoke<void*, void*>(API("property_get_set_method"), prop);
@@ -181,7 +181,7 @@ std::vector<ComponentMethodInfo> Inspector::GetObjectMethods(void* obj, void* kl
 			info.methodHandle = method;
 
 			const char* methodName = UR::Invoke<const char*, void*>(API("method_get_name"), method);
-			info.name = methodName ? methodName : "(unknown)";
+			info.name = methodName && methodName[0] ? methodName : "(unnamed)";
 
 			int fFlags = 0;
 			info.flags = UR::Invoke<int, void*, int*>(API("method_get_flags"), method, &fFlags);
