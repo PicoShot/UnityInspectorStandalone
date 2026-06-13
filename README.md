@@ -1,8 +1,8 @@
-<h1 align="center">UnityInspectorStandalone</h1>
+# <h1 align="center">UnityInspectorStandalone</h1>
 
 <div align="center">
 
-A powerful runtime inspector for Unity games with **Mono** and **IL2CPP** support.
+A powerful, universal runtime inspector and debugging tool for Unity games with support **Mono** and **IL2CPP** runtimes.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Unity](https://img.shields.io/badge/Unity-Mono%20%7C%20IL2CPP-green.svg)](https://unity.com/)
@@ -12,100 +12,83 @@ A powerful runtime inspector for Unity games with **Mono** and **IL2CPP** suppor
 </div>
 
 <p align="center">
-  <img src="Assets/screenshot.png" alt="Screenshot">
+  <img src="Assets/screenshot.png" alt="UnityInspector Screenshot" width="80%">
 </p>
 
-more screenshots at [Assets](Assets/)
+<p align="center">
+  <em>Find more screenshots in the <a href="Assets/">Assets/</a> directory.</em>
+</p>
 
 ---
+
 ## Overview
 
-UnityInspector is a single-DLL runtime inspection tool that allows you to explore and modify Unity games in real-time. Whether you're a game developer debugging your project or a researcher analyzing game mechanics, UnityInspector provides comprehensive access to Unity's internal structures.
+**UnityInspector** is a single-DLL runtime inspection tool that intercepts the game presentation loop to draw a Dear ImGui interface. It allows you to explore, inspect, and modify internal game structures, components, properties, and execute methods in real-time. 
 
-### Key Highlights
+Whether you are debugging your own Unity builds, researching game mechanics, or writing plugins, UnityInspector gives you complete live runtime access.
 
-- **Single DLL** - No external dependencies required
-- **Dual runtime support** - Works with both Mono and IL2CPP backends
-- **Live editing** - Modify object properties in real-time
+---
+
+## Key Highlights
+
+* **Single DLL Proxy** - Drop-in installation with zero external dependencies.
+* **Dual Engine Support** - Full compatibility with both **Mono** and **IL2CPP** runtimes.
+* **Live Modification** - Edit fields, read/write properties, and invoke functions on the fly.
 
 ---
 
 ## Features
 
-### Inspector
+### Scene Hierarchy Browser
+* Comprehensive tree view of all active and inactive `GameObject`s in the active scenes.
+* Inactive game objects are clearly distinguished with visual indicators.
+* Fast search and filter controls to locate specific objects.
 
-- **Scene Hierarchy Browser**
-  - Complete tree view of all GameObjects in the active scene
-  - Shows active/inactive state with visual indicators
+### Component Inspector
+* Lists all script components, colliders, renderers, and standard Unity modules attached to the selected `GameObject`.
+* Search filter to isolate specific component classes.
+* Structured tabs dividing properties, fields, and general parameters.
 
-- **Component Inspection**
-  - View all components attached to any GameObject
-  - Component filtering by name
-  - Field and Property tabs for organized viewing
+### Field Editor
+* Direct read and write access to both **Instance** and **Static** fields.
+* Input validation and native controls for common types:
+  * **Numeric**: `int`, `float`, `double`
+  * **Vectors**: `Vector2`, `Vector3`, `Vector4`
+  * **Rotations**: `Quaternion`
+  * **Colors**: `Color` with a built-in interactive color picker
+  * **Booleans**: `bool` toggle checkboxes
+  * **Strings**: View values inline
 
-- **Field Editor**
-  - Edit instance and static fields directly
-  - Support for multiple types:
-    - Numeric: `int`, `float`, `double`
-    - Vectors: `Vector2`, `Vector3`, `Vector4`
-    - Rotation: `Quaternion`
-    - Color: `Color` with built-in picker
-    - Boolean: `bool` with checkbox
-    - String: Read-only display
+### Property Editor
+* View and edit active properties at runtime.
+* Safely invokes getters and setters through reflection or IL2CPP metadata APIs.
 
-- **Property Editor**
-  - Read/Write property access
-  - Inline editing with appropriate controls
+### Method Invoker
+* Invoke any class method (including private, static, and instance methods) dynamically.
+* Interactive parameter input boxes with type validation.
+* Displays returning objects or primitive values directly in the console/UI.
 
-- **Method Invoker**
-  - Invoke methods at runtime with custom parameters
-  - Parameter type validation
-  - Return value display
-  - Static and instance method support
-
-- **Transform Editor**
-  - World and Local coordinate views
-  - Position, Rotation, Scale editing
+### Transform Editor
+* Dedicated window for manipulating positioning.
+* Switch between **Local** and **World** coordinate spaces.
+* Edit position vectors, rotation angles, and scaling factors instantly.
 
 ---
 
-## Installation
+## Requirements & Installation
 
 ### Requirements
+* **OS**: Windows 10 / 11 (x64)
+* **Graphics API**: **DirectX 11** or **DirectX 12**
+* **Unity Runtimes**: Mono / IL2CPP
 
-- Windows 10 or later
-- Unity game (Mono or IL2CPP) running on **DirectX 11**
+> Vulkan is not officially supported at this time to avoid external Vulkan SDK requirements.
 
-> **Note:** Only DirectX 11 is supported. DX12 and Vulkan are **not** supported. Launch your game with `-force-d3d11` to ensure DX11 mode.
-
-### Steps
-
-1. Download the latest `winhttp.dll` from [Releases](https://github.com/PicoShot/UnityInspectorStandalone/releases)
-2. copy `winhttp.dll` to game directory and run game
-3. Press `INSERT` to toggle the menu
-
----
-
-## Supported Unity Versions
-
-| Version     | Mono | IL2CPP |
-| ----------- | ---- | ------ |
-| 2015-2020.x | [?]  | [?]    |
-| 2021.x      | [?]  | [!]    |
-| 2022.x      | [!]  | [+]    |
-| 2023.x      | [?]  | [?]    |
-| 6000.x      | [+]  | [+]    |
-
-- [?] Not Tested
-- [-] Not Supported
-- [!] Have Bugs
-- [+] Supported
-
----
-
-## Credits
-
-- [ImGui](https://github.com/ocornut/imgui) by ocornut
-- [Kiero](https://github.com/Rebzzel/kiero) for the DirectX hooking framework
+### Setup Instructions
+1. Download the latest precompiled `winhttp.dll` from the [Releases](https://github.com/Rebzzel/kiero) tab.
+2. Locate the root directory of your target Unity game (the folder containing the game executable).
+3. Copy `winhttp.dll` into the game directory.
+4. Launch the game.
+5. Press the <kbd>INSERT</kbd> key on your keyboard to toggle the UnityInspector interface.
 
 ---
