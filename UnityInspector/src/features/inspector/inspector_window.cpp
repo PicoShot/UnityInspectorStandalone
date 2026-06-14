@@ -1723,6 +1723,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 
 			if (field->editableType == EditableType::Enum)
 			{
+				ImGui::PushID(field->fieldHandle ? field->fieldHandle : reinterpret_cast<void*>(static_cast<intptr_t>(field->offset)));
 				if (ImGui::SmallButton("Enter"))
 				{
 					if (auto activeTab = GetActiveTab())
@@ -1772,6 +1773,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						}
 					}
 				}
+				ImGui::PopID();
 			}
 
 			if (isExpanded)

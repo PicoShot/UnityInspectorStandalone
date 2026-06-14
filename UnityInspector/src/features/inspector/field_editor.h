@@ -13,8 +13,8 @@ struct ComponentFieldInfo final
 	std::string name;
 	std::string typeName;
 	std::string enumTypeName;
-	int offset;
-	void* fieldHandle;
+	int offset = 0;
+	void* fieldHandle = nullptr;
 	void* classHandle = nullptr;
 	void* typeClassHandle = nullptr;
 	bool isStatic = false;
