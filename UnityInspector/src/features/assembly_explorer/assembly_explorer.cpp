@@ -1434,8 +1434,8 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo) const
 					}
 				}
 			}
-			classInfo->instances.push_back(std::move(info));
 		}
+		classInfo->instances.push_back(std::move(info));
 	}
 }
 
