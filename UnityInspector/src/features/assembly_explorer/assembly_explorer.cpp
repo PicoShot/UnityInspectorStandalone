@@ -7,7 +7,9 @@ REGISTER_FEATURE(AssemblyExplorer)
 
 void AssemblyExplorer::Update(const float deltaTime)
 {
-	if (const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole, ObjectPickerEnabled] = Config::settings.inspector; !Enabled) return;
+	if (const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole,
+		ObjectPickerEnabled] = Config::settings.inspector; !Enabled)
+		return;
 
 	if (!dataLoaded && !UR::assembly.empty())
 	{
@@ -75,25 +77,28 @@ void AssemblyExplorer::LoadAssemblyData()
 			nsGroup.name = nsName;
 			nsGroup.classes = std::move(classes);
 
-			std::ranges::sort(nsGroup.classes, [](const auto& a, const auto& b) {
+			std::ranges::sort(nsGroup.classes, [](const auto& a, const auto& b)
+			{
 				return a.name < b.name;
-				});
+			});
 
 			info.namespaces.push_back(std::move(nsGroup));
 		}
 
-		std::ranges::sort(info.namespaces, [](const auto& a, const auto& b) {
+		std::ranges::sort(info.namespaces, [](const auto& a, const auto& b)
+		{
 			if (a.name == "<Global Namespace>") return false;
 			if (b.name == "<Global Namespace>") return true;
 			return a.name < b.name;
-			});
+		});
 
 		assemblies.push_back(std::move(info));
 	}
 
-	std::ranges::sort(assemblies, [](const auto& a, const auto& b) {
+	std::ranges::sort(assemblies, [](const auto& a, const auto& b)
+	{
 		return a.name < b.name;
-		});
+	});
 }
 
 void AssemblyExplorer::RefreshAssemblyData()
@@ -188,8 +193,9 @@ void AssemblyExplorer::RenderDivider(const char* id, float& widthToAdjust, float
 		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 	}
 
-	const ImU32 color = isActive ? IM_COL32(100, 150, 255, 255) :
-		(isHovered ? IM_COL32(150, 150, 150, 255) : IM_COL32(100, 100, 100, 100));
+	const ImU32 color = isActive
+		                    ? IM_COL32(100, 150, 255, 255)
+		                    : (isHovered ? IM_COL32(150, 150, 150, 255) : IM_COL32(100, 100, 100, 100));
 
 	drawList->AddLine(
 		ImVec2(pos.x + 3.5f, pos.y),
@@ -210,7 +216,8 @@ void AssemblyExplorer::RenderAssemblyListPanel()
 	ImGui::BeginChild("AssemblyList", ImVec2(assemblyPanelWidth, 0), true);
 
 	ImGui::SetNextItemWidth(-1);
-	ImGui::InputTextWithHint("##AssemblySearch", "Search assemblies...", assemblySearchBuffer, sizeof(assemblySearchBuffer));
+	ImGui::InputTextWithHint("##AssemblySearch", "Search assemblies...", assemblySearchBuffer,
+	                         sizeof(assemblySearchBuffer));
 
 	ImGui::Separator();
 
@@ -564,7 +571,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Refresh##Instances"))
 		{
-			RefreshInstances(selectedClass);
+			if (selectedClass) RefreshInstances(selectedClass);
 		}
 	}
 	else
@@ -573,7 +580,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Refresh##Instances"))
 		{
-			RefreshInstances(selectedClass);
+			if (selectedClass) RefreshInstances(selectedClass);
 		}
 	}
 
@@ -615,7 +622,9 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 
 			ImGui::Indent();
 
-			if (ImGui::BeginTable("FieldsTable", 5, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
+			if (ImGui::BeginTable("FieldsTable", 5,
+			                      ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
+			                      ImGuiTableFlags_SizingFixedFit))
 			{
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 130.0f);
 				ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 130.0f);
@@ -637,9 +646,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					ImGui::TableNextRow();
 
 					ImGui::TableSetColumnIndex(0);
-					ImVec4 color = isStatic ?
-						ImVec4(0.4f, 0.7f, 1.0f, 1.0f) :
-						ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+					ImVec4 color = isStatic ? ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
 					ImGui::PushStyleColor(ImGuiCol_Text, color);
 					ImGui::TextUnformatted(field->name.c_str());
 					ImGui::PopStyleColor();
@@ -671,7 +678,8 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					if (!isStatic)
 						ImGui::TextDisabled("0x%X", field->offset);
 					else if (field->address && s_moduleBase)
-						ImGui::TextDisabled("0x%X", static_cast<uint32_t>(reinterpret_cast<uintptr_t>(field->address) - s_moduleBase));
+						ImGui::TextDisabled(
+							"0x%X", static_cast<uint32_t>(reinterpret_cast<uintptr_t>(field->address) - s_moduleBase));
 					else
 						ImGui::TextDisabled("[S]");
 
@@ -746,7 +754,9 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 				canInvokeInstance = inst->instance != nullptr;
 			}
 
-			if (ImGui::BeginTable("MethodsTable", 6, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
+			if (ImGui::BeginTable("MethodsTable", 6,
+			                      ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
+			                      ImGuiTableFlags_SizingFixedFit))
 			{
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.0f);
 				ImGui::TableSetupColumn("Return Type", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -766,9 +776,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					ImGui::TableNextRow();
 
 					ImGui::TableSetColumnIndex(0);
-					ImVec4 color = isStatic ?
-						ImVec4(0.4f, 0.7f, 1.0f, 1.0f) :
-						ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+					ImVec4 color = isStatic ? ImVec4(0.4f, 0.7f, 1.0f, 1.0f) : ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
 					ImGui::PushStyleColor(ImGuiCol_Text, color);
 					ImGui::TextUnformatted(method->name.c_str());
 					ImGui::PopStyleColor();
@@ -785,7 +793,8 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 							ImGui::SetClipboardText(addrStr.c_str());
 						if (s_moduleBase && method->address)
 						{
-							const auto rva = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(method->address) - s_moduleBase);
+							const auto rva = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(method->
+								address) - s_moduleBase);
 							std::string rvaStr = std::format("0x{:X}", rva);
 
 							if (ImGui::MenuItem("Copy RVA"))
@@ -825,7 +834,9 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						uintptr_t rva = reinterpret_cast<uintptr_t>(method->address) - s_moduleBase;
 						ImGui::TextDisabled("0x%X", static_cast<uint32_t>(rva));
 						if (ImGui::IsItemHovered())
-							ImGui::SetTooltip("Abs: 0x%llX", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(method->address)));
+							ImGui::SetTooltip("Abs: 0x%llX",
+							                  static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(method->
+								                  address)));
 					}
 					else
 					{
@@ -859,7 +870,9 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 							{
 								method->RuntimeInvoke<void>(target);
 							}
-							catch (...) {}
+							catch (...)
+							{
+							}
 						}
 						else
 						{
@@ -920,29 +933,504 @@ void AssemblyExplorer::SelectInstance(ClassInstanceInfo* instance)
 	selectedInstance = instance;
 }
 
+static void* GetIl2cppGetParent()
+{
+	static auto ptr = reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"),
+	                                                          "il2cpp_class_get_parent"));
+	return ptr;
+}
+
+static void* GetMonoGetParent()
+{
+	static auto ptr = reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"),
+	                                                         "mono_class_get_parent"));
+	if (!ptr) ptr = reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("mono.dll"), "mono_class_get_parent"));
+	return ptr;
+}
+
+typedef const char* (*GetNameFn)(void*);
+typedef const char* (*GetNamespaceFn)(void*);
+
+static GetNameFn GetIl2cppGetNameFn()
+{
+	static auto fn = reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"),
+	                                                            "il2cpp_class_get_name"));
+	return fn;
+}
+
+static GetNameFn GetMonoGetNameFn()
+{
+	static auto fn = reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"),
+	                                                            "mono_class_get_name"));
+	if (!fn) fn = reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("mono.dll"), "mono_class_get_name"));
+	return fn;
+}
+
+static GetNamespaceFn GetIl2cppGetNamespaceFn()
+{
+	static auto fn = reinterpret_cast<GetNamespaceFn>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"),
+	                                                                 "il2cpp_class_get_namespace"));
+	return fn;
+}
+
+static GetNamespaceFn GetMonoGetNamespaceFn()
+{
+	static auto fn = reinterpret_cast<GetNamespaceFn>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"),
+	                                                                 "mono_class_get_namespace"));
+	if (!fn) fn = reinterpret_cast<GetNamespaceFn>(GetProcAddress(GetModuleHandleA("mono.dll"),
+	                                                              "mono_class_get_namespace"));
+	return fn;
+}
+
+static bool SafeGetParent(void* getParentFnPtr, void* current, void*& outNext)
+{
+	typedef void* (*GetParentFn)(void*);
+	auto getParent = reinterpret_cast<GetParentFn>(getParentFnPtr);
+	__try
+	{
+		outNext = getParent(current);
+		return true;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		outNext = nullptr;
+		return false;
+	}
+}
+
+static const char* SafeGetClassName(void* klassAddress)
+{
+	GetNameFn fn;
+	if (Config::state.unityMode == UR::Mode::Il2Cpp)
+	{
+		fn = GetIl2cppGetNameFn();
+	}
+	else
+	{
+		fn = GetMonoGetNameFn();
+	}
+
+	if (!fn) return nullptr;
+
+	__try
+	{
+		return fn(klassAddress);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+	return nullptr;
+}
+
+static const char* SafeGetClassNamespace(void* klassAddress)
+{
+	GetNamespaceFn fn;
+	if (Config::state.unityMode == UR::Mode::Il2Cpp)
+	{
+		fn = GetIl2cppGetNamespaceFn();
+	}
+	else
+	{
+		fn = GetMonoGetNamespaceFn();
+	}
+
+	if (!fn) return nullptr;
+
+	__try
+	{
+		return fn(klassAddress);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+	return nullptr;
+}
+
+static bool IsSubclassOf(void* childKlassAddress, void* parentKlassAddress,
+                         const std::unordered_map<void*, UR::Class*>& classMap,
+                         const std::unordered_map<std::string, UR::Class*>& nameToClassMap)
+{
+	if (!childKlassAddress || !parentKlassAddress) return false;
+	if (childKlassAddress == parentKlassAddress) return true;
+
+	void* current = childKlassAddress;
+
+	void* getParent = nullptr;
+	if (Config::state.unityMode == UR::Mode::Il2Cpp)
+	{
+		getParent = GetIl2cppGetParent();
+	}
+	else
+	{
+		getParent = GetMonoGetParent();
+	}
+
+	if (!getParent) return false;
+
+	for (int depth = 0; depth < 100 && current; ++depth)
+	{
+		if (!classMap.contains(current))
+		{
+			const char* name = SafeGetClassName(current);
+			const char* ns = SafeGetClassNamespace(current);
+			bool foundGeneric = false;
+			if (name && ns)
+			{
+				if (std::string fullName = std::string(ns) + "." + std::string(name); nameToClassMap.contains(fullName))
+				{
+					foundGeneric = true;
+				}
+			}
+			if (!foundGeneric) break;
+		}
+		void* next = nullptr;
+		if (!SafeGetParent(getParent, current, next)) break;
+		if (!next || next == current) break;
+		current = next;
+		if (current == parentKlassAddress) return true;
+	}
+	return false;
+}
+
+static bool SafeGetArrayLengthAndElement(void* arrPtr, unsigned int index, void*& outElement, uintptr_t& outLength)
+{
+	auto* arr = static_cast<UR::UnityType::Array<void*>*>(arrPtr);
+	__try
+	{
+		if (arr && Helper::IsValidUserPointer(arr))
+		{
+			outLength = arr->max_length;
+			if (index < outLength)
+			{
+				outElement = arr->At(index);
+				return true;
+			}
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return false;
+	}
+	return false;
+}
+
+static bool SafeGetStaticFieldValue(const UR::Field* field, void*& outVal)
+{
+	__try
+	{
+		field->GetStaticValue(&outVal);
+		return true;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		outVal = nullptr;
+		return false;
+	}
+}
+
+static void ScanObject(void* obj, int depth, std::unordered_set<void*>& visited, std::vector<void*>& foundInstances,
+                       void* targetClassAddress, const std::unordered_map<void*, UR::Class*>& classMap,
+                       const std::unordered_map<std::string, UR::Class*>& nameToClassMap)
+{
+	if (!obj || depth > 4) return;
+
+	if (visited.contains(obj)) return;
+	visited.insert(obj);
+
+	void* objKlass = Helper::SafeGetObjectClass(obj);
+	if (!objKlass) return;
+
+	UR::Class* objURClass = nullptr;
+	if (auto itKlass = classMap.find(objKlass); itKlass != classMap.end())
+	{
+		objURClass = itKlass->second;
+	}
+	else
+	{
+		const char* name = SafeGetClassName(objKlass);
+		if (const char* ns = SafeGetClassNamespace(objKlass); name && ns)
+		{
+			std::string fullName = std::string(ns) + "." + std::string(name);
+			if (auto nameIt = nameToClassMap.find(fullName); nameIt != nameToClassMap.end())
+			{
+				objURClass = nameIt->second;
+			}
+		}
+	}
+
+	if (!objURClass) return;
+
+	if (IsSubclassOf(objKlass, targetClassAddress, classMap, nameToClassMap))
+	{
+		if (std::ranges::find(foundInstances, obj) == foundInstances.end())
+		{
+			foundInstances.push_back(obj);
+		}
+	}
+
+	void* currentKlass = objKlass;
+
+	void* getParent = nullptr;
+	if (Config::state.unityMode == UR::Mode::Il2Cpp)
+	{
+		getParent = GetIl2cppGetParent();
+	}
+	else
+	{
+		getParent = GetMonoGetParent();
+	}
+
+	for (int parentDepth = 0; parentDepth < 10 && currentKlass; ++parentDepth)
+	{
+		UR::Class* urClass = nullptr;
+		if (auto it = classMap.find(currentKlass); it != classMap.end() && it->second)
+		{
+			urClass = it->second;
+		}
+		else
+		{
+			const char* name = SafeGetClassName(currentKlass);
+			if (const char* ns = SafeGetClassNamespace(currentKlass); name && ns)
+			{
+				std::string fullName = std::string(ns) + "." + std::string(name);
+				if (auto nameIt = nameToClassMap.find(fullName); nameIt != nameToClassMap.end())
+				{
+					urClass = nameIt->second;
+				}
+			}
+		}
+
+		if (urClass)
+		{
+			for (const auto& field : urClass->fields)
+			{
+				if (!field || field->static_field || !field->type) continue;
+
+				if (void* fieldPtr = nullptr; Helper::SafeReadPointer(obj, field->offset, fieldPtr) && fieldPtr)
+				{
+					if (const std::string& typeName = field->type->name; typeName.find("[]") != std::string::npos)
+					{
+						void* dummyElem = nullptr;
+						if (uintptr_t len = 0; SafeGetArrayLengthAndElement(fieldPtr, 0, dummyElem, len))
+						{
+							if (len > 0 && len < 10000)
+							{
+								for (unsigned int i = 0; i < len; ++i)
+								{
+									void* element = nullptr;
+									if (uintptr_t dummyLen = 0; SafeGetArrayLengthAndElement(
+										fieldPtr, i, element, dummyLen) && element)
+									{
+										ScanObject(element, depth + 1, visited, foundInstances, targetClassAddress,
+										           classMap, nameToClassMap);
+									}
+								}
+							}
+						}
+					}
+					else
+					{
+						ScanObject(fieldPtr, depth + 1, visited, foundInstances, targetClassAddress, classMap,
+						           nameToClassMap);
+					}
+				}
+			}
+		}
+		else
+		{
+			break;
+		}
+
+		if (void* nextKlass = nullptr; getParent && SafeGetParent(getParent, currentKlass, nextKlass))
+		{
+			currentKlass = nextKlass;
+		}
+		else
+		{
+			break;
+		}
+	}
+}
+
 void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo) const
 {
 	if (!classInfo || !classInfo->classHandle) return;
 
 	classInfo->instances.clear();
 
+	std::unordered_map<void*, UR::Class*> classMap;
+	std::unordered_map<std::string, UR::Class*> nameToClassMap;
+	for (const auto& assembly : assemblies)
+	{
+		for (const auto& ns : assembly.namespaces)
+		{
+			for (const auto& cls : ns.classes)
+			{
+				if (cls.classHandle)
+				{
+					classMap[cls.classHandle->address] = cls.classHandle;
+					std::string fullName = cls.classHandle->namespaze + "." + cls.classHandle->m_name;
+					nameToClassMap[fullName] = cls.classHandle;
+				}
+			}
+		}
+	}
+
+	std::vector<void*> foundRawInstances;
+
 	try
 	{
-		for (const auto objects = classInfo->classHandle->FindObjectsOfType<void*>(); auto* obj : objects)
+		void* targetClassAddress = classInfo->classHandle->address;
+
+		void* unityObjectClassAddress = nullptr;
+		if (auto* unityObjectClass = UR::Get("UnityEngine.CoreModule.dll")->Get("Object"))
 		{
-			if (!obj) continue;
+			unityObjectClassAddress = unityObjectClass->address;
+		}
 
-			ClassInstanceInfo info;
-			info.instance = obj;
+		bool isUnityObject = false;
+		if (unityObjectClassAddress)
+		{
+			isUnityObject = IsSubclassOf(targetClassAddress, unityObjectClassAddress, classMap, nameToClassMap);
+		}
 
-			std::stringstream ss;
-			ss << std::hex << obj;
-			info.displayName = "0x" + ss.str();
+		if (isUnityObject)
+		{
+			for (const auto& assembly : assemblies)
+			{
+				for (const auto& ns : assembly.namespaces)
+				{
+					for (const auto& cls : ns.classes)
+					{
+						if (cls.classHandle && IsSubclassOf(cls.classHandle->address, targetClassAddress, classMap,
+						                                    nameToClassMap))
+						{
+							try
+							{
+								for (const auto objects = cls.classHandle->FindObjectsOfType<void*>(); auto* obj :
+								     objects)
+								{
+									if (obj && std::ranges::find(foundRawInstances, obj) == foundRawInstances.end())
+									{
+										foundRawInstances.push_back(obj);
+									}
+								}
+							}
+							catch (...)
+							{
+							}
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			std::vector<void*> roots;
+			std::unordered_set<void*> visited;
 
+			auto* goClass = UR::Get("UnityEngine.CoreModule.dll")->Get("GameObject");
+			auto* compClass = UR::Get("UnityEngine.CoreModule.dll")->Get("Component");
+			if (goClass)
+			{
+				try
+				{
+					for (auto* go : goClass->FindObjectsOfType<UT::GameObject*>())
+					{
+						if (go)
+						{
+							roots.push_back(go);
+							if (compClass)
+							{
+								for (auto* comp : go->GetComponents<void*>(compClass))
+								{
+									if (comp) roots.push_back(comp);
+								}
+							}
+						}
+					}
+				}
+				catch (...)
+				{
+				}
+			}
+
+			if (auto* soClass = UR::Get("UnityEngine.CoreModule.dll")->Get("ScriptableObject"))
+			{
+				try
+				{
+					for (auto* so : soClass->FindObjectsOfType<void*>())
+					{
+						if (so) roots.push_back(so);
+					}
+				}
+				catch (...)
+				{
+				}
+			}
+
+			for (const auto& assembly : assemblies)
+			{
+				for (const auto& ns : assembly.namespaces)
+				{
+					for (const auto& cls : ns.classes)
+					{
+						if (cls.classHandle)
+						{
+							for (const auto& field : cls.classHandle->fields)
+							{
+								if (field && field->static_field && field->type && field->type->size == sizeof(void*))
+								{
+									if (void* staticVal = nullptr; SafeGetStaticFieldValue(field.get(), staticVal) &&
+										staticVal)
+									{
+										roots.push_back(staticVal);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			for (void* root : roots)
+			{
+				ScanObject(root, 1, visited, foundRawInstances, targetClassAddress, classMap, nameToClassMap);
+			}
+		}
+	}
+	catch (...)
+	{
+	}
+
+	for (void* obj : foundRawInstances)
+	{
+		ClassInstanceInfo info;
+		info.instance = obj;
+
+		std::stringstream ss;
+		ss << std::hex << obj;
+		info.displayName = "0x" + ss.str();
+
+		if (void* objKlass = Helper::SafeGetObjectClass(obj); objKlass && objKlass != classInfo->classHandle->address)
+		{
+			for (const auto& assembly : assemblies)
+			{
+				for (const auto& ns : assembly.namespaces)
+				{
+					for (const auto& cls : ns.classes)
+					{
+						if (cls.classHandle && cls.classHandle->address == objKlass)
+						{
+							info.displayName += " (" + cls.name + ")";
+							break;
+						}
+					}
+				}
+			}
 			classInfo->instances.push_back(std::move(info));
 		}
 	}
-	catch (...) {}
 }
 
 std::string AssemblyExplorer::FormatClassName(const std::string& name) const
@@ -964,17 +1452,17 @@ std::string AssemblyExplorer::FormatNamespaceName(const std::string& name) const
 ImVec4 AssemblyExplorer::GetClassColor(const AssemblyClassInfo& classInfo) const
 {
 	if (classInfo.parent == "MonoBehaviour")
-		return {0.4f, 0.8f, 0.4f, 1.0f};  // Green for MonoBehaviour
+		return {0.4f, 0.8f, 0.4f, 1.0f}; // Green for MonoBehaviour
 	if (classInfo.parent == "ScriptableObject")
-		return {0.8f, 0.6f, 0.4f, 1.0f};  // Orange for ScriptableObject
+		return {0.8f, 0.6f, 0.4f, 1.0f}; // Orange for ScriptableObject
 	if (classInfo.parent == "Component")
-		return {0.4f, 0.6f, 0.8f, 1.0f};  // Blue for Component
+		return {0.4f, 0.6f, 0.8f, 1.0f}; // Blue for Component
 	if (classInfo.parent == "Object")
-		return {0.8f, 0.8f, 0.4f, 1.0f};  // Yellow for Object
+		return {0.8f, 0.8f, 0.4f, 1.0f}; // Yellow for Object
 	if (!classInfo.parent.empty())
-		return {0.7f, 0.7f, 0.7f, 1.0f};  // Gray for others with parent
+		return {0.7f, 0.7f, 0.7f, 1.0f}; // Gray for others with parent
 
-	return {0.9f, 0.9f, 0.9f, 1.0f};      // White for base classes
+	return {0.9f, 0.9f, 0.9f, 1.0f}; // White for base classes
 }
 
 
@@ -1232,12 +1720,12 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 					invokeState.parameterValues[i] = buf;
 				break;
 			case EditableType::Bool:
-			{
-				bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
-				if (ImGui::Checkbox("##param", &val))
-					invokeState.parameterValues[i] = val ? "true" : "false";
-				break;
-			}
+				{
+					bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
+					if (ImGui::Checkbox("##param", &val))
+						invokeState.parameterValues[i] = val ? "true" : "false";
+					break;
+				}
 			default:
 				if (ImGui::InputText("##param", buf, sizeof(buf)))
 					invokeState.parameterValues[i] = buf;
@@ -1271,13 +1759,14 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 			const bool isStatic = invokeState.targetMethod->flags & 0x10;
 			void* obj = isStatic ? nullptr : invokeState.targetInstance;
 			void* result = Helper::SafeInvokeMethod(obj, invokeState.targetMethod->address,
-				params.empty() ? nullptr : params.data(), success);
+			                                        params.empty() ? nullptr : params.data(), success);
 
 			invokeState.hasResult = true;
 			if (success && result)
 			{
 				const std::string retTypeName = invokeState.targetMethod->return_type
-					? invokeState.targetMethod->return_type->name : "void";
+					                                ? invokeState.targetMethod->return_type->name
+					                                : "void";
 
 				if (retTypeName == "System.Void" || retTypeName == "void")
 				{
@@ -1288,7 +1777,8 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 					const EditableType retType = DetermineEditableType(retTypeName);
 					void* unboxed = UR::Invoke<void*, void*>(
 						Config::state.unityMode == UnityResolve::Mode::Mono
-						? "mono_object_unbox" : "il2cpp_object_unbox", result);
+							? "mono_object_unbox"
+							: "il2cpp_object_unbox", result);
 
 					if (unboxed)
 					{
@@ -1307,7 +1797,8 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 							invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
 							break;
 						default:
-							invokeState.resultText = std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
+							invokeState.resultText = std::format("(object: 0x{:X})",
+							                                     reinterpret_cast<uintptr_t>(result));
 							break;
 						}
 					}
@@ -1320,9 +1811,11 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 			else if (success)
 			{
 				const std::string retTypeName = invokeState.targetMethod->return_type
-					? invokeState.targetMethod->return_type->name : "void";
+					                                ? invokeState.targetMethod->return_type->name
+					                                : "void";
 				invokeState.resultText = (retTypeName == "System.Void" || retTypeName == "void")
-					? "(completed)" : "(null)";
+					                         ? "(completed)"
+					                         : "(null)";
 			}
 			else
 			{
