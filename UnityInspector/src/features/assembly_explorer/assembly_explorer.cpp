@@ -37,6 +37,11 @@ void AssemblyExplorer::Render()
 
 void AssemblyExplorer::LoadAssemblyData()
 {
+	selectedAssembly = nullptr;
+	selectedNamespace = nullptr;
+	selectedClass = nullptr;
+	selectedInstance = nullptr;
+
 	assemblies.clear();
 
 	for (const auto& assembly : UR::assembly)
@@ -103,11 +108,12 @@ void AssemblyExplorer::LoadAssemblyData()
 
 void AssemblyExplorer::RefreshAssemblyData()
 {
-	dataLoaded = false;
 	selectedAssembly = nullptr;
 	selectedNamespace = nullptr;
 	selectedClass = nullptr;
+	selectedInstance = nullptr;
 	LoadAssemblyData();
+	dataLoaded = true;
 }
 
 void AssemblyExplorer::RenderAssemblyExplorerWindow()
