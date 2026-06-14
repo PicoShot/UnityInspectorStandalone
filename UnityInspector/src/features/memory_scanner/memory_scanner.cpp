@@ -119,80 +119,107 @@ void MemoryScanner::Render()
 
 		const bool locked = hasDoneFirstScan || scanInProgress;
 
-		ImGui::Text("Value Type:");
-		ImGui::SameLine();
 		const char* typeNames[] = {"Int (8/16/32-bit)", "Long (64-bit)", "Float", "Double", "Bool"};
-		int typeIndex = static_cast<int>(selectedType);
-		if (locked) ImGui::BeginDisabled();
-		if (ImGui::Combo("##Type", &typeIndex, typeNames, IM_ARRAYSIZE(typeNames)))
-		{
-			selectedType = static_cast<ScanValueType>(typeIndex);
-			SyncValueToBuffer();
-		}
-		if (locked) ImGui::EndDisabled();
+		const char* compNames[] = {"Exact Match", "Increased Value", "Decreased Value", "Changed Value", "Unchanged Value"};
 
-		ImGui::Text("Value:");
-		ImGui::SameLine();
-		RenderValueInput();
-
-		ImGui::Text("Comparison:");
-		ImGui::SameLine();
-		const char* compNames[] = {"Exact", "Increased", "Decreased", "Changed", "Unchanged"};
-		int compIndex = static_cast<int>(comparison);
-		if (ImGui::Combo("##Comp", &compIndex, compNames, IM_ARRAYSIZE(compNames)))
-		{
-			comparison = static_cast<ScanComparison>(compIndex);
-		}
-
-		ImGui::Checkbox("Include System/Unity namespaces", &includeSystemNamespaces);
-		ImGui::Checkbox("Debug logging (console)", &debugLogging);
-
-		ImGui::Separator();
 		auto statusColor = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
 		if (scanInProgress) statusColor = ImVec4(1.0f, 0.8f, 0.0f, 1.0f);
 		else if (!statusText.empty() && statusText.find("error") != std::string::npos)
 			statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
 
-		if (scanInProgress)
+		if (ImGui::BeginTable("##TopSettingsTable", 2, ImGuiTableFlags_None))
 		{
-			ImGui::TextColored(statusColor, "Scanning... %s", statusText.c_str());
-		}
-		else
-		{
-			if (!hasDoneFirstScan)
+			ImGui::TableSetupColumn("LeftCol", ImGuiTableColumnFlags_WidthStretch, 0.55f);
+			ImGui::TableSetupColumn("RightCol", ImGuiTableColumnFlags_WidthStretch, 0.45f);
+			ImGui::TableNextRow();
+
+			ImGui::TableNextColumn();
+			ImGui::TextDisabled("SCAN CONFIGURATION");
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			float comboWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+
+			ImGui::SetNextItemWidth(comboWidth);
+			int typeIndex = static_cast<int>(selectedType);
+			if (locked) ImGui::BeginDisabled();
+			if (ImGui::Combo("##Type", &typeIndex, typeNames, IM_ARRAYSIZE(typeNames)))
 			{
-				if (ImGui::Button("First Scan", ImVec2(120, 0)))
-				{
-					pendingOperation = ScanOperation::FirstScan;
-				}
+				selectedType = static_cast<ScanValueType>(typeIndex);
+				SyncValueToBuffer();
+			}
+			if (locked) ImGui::EndDisabled();
+
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(comboWidth);
+			int compIndex = static_cast<int>(comparison);
+			if (ImGui::Combo("##Comp", &compIndex, compNames, IM_ARRAYSIZE(compNames)))
+			{
+				comparison = static_cast<ScanComparison>(compIndex);
+			}
+
+			ImGui::Spacing();
+			ImGui::Text("Scan Value:");
+			ImGui::SetNextItemWidth(-1.0f);
+			RenderValueInput();
+
+			ImGui::TableNextColumn();
+			ImGui::TextDisabled("FILTERS & ACTIONS");
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			ImGui::Checkbox("Include System/Unity Classes", &includeSystemNamespaces);
+			ImGui::Checkbox("Console Debug Logging", &debugLogging);
+
+			ImGui::Spacing();
+
+			if (scanInProgress)
+			{
+				ImGui::TextColored(statusColor, "Scanning... %s", statusText.c_str());
 			}
 			else
 			{
-				if (ImGui::Button("Next Scan", ImVec2(120, 0)))
+				if (!hasDoneFirstScan)
 				{
-					pendingOperation = ScanOperation::NextScan;
+					if (ImGui::Button("First Scan", ImVec2(120, 30)))
+					{
+						pendingOperation = ScanOperation::FirstScan;
+					}
 				}
-				ImGui::SameLine();
-				if (ImGui::Button("Reset", ImVec2(120, 0)))
+				else
 				{
-					pendingOperation = ScanOperation::Reset;
+					if (ImGui::Button("Next Scan", ImVec2(120, 30)))
+					{
+						pendingOperation = ScanOperation::NextScan;
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("Reset", ImVec2(120, 30)))
+					{
+						pendingOperation = ScanOperation::Reset;
+					}
 				}
 			}
+
+			ImGui::EndTable();
 		}
 
-		ImGui::SameLine();
+		ImGui::Separator();
+		ImGui::Spacing();
+
 		std::unique_lock resultsLock(resultsMutex);
-		ImGui::TextDisabled("Results: %zu / %zu", currentResults.size(), MAX_RESULTS);
+		ImGui::TextDisabled("Matches Found: %zu / %zu", currentResults.size(), MAX_RESULTS);
+		resultsLock.unlock();
 
 		if (!statusText.empty() && !scanInProgress)
 		{
 			ImGui::SameLine();
-			ImGui::TextColored(statusColor, "%s", statusText.c_str());
+			ImGui::TextColored(statusColor, "|  %s", statusText.c_str());
 		}
 
-		ImGui::Separator();
-		ImGui::InputTextWithHint("##Filter", "Filter results...", resultFilterBuffer, sizeof(resultFilterBuffer),
-		                         ImGuiInputTextFlags_EscapeClearsAll);
+		ImGui::SetNextItemWidth(-1.0f);
+		ImGui::InputTextWithHint("##Filter", "Filter results by class, field, namespace, or value...", resultFilterBuffer, sizeof(resultFilterBuffer),
+								 ImGuiInputTextFlags_EscapeClearsAll);
+		ImGui::Spacing();
 
 		if (ImGui::BeginTable("Results", 7,
 		                      ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY |
@@ -361,8 +388,8 @@ void MemoryScanner::Render()
 			ImGui::SameLine();
 			if (ImGui::Button("Write Value", ImVec2(100, 0)) || valueChanged)
 			{
-				WriteFieldValue(result, &editValue);
-				memcpy(&currentResults[selectedResultIndex].lastValue, &editValue, sizeof(double));
+				if (WriteFieldValue(result, &editValue))
+					memcpy(&currentResults[selectedResultIndex].lastValue, &editValue, sizeof(double));
 			}
 		}
 	}
@@ -379,7 +406,7 @@ void MemoryScanner::RenderValueInput()
 			if (ImGui::InputScalar("##ValueInt", ImGuiDataType_S64, &val))
 			{
 				typedValue.i64 = val;
-				snprintf(valueBuffer, sizeof(valueBuffer), "%lld", static_cast<long long>(val));
+				snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%lld", static_cast<long long>(val));
 			}
 			break;
 		}
@@ -389,7 +416,7 @@ void MemoryScanner::RenderValueInput()
 			if (ImGui::InputScalar("##ValueLong", ImGuiDataType_S64, &val))
 			{
 				typedValue.i64 = val;
-				snprintf(valueBuffer, sizeof(valueBuffer), "%lld", static_cast<long long>(val));
+				snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%lld", static_cast<long long>(val));
 			}
 			break;
 		}
@@ -399,7 +426,7 @@ void MemoryScanner::RenderValueInput()
 			if (ImGui::InputFloat("##ValueFloat", &val, 0.0f, 0.0f, "%.3f"))
 			{
 				typedValue.f32 = val;
-				snprintf(valueBuffer, sizeof(valueBuffer), "%.3f", val);
+				snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%.3f", val);
 			}
 			break;
 		}
@@ -409,7 +436,7 @@ void MemoryScanner::RenderValueInput()
 			if (ImGui::InputDouble("##ValueDouble", &val, 0.0, 0.0, "%.6f"))
 			{
 				typedValue.f64 = val;
-				snprintf(valueBuffer, sizeof(valueBuffer), "%.6f", val);
+				snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%.6f", val);
 			}
 			break;
 		}
@@ -419,7 +446,7 @@ void MemoryScanner::RenderValueInput()
 			if (ImGui::Checkbox("##ValueBool", &val))
 			{
 				typedValue.b = val;
-				snprintf(valueBuffer, sizeof(valueBuffer), "%s", val ? "true" : "false");
+				snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%s", val ? "true" : "false");
 			}
 			break;
 		}
@@ -432,16 +459,16 @@ void MemoryScanner::SyncValueToBuffer()
 	{
 	case ScanValueType::Int:
 	case ScanValueType::Long:
-		snprintf(valueBuffer, sizeof(valueBuffer), "%lld", static_cast<long long>(typedValue.i64));
+		snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%lld", static_cast<long long>(typedValue.i64));
 		break;
 	case ScanValueType::Float:
-		snprintf(valueBuffer, sizeof(valueBuffer), "%.3f", typedValue.f32);
+		snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%.3f", typedValue.f32);
 		break;
 	case ScanValueType::Double:
-		snprintf(valueBuffer, sizeof(valueBuffer), "%.6f", typedValue.f64);
+		snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%.6f", typedValue.f64);
 		break;
 	case ScanValueType::Bool:
-		snprintf(valueBuffer, sizeof(valueBuffer), "%s", typedValue.b ? "true" : "false");
+		snprintf(m_valueBuffer, sizeof(m_valueBuffer), "%s", typedValue.b ? "true" : "false");
 		break;
 	}
 }
@@ -487,7 +514,7 @@ void MemoryScanner::PerformFirstScan()
 	}
 
 	if (debugLogging)
-		printf("[MemoryScanner] First scan: %s = %s\n", GetValueTypeName(selectedType), valueBuffer);
+		printf("[MemoryScanner] First scan: %s = %s\n", GetValueTypeName(selectedType), m_valueBuffer);
 
 	statusText = "Scanning static fields...";
 	ScanStaticFields(tempResults);
@@ -1325,7 +1352,7 @@ void MemoryScanner::OpenResultInInspector(const ScanField& result) const
 	}
 }
 
-std::vector<void*> MemoryScanner::GatherUnityObjects()
+std::vector<void*> MemoryScanner::GatherUnityObjects() const
 {
 	std::vector<void*> allObjects;
 	auto coreAssembly = UR::Get("UnityEngine.CoreModule.dll");
@@ -1443,7 +1470,7 @@ std::string MemoryScanner::FormatValue(const ScanField::ValUnion& val, ActualFie
 	return "?";
 }
 
-bool MemoryScanner::WriteFieldValue(const ScanField& field, const void* valueBuffer)
+bool MemoryScanner::WriteFieldValue(const ScanField& field, const void* valueBuffer) const
 {
 	if (field.isStatic)
 	{
@@ -1507,34 +1534,31 @@ bool MemoryScanner::WriteFieldValue(const ScanField& field, const void* valueBuf
 			return false;
 		}
 	}
-	else
+	if (!field.object || field.offset < 0) return false;
+	switch (field.actualType)
 	{
-		if (!field.object || field.offset < 0) return false;
-		switch (field.actualType)
-		{
-		case ActualFieldType::Byte:
-			return SafeWrite(field.object, field.offset, static_cast<uint8_t>(*static_cast<const int64_t*>(valueBuffer)));
-		case ActualFieldType::SByte:
-			return SafeWrite(field.object, field.offset, static_cast<int8_t>(*static_cast<const int64_t*>(valueBuffer)));
-		case ActualFieldType::Short:
-			return SafeWrite(field.object, field.offset, static_cast<int16_t>(*static_cast<const int64_t*>(valueBuffer)));
-		case ActualFieldType::UShort:
-			return SafeWrite(field.object, field.offset, static_cast<uint16_t>(*static_cast<const int64_t*>(valueBuffer)));
-		case ActualFieldType::Int:
-			return SafeWrite(field.object, field.offset, static_cast<int32_t>(*static_cast<const int64_t*>(valueBuffer)));
-		case ActualFieldType::UInt:
-			return SafeWrite(field.object, field.offset, static_cast<uint32_t>(*static_cast<const int64_t*>(valueBuffer)));
-		case ActualFieldType::Long:
-			return SafeWrite(field.object, field.offset, *static_cast<const int64_t*>(valueBuffer));
-		case ActualFieldType::ULong:
-			return SafeWrite(field.object, field.offset, *static_cast<const uint64_t*>(valueBuffer));
-		case ActualFieldType::Float:
-			return SafeWrite(field.object, field.offset, *static_cast<const float*>(valueBuffer));
-		case ActualFieldType::Double:
-			return SafeWrite(field.object, field.offset, *static_cast<const double*>(valueBuffer));
-		case ActualFieldType::Bool:
-			return SafeWrite(field.object, field.offset, *static_cast<const bool*>(valueBuffer));
-		}
+	case ActualFieldType::Byte:
+		return SafeWrite(field.object, field.offset, static_cast<uint8_t>(*static_cast<const int64_t*>(valueBuffer)));
+	case ActualFieldType::SByte:
+		return SafeWrite(field.object, field.offset, static_cast<int8_t>(*static_cast<const int64_t*>(valueBuffer)));
+	case ActualFieldType::Short:
+		return SafeWrite(field.object, field.offset, static_cast<int16_t>(*static_cast<const int64_t*>(valueBuffer)));
+	case ActualFieldType::UShort:
+		return SafeWrite(field.object, field.offset, static_cast<uint16_t>(*static_cast<const int64_t*>(valueBuffer)));
+	case ActualFieldType::Int:
+		return SafeWrite(field.object, field.offset, static_cast<int32_t>(*static_cast<const int64_t*>(valueBuffer)));
+	case ActualFieldType::UInt:
+		return SafeWrite(field.object, field.offset, static_cast<uint32_t>(*static_cast<const int64_t*>(valueBuffer)));
+	case ActualFieldType::Long:
+		return SafeWrite(field.object, field.offset, *static_cast<const int64_t*>(valueBuffer));
+	case ActualFieldType::ULong:
+		return SafeWrite(field.object, field.offset, *static_cast<const uint64_t*>(valueBuffer));
+	case ActualFieldType::Float:
+		return SafeWrite(field.object, field.offset, *static_cast<const float*>(valueBuffer));
+	case ActualFieldType::Double:
+		return SafeWrite(field.object, field.offset, *static_cast<const double*>(valueBuffer));
+	case ActualFieldType::Bool:
+		return SafeWrite(field.object, field.offset, *static_cast<const bool*>(valueBuffer));
 	}
 	return false;
 }

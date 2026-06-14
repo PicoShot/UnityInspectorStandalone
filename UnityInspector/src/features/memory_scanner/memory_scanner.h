@@ -60,7 +60,7 @@ private:
 
 	ScanValueType selectedType = ScanValueType::Int;
 	ScanComparison comparison = ScanComparison::Exact;
-	char valueBuffer[64] = {};
+	char m_valueBuffer[64] = {};
 	bool scanInProgress = false;
 	std::string statusText;
 	bool includeSystemNamespaces = false;
@@ -126,7 +126,7 @@ private:
 	bool ReadFieldValue(const ScanField& field, void* outValue) const;
 	bool ReadStaticFieldValue(void* fieldHandle, void* outValue) const;
 	bool ReadInstanceFieldValue(void* obj, int offset, ActualFieldType type, void* outValue) const;
-	bool WriteFieldValue(const ScanField& field, const void* valueBuffer);
+	bool WriteFieldValue(const ScanField& field, const void* valueBuffer) const;
 
 	bool GetTargetValueAsInt64(int64_t& out) const;
 	bool GetTargetValueAsUInt64(uint64_t& out) const;
@@ -138,7 +138,7 @@ private:
 	int CompareValueWithPrevious(const void* currentValue, const ScanField& field) const;
 
 	void OpenResultInInspector(const ScanField& result) const;
-	std::vector<void*> GatherUnityObjects();
+	std::vector<void*> GatherUnityObjects() const;
 
 	static const char* GetValueTypeName(ScanValueType type);
 	static const char* GetActualFieldTypeName(ActualFieldType type);
