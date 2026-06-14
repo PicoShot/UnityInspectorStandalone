@@ -83,9 +83,9 @@ private:
 		bool b;
 	} typedValue{.i64 = 100};
 
-	static constexpr size_t MAX_RESULTS = 50000;
-	static constexpr size_t MAX_OBJECTS_TO_SCAN = 10000;
-	static constexpr int MAX_SCAN_DEPTH = 6;
+	static constexpr size_t MAX_RESULTS = 5000000;
+	static constexpr size_t MAX_OBJECTS_TO_SCAN = 100000;
+	static constexpr int MAX_SCAN_DEPTH = 20;
 
 	void PerformFirstScan();
 	void PerformNextScan();
