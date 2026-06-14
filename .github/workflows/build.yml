@@ -3,12 +3,11 @@ name: Release Build
 on:
   push:
     tags:
-      - 'v*'
+      - '*'
   workflow_dispatch:
 
 env:
   SCCACHE_GHA_ENABLED: "true"
-  SCCACHE_CACHE_SIZE: 2G
 
 jobs:
   build:
