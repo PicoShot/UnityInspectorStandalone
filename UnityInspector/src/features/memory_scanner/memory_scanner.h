@@ -5,6 +5,21 @@ enum class ScanValueType { Int, Long, Float, Double, Bool };
 
 enum class ScanComparison { Exact, Increased, Decreased, Changed, Unchanged };
 
+enum class ActualFieldType
+{
+	Byte,
+	SByte,
+	Short,
+	UShort,
+	Int,
+	UInt,
+	Long,
+	ULong,
+	Float,
+	Double,
+	Bool
+};
+
 struct ScanField
 {
 	void* fieldHandle = nullptr;
@@ -17,15 +32,20 @@ struct ScanField
 	bool isStatic = false;
 	int offset = 0;
 	ScanValueType valueType = ScanValueType::Int;
+	ActualFieldType actualType = ActualFieldType::Int;
 
-	union
+	union ValUnion
 	{
 		int64_t i64;
 		uint64_t u64;
 		float f32;
 		double f64;
 		bool b;
-	} lastValue{};
+	};
+
+	ValUnion lastValue{};
+	ValUnion prevValue{};
+	bool hasPrevValue = false;
 };
 
 class MemoryScanner final : public IFeature
@@ -101,11 +121,12 @@ private:
 	                        const std::string& objName);
 
 	bool TypeNameMatchesSearchType(const std::string& typeName) const;
-	ScanValueType DetermineActualValueType(const std::string& typeName) const;
+	ActualFieldType DetermineActualFieldType(const std::string& typeName) const;
 
 	bool ReadFieldValue(const ScanField& field, void* outValue) const;
 	bool ReadStaticFieldValue(void* fieldHandle, void* outValue) const;
-	bool ReadInstanceFieldValue(void* obj, int offset, ScanValueType type, void* outValue) const;
+	bool ReadInstanceFieldValue(void* obj, int offset, ActualFieldType type, void* outValue) const;
+	bool WriteFieldValue(const ScanField& field, const void* valueBuffer);
 
 	bool GetTargetValueAsInt64(int64_t& out) const;
 	bool GetTargetValueAsUInt64(uint64_t& out) const;
@@ -113,14 +134,23 @@ private:
 	bool GetTargetValueAsDouble(double& out) const;
 	bool GetTargetValueAsBool(bool& out) const;
 
-	bool CompareValueWithTarget(const void* value, ScanValueType actualType) const;
+	bool CompareValueWithTarget(const void* value, ActualFieldType actualType) const;
 	int CompareValueWithPrevious(const void* currentValue, const ScanField& field) const;
 
 	void OpenResultInInspector(const ScanField& result) const;
+	std::vector<void*> GatherUnityObjects();
 
 	static const char* GetValueTypeName(ScanValueType type);
+	static const char* GetActualFieldTypeName(ActualFieldType type);
 	static const char* GetComparisonName(ScanComparison comp);
 	static std::string FormatFieldValue(const ScanField& field);
+	static std::string FormatValue(const ScanField::ValUnion& val, ActualFieldType type);
+
+	std::vector<void*> objectsGathered;
+
+	char editValueBuffer[64] = {};
+	int editingResultIndex = -1;
+	bool openEditPopup = false;
 
 	std::thread scanThread;
 	std::mutex resultsMutex;

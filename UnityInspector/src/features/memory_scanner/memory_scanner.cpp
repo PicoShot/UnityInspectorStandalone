@@ -29,6 +29,18 @@ namespace
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 	}
+
+	template <typename T>
+	bool SafeWrite(void* ptr, int offset, const T& value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+	}
 }
 
 MemoryScanner::~MemoryScanner()
@@ -59,6 +71,12 @@ void MemoryScanner::Update(float deltaTime)
 
 			const ScanOperation op = pendingOperation;
 			pendingOperation = ScanOperation::None;
+
+			if (op == ScanOperation::FirstScan)
+			{
+				statusText = "Gathering Unity objects...";
+				objectsGathered = GatherUnityObjects();
+			}
 
 			scanThread = std::thread([this, op]
 			{
@@ -133,8 +151,7 @@ void MemoryScanner::Render()
 		auto statusColor = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
 		if (scanInProgress) statusColor = ImVec4(1.0f, 0.8f, 0.0f, 1.0f);
 		else if (!statusText.empty() && statusText.find("error") != std::string::npos)
-			statusColor = ImVec4(
-				1.0f, 0.0f, 0.0f, 1.0f);
+			statusColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
 
 		if (scanInProgress)
 		{
@@ -177,16 +194,17 @@ void MemoryScanner::Render()
 		ImGui::InputTextWithHint("##Filter", "Filter results...", resultFilterBuffer, sizeof(resultFilterBuffer),
 		                         ImGuiInputTextFlags_EscapeClearsAll);
 
-		if (ImGui::BeginTable("Results", 6,
+		if (ImGui::BeginTable("Results", 7,
 		                      ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY |
-		                      ImGuiTableFlags_Sortable))
+		                      ImGuiTableFlags_Sortable, ImVec2(0, -120)))
 		{
-			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.15f);
+			ImGui::TableSetupColumn("Live Value", ImGuiTableColumnFlags_WidthStretch, 0.15f);
+			ImGui::TableSetupColumn("Previous", ImGuiTableColumnFlags_WidthStretch, 0.12f);
 			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, 0.1f);
-			ImGui::TableSetupColumn("Class", ImGuiTableColumnFlags_WidthStretch, 0.2f);
-			ImGui::TableSetupColumn("Namespace", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+			ImGui::TableSetupColumn("Class", ImGuiTableColumnFlags_WidthStretch, 0.18f);
+			ImGui::TableSetupColumn("Namespace", ImGuiTableColumnFlags_WidthStretch, 0.15f);
 			ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthStretch, 0.15f);
-			ImGui::TableSetupColumn("Object", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+			ImGui::TableSetupColumn("Object", ImGuiTableColumnFlags_WidthStretch, 0.15f);
 			ImGui::TableHeadersRow();
 
 			std::string filterLower = resultFilterBuffer;
@@ -196,13 +214,25 @@ void MemoryScanner::Render()
 			{
 				const auto& result = currentResults[i];
 
+				char liveValueBytes[sizeof(double)] = {};
+				bool readSuccess = ReadFieldValue(result, liveValueBytes);
+				std::string liveValStr = "??";
+				bool isChanged = false;
+				if (readSuccess)
+				{
+					ScanField::ValUnion liveUnion;
+					memcpy(&liveUnion, liveValueBytes, sizeof(double));
+					liveValStr = FormatValue(liveUnion, result.actualType);
+					isChanged = (CompareValueWithPrevious(liveValueBytes, result) != 0);
+				}
+
 				if (!filterLower.empty())
 				{
 					if (!Helper::CaseInsensitiveFind(result.className, filterLower) &&
 						!Helper::CaseInsensitiveFind(result.namespaze, filterLower) &&
 						!Helper::CaseInsensitiveFind(result.fieldName, filterLower) &&
 						!Helper::CaseInsensitiveFind(result.objectName, filterLower) &&
-						!Helper::CaseInsensitiveFind(FormatFieldValue(result), filterLower))
+						!Helper::CaseInsensitiveFind(liveValStr, filterLower))
 					{
 						continue;
 					}
@@ -212,11 +242,27 @@ void MemoryScanner::Render()
 				ImGui::PushID(static_cast<int>(i));
 
 				ImGui::TableNextColumn();
-				std::string valStr = FormatFieldValue(result);
-				if (bool isSelected = (selectedResultIndex == static_cast<int>(i)); ImGui::Selectable(
-					valStr.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+				bool isSelected = (selectedResultIndex == static_cast<int>(i));
+
+				if (isChanged)
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+				}
+				if (ImGui::Selectable(liveValStr.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
 				{
 					selectedResultIndex = static_cast<int>(i);
+					if (readSuccess)
+					{
+						snprintf(editValueBuffer, sizeof(editValueBuffer), "%s", liveValStr.c_str());
+					}
+					else
+					{
+						editValueBuffer[0] = '\0';
+					}
+				}
+				if (isChanged)
+				{
+					ImGui::PopStyleColor();
 				}
 
 				if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
@@ -231,6 +277,19 @@ void MemoryScanner::Render()
 				}
 				if (ImGui::BeginPopup(popupName.c_str()))
 				{
+					if (ImGui::MenuItem("Edit Value"))
+					{
+						editingResultIndex = static_cast<int>(i);
+						if (readSuccess)
+						{
+							snprintf(editValueBuffer, sizeof(editValueBuffer), "%s", liveValStr.c_str());
+						}
+						else
+						{
+							editValueBuffer[0] = '\0';
+						}
+						openEditPopup = true;
+					}
 					if (ImGui::MenuItem("Inspect in Hierarchy"))
 					{
 						OpenResultInInspector(result);
@@ -245,7 +304,17 @@ void MemoryScanner::Render()
 				}
 
 				ImGui::TableNextColumn();
-				ImGui::Text("%s", GetValueTypeName(result.valueType));
+				if (result.hasPrevValue)
+				{
+					ImGui::Text("%s", FormatValue(result.prevValue, result.actualType).c_str());
+				}
+				else
+				{
+					ImGui::TextDisabled("-");
+				}
+
+				ImGui::TableNextColumn();
+				ImGui::Text("%s", GetActualFieldTypeName(result.actualType));
 
 				ImGui::TableNextColumn();
 				ImGui::Text("%s", result.className.c_str());
@@ -257,12 +326,144 @@ void MemoryScanner::Render()
 				ImGui::Text("%s", result.fieldName.c_str());
 
 				ImGui::TableNextColumn();
-				ImGui::Text("%s", result.objectName.c_str());
+				if (result.isStatic)
+					ImGui::TextDisabled("(static)");
+				else
+					ImGui::Text("%s (%p)", result.objectName.c_str(), result.object);
 
 				ImGui::PopID();
 			}
 
 			ImGui::EndTable();
+		}
+
+		if (selectedResultIndex >= 0 && selectedResultIndex < static_cast<int>(currentResults.size()))
+		{
+			ImGui::Separator();
+			auto& result = currentResults[selectedResultIndex];
+			ImGui::Text("Selected: %s::%s (%s)", result.className.c_str(), result.fieldName.c_str(), GetActualFieldTypeName(result.actualType));
+			if (result.isStatic)
+				ImGui::TextDisabled("Location: Static Field");
+			else
+				ImGui::TextDisabled("Location: Object %s (%p), Offset: 0x%X", result.objectName.c_str(), result.object, result.offset);
+
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::InputText("New Value", editValueBuffer, sizeof(editValueBuffer));
+			ImGui::SameLine();
+			if (ImGui::Button("Write Value", ImVec2(100, 0)) || ImGui::IsKeyPressed(ImGuiKey_Enter))
+			{
+				ScanField::ValUnion newVal = {};
+				bool parseSuccess = false;
+				try
+				{
+					std::string inputStr(editValueBuffer);
+					if (result.actualType == ActualFieldType::Bool)
+					{
+						newVal.b = (inputStr == "true" || inputStr == "1" || inputStr == "True");
+						parseSuccess = true;
+					}
+					else if (result.actualType == ActualFieldType::Float)
+					{
+						newVal.f32 = std::stof(inputStr);
+						parseSuccess = true;
+					}
+					else if (result.actualType == ActualFieldType::Double)
+					{
+						newVal.f64 = std::stod(inputStr);
+						parseSuccess = true;
+					}
+					else if (result.actualType == ActualFieldType::ULong)
+					{
+						newVal.u64 = std::stoull(inputStr);
+						parseSuccess = true;
+					}
+					else
+					{
+						newVal.i64 = std::stoll(inputStr);
+						parseSuccess = true;
+					}
+				}
+				catch (...) {}
+
+				if (parseSuccess)
+				{
+					WriteFieldValue(result, &newVal);
+					memcpy(&currentResults[selectedResultIndex].lastValue, &newVal, sizeof(double));
+				}
+			}
+		}
+
+		if (openEditPopup && editingResultIndex >= 0 && editingResultIndex < static_cast<int>(currentResults.size()))
+		{
+			ImGui::OpenPopup("Edit Value Popup");
+			openEditPopup = false;
+		}
+
+		if (ImGui::BeginPopupModal("Edit Value Popup", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+		{
+			if (editingResultIndex >= 0 && editingResultIndex < static_cast<int>(currentResults.size()))
+			{
+				auto& result = currentResults[editingResultIndex];
+				ImGui::Text("Edit value for %s::%s", result.className.c_str(), result.fieldName.c_str());
+				ImGui::TextDisabled("Type: %s | Object: %s", GetActualFieldTypeName(result.actualType), result.objectName.c_str());
+				ImGui::Separator();
+
+				ImGui::SetNextItemWidth(200.0f);
+				ImGui::InputText("New Value", editValueBuffer, sizeof(editValueBuffer));
+
+				if (ImGui::Button("Write", ImVec2(100, 0)) || ImGui::IsKeyPressed(ImGuiKey_Enter))
+				{
+					ScanField::ValUnion newVal = {};
+					bool parseSuccess = false;
+					try
+					{
+						std::string inputStr(editValueBuffer);
+						if (result.actualType == ActualFieldType::Bool)
+						{
+							newVal.b = (inputStr == "true" || inputStr == "1" || inputStr == "True");
+							parseSuccess = true;
+						}
+						else if (result.actualType == ActualFieldType::Float)
+						{
+							newVal.f32 = std::stof(inputStr);
+							parseSuccess = true;
+						}
+						else if (result.actualType == ActualFieldType::Double)
+						{
+							newVal.f64 = std::stod(inputStr);
+							parseSuccess = true;
+						}
+						else if (result.actualType == ActualFieldType::ULong)
+						{
+							newVal.u64 = std::stoull(inputStr);
+							parseSuccess = true;
+						}
+						else
+						{
+							newVal.i64 = std::stoll(inputStr);
+							parseSuccess = true;
+						}
+					}
+					catch (...) {}
+
+					if (parseSuccess)
+					{
+						WriteFieldValue(result, &newVal);
+						memcpy(&currentResults[editingResultIndex].lastValue, &newVal, sizeof(double));
+					}
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Cancel", ImVec2(100, 0)))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+			}
+			else
+			{
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndPopup();
 		}
 	}
 	ImGui::End();
@@ -437,7 +638,7 @@ void MemoryScanner::PerformNextScan()
 		switch (comparison)
 		{
 		case ScanComparison::Exact:
-			match = CompareValueWithTarget(currentValue, field.valueType);
+			match = CompareValueWithTarget(currentValue, field.actualType);
 			break;
 		case ScanComparison::Increased:
 			match = CompareValueWithPrevious(currentValue, field) > 0;
@@ -456,6 +657,8 @@ void MemoryScanner::PerformNextScan()
 		if (match)
 		{
 			ScanField updated = field;
+			updated.prevValue = field.lastValue;
+			updated.hasPrevValue = true;
 			memcpy(&updated.lastValue, currentValue, sizeof(double));
 			newResults.push_back(updated);
 		}
@@ -523,10 +726,49 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 				if (!TypeNameMatchesSearchType(typeName))
 					continue;
 
-				ScanValueType actualType = DetermineActualValueType(typeName);
-				char value[sizeof(double)] = {};
-				if (!ReadStaticFieldValue(field->address, value))
+				ActualFieldType actualType = DetermineActualFieldType(typeName);
+				char rawBytes[8] = {};
+				if (!ReadStaticFieldValue(field->address, rawBytes))
 					continue;
+
+				char value[8] = {};
+				switch (actualType)
+				{
+				case ActualFieldType::Byte:
+					*reinterpret_cast<int64_t*>(value) = static_cast<int64_t>(*reinterpret_cast<uint8_t*>(rawBytes));
+					break;
+				case ActualFieldType::SByte:
+					*reinterpret_cast<int64_t*>(value) = static_cast<int64_t>(*reinterpret_cast<int8_t*>(rawBytes));
+					break;
+				case ActualFieldType::Short:
+					*reinterpret_cast<int64_t*>(value) = static_cast<int64_t>(*reinterpret_cast<int16_t*>(rawBytes));
+					break;
+				case ActualFieldType::UShort:
+					*reinterpret_cast<int64_t*>(value) = static_cast<int64_t>(*reinterpret_cast<uint16_t*>(rawBytes));
+					break;
+				case ActualFieldType::Int:
+					*reinterpret_cast<int64_t*>(value) = static_cast<int64_t>(*reinterpret_cast<int32_t*>(rawBytes));
+					break;
+				case ActualFieldType::UInt:
+					*reinterpret_cast<int64_t*>(value) = static_cast<int64_t>(*reinterpret_cast<uint32_t*>(rawBytes));
+					break;
+				case ActualFieldType::Long:
+					*reinterpret_cast<int64_t*>(value) = *reinterpret_cast<int64_t*>(rawBytes);
+					break;
+				case ActualFieldType::ULong:
+					*reinterpret_cast<uint64_t*>(value) = *reinterpret_cast<uint64_t*>(rawBytes);
+					break;
+				case ActualFieldType::Float:
+					*reinterpret_cast<float*>(value) = *reinterpret_cast<float*>(rawBytes);
+					break;
+				case ActualFieldType::Double:
+					*reinterpret_cast<double*>(value) = *reinterpret_cast<double*>(rawBytes);
+					break;
+				case ActualFieldType::Bool:
+					*reinterpret_cast<bool*>(value) = *reinterpret_cast<bool*>(rawBytes);
+					break;
+				}
+
 				if (!CompareValueWithTarget(value, actualType))
 					continue;
 
@@ -535,7 +777,8 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 				scanField.classHandle = klass->address;
 				scanField.object = nullptr;
 				scanField.isStatic = true;
-				scanField.valueType = actualType;
+				scanField.valueType = selectedType;
+				scanField.actualType = actualType;
 				scanField.fieldName = field->name;
 				scanField.className = klass->m_name;
 				scanField.namespaze = klass->namespaze;
@@ -553,65 +796,20 @@ void MemoryScanner::ScanUnityObjectFields(std::vector<ScanField>& out)
 	if (out.size() >= MAX_RESULTS)
 		return;
 
-	auto coreAssembly = UR::Get("UnityEngine.CoreModule.dll");
-	if (!coreAssembly)
-		return;
-
-	auto objectClass = coreAssembly->Get("Object", "UnityEngine");
-	if (!objectClass)
-		return;
-
-	std::vector<void*> allObjects;
-	try
-	{
-		allObjects = objectClass->FindObjectsByType<void*>(1, 0);
-	}
-	catch (...)
-	{
-		allObjects.clear();
-	}
-
-	if (allObjects.empty())
-	{
-		try
-		{
-			allObjects = objectClass->FindObjectsByType<void*>();
-		}
-		catch (...)
-		{
-			allObjects.clear();
-		}
-	}
-
-	if (allObjects.empty())
-	{
-		try
-		{
-			allObjects = objectClass->FindObjectsOfType<void*>();
-		}
-		catch (...)
-		{
-			allObjects.clear();
-		}
-	}
-
-	if (allObjects.empty())
+	if (objectsGathered.empty())
 	{
 		if (debugLogging)
-			printf("[MemoryScanner] No Unity objects found\n");
+			printf("[MemoryScanner] No Unity objects found to scan\n");
 		return;
 	}
 
-	if (allObjects.size() > MAX_OBJECTS_TO_SCAN)
-		allObjects.resize(MAX_OBJECTS_TO_SCAN);
-
 	if (debugLogging)
-		printf("[MemoryScanner] Scanning %zu Unity objects...\n", allObjects.size());
+		printf("[MemoryScanner] Scanning %zu Unity objects...\n", objectsGathered.size());
 
 	std::unordered_set<VisitedKey, VisitedKeyHash> visited;
 	int processed = 0;
 
-	for (void* obj : allObjects)
+	for (void* obj : objectsGathered)
 	{
 		if (stopRequested)
 			break;
@@ -636,9 +834,11 @@ void MemoryScanner::ScanUnityObjectFields(std::vector<ScanField>& out)
 		processed++;
 		if (processed % 500 == 0)
 		{
-			statusText = "Scanning objects... " + std::to_string(processed) + "/" + std::to_string(allObjects.size());
+			statusText = "Scanning objects... " + std::to_string(processed) + "/" + std::to_string(objectsGathered.size());
 		}
 	}
+
+	objectsGathered.clear();
 
 	if (debugLogging)
 		printf("[MemoryScanner] Scanned %d objects, found %zu matches\n", processed, out.size());
@@ -716,7 +916,7 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
 
 			if (std::string typeNameStr = typeName ? typeName : "unknown"; TypeNameMatchesSearchType(typeNameStr))
 			{
-				ScanValueType actualType = DetermineActualValueType(typeNameStr);
+				ActualFieldType actualType = DetermineActualFieldType(typeNameStr);
 				char value[sizeof(double)] = {};
 				if (ReadInstanceFieldValue(obj, offset, actualType, value))
 				{
@@ -728,7 +928,8 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
 						scanField.object = obj;
 						scanField.isStatic = false;
 						scanField.offset = offset;
-						scanField.valueType = actualType;
+						scanField.valueType = selectedType;
+						scanField.actualType = actualType;
 						scanField.fieldName = fieldName ? fieldName : "unknown";
 						scanField.className = UR::Invoke<const char*, void*>(
 							mono ? "mono_class_get_name" : "il2cpp_class_get_name", currentClass);
@@ -814,34 +1015,69 @@ bool MemoryScanner::TypeNameMatchesSearchType(const std::string& typeName) const
 	return false;
 }
 
-ScanValueType MemoryScanner::DetermineActualValueType(const std::string& typeName) const
+ActualFieldType MemoryScanner::DetermineActualFieldType(const std::string& typeName) const
 {
-	if (typeName == "System.Int32" || typeName == "int" ||
-		typeName == "System.UInt32" || typeName == "uint" ||
-		typeName == "System.Int16" || typeName == "short" ||
-		typeName == "System.UInt16" || typeName == "ushort" ||
-		typeName == "System.Byte" || typeName == "byte" ||
-		typeName == "System.SByte" || typeName == "sbyte")
-		return ScanValueType::Int;
-	if (typeName == "System.Int64" || typeName == "long" ||
-		typeName == "System.UInt64" || typeName == "ulong")
-		return ScanValueType::Long;
-	if (typeName == "System.Single" || typeName == "float")
-		return ScanValueType::Float;
-	if (typeName == "System.Double" || typeName == "double")
-		return ScanValueType::Double;
-	if (typeName == "System.Boolean" || typeName == "bool")
-		return ScanValueType::Bool;
-	return ScanValueType::Int;
+	if (typeName == "System.Byte" || typeName == "byte") return ActualFieldType::Byte;
+	if (typeName == "System.SByte" || typeName == "sbyte") return ActualFieldType::SByte;
+	if (typeName == "System.Int16" || typeName == "short") return ActualFieldType::Short;
+	if (typeName == "System.UInt16" || typeName == "ushort") return ActualFieldType::UShort;
+	if (typeName == "System.Int32" || typeName == "int") return ActualFieldType::Int;
+	if (typeName == "System.UInt32" || typeName == "uint") return ActualFieldType::UInt;
+	if (typeName == "System.Int64" || typeName == "long") return ActualFieldType::Long;
+	if (typeName == "System.UInt64" || typeName == "ulong") return ActualFieldType::ULong;
+	if (typeName == "System.Single" || typeName == "float") return ActualFieldType::Float;
+	if (typeName == "System.Double" || typeName == "double") return ActualFieldType::Double;
+	if (typeName == "System.Boolean" || typeName == "bool") return ActualFieldType::Bool;
+	return ActualFieldType::Int;
 }
 
 bool MemoryScanner::ReadFieldValue(const ScanField& field, void* outValue) const
 {
 	if (field.isStatic)
 	{
-		return ReadStaticFieldValue(field.fieldHandle, outValue);
+		char rawBytes[8] = {};
+		if (!ReadStaticFieldValue(field.fieldHandle, rawBytes))
+			return false;
+
+		switch (field.actualType)
+		{
+		case ActualFieldType::Byte:
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(*reinterpret_cast<uint8_t*>(rawBytes));
+			return true;
+		case ActualFieldType::SByte:
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(*reinterpret_cast<int8_t*>(rawBytes));
+			return true;
+		case ActualFieldType::Short:
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(*reinterpret_cast<int16_t*>(rawBytes));
+			return true;
+		case ActualFieldType::UShort:
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(*reinterpret_cast<uint16_t*>(rawBytes));
+			return true;
+		case ActualFieldType::Int:
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(*reinterpret_cast<int32_t*>(rawBytes));
+			return true;
+		case ActualFieldType::UInt:
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(*reinterpret_cast<uint32_t*>(rawBytes));
+			return true;
+		case ActualFieldType::Long:
+			*static_cast<int64_t*>(outValue) = *reinterpret_cast<int64_t*>(rawBytes);
+			return true;
+		case ActualFieldType::ULong:
+			*static_cast<uint64_t*>(outValue) = *reinterpret_cast<uint64_t*>(rawBytes);
+			return true;
+		case ActualFieldType::Float:
+			*static_cast<float*>(outValue) = *reinterpret_cast<float*>(rawBytes);
+			return true;
+		case ActualFieldType::Double:
+			*static_cast<double*>(outValue) = *reinterpret_cast<double*>(rawBytes);
+			return true;
+		case ActualFieldType::Bool:
+			*static_cast<bool*>(outValue) = *reinterpret_cast<bool*>(rawBytes);
+			return true;
+		}
+		return false;
 	}
-	return ReadInstanceFieldValue(field.object, field.offset, field.valueType, outValue);
+	return ReadInstanceFieldValue(field.object, field.offset, field.actualType, outValue);
 }
 
 bool MemoryScanner::ReadStaticFieldValue(void* fieldHandle, void* outValue) const
@@ -872,14 +1108,46 @@ bool MemoryScanner::ReadStaticFieldValue(void* fieldHandle, void* outValue) cons
 	}
 }
 
-bool MemoryScanner::ReadInstanceFieldValue(void* obj, int offset, ScanValueType type, void* outValue) const
+bool MemoryScanner::ReadInstanceFieldValue(void* obj, int offset, ActualFieldType type, void* outValue) const
 {
 	if (!obj || offset < 0 || !outValue)
 		return false;
 
 	switch (type)
 	{
-	case ScanValueType::Int:
+	case ActualFieldType::Byte:
+		{
+			uint8_t v;
+			if (!SafeRead(obj, offset, v))
+				return false;
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(v);
+			return true;
+		}
+	case ActualFieldType::SByte:
+		{
+			int8_t v;
+			if (!SafeRead(obj, offset, v))
+				return false;
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(v);
+			return true;
+		}
+	case ActualFieldType::Short:
+		{
+			int16_t v;
+			if (!SafeRead(obj, offset, v))
+				return false;
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(v);
+			return true;
+		}
+	case ActualFieldType::UShort:
+		{
+			uint16_t v;
+			if (!SafeRead(obj, offset, v))
+				return false;
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(v);
+			return true;
+		}
+	case ActualFieldType::Int:
 		{
 			int32_t v;
 			if (!SafeRead(obj, offset, v))
@@ -887,7 +1155,15 @@ bool MemoryScanner::ReadInstanceFieldValue(void* obj, int offset, ScanValueType 
 			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(v);
 			return true;
 		}
-	case ScanValueType::Long:
+	case ActualFieldType::UInt:
+		{
+			uint32_t v;
+			if (!SafeRead(obj, offset, v))
+				return false;
+			*static_cast<int64_t*>(outValue) = static_cast<int64_t>(v);
+			return true;
+		}
+	case ActualFieldType::Long:
 		{
 			int64_t v;
 			if (!SafeRead(obj, offset, v))
@@ -895,7 +1171,15 @@ bool MemoryScanner::ReadInstanceFieldValue(void* obj, int offset, ScanValueType 
 			*static_cast<int64_t*>(outValue) = v;
 			return true;
 		}
-	case ScanValueType::Float:
+	case ActualFieldType::ULong:
+		{
+			uint64_t v;
+			if (!SafeRead(obj, offset, v))
+				return false;
+			*static_cast<uint64_t*>(outValue) = v;
+			return true;
+		}
+	case ActualFieldType::Float:
 		{
 			float v;
 			if (!SafeRead(obj, offset, v))
@@ -903,7 +1187,7 @@ bool MemoryScanner::ReadInstanceFieldValue(void* obj, int offset, ScanValueType 
 			*static_cast<float*>(outValue) = v;
 			return true;
 		}
-	case ScanValueType::Double:
+	case ActualFieldType::Double:
 		{
 			double v;
 			if (!SafeRead(obj, offset, v))
@@ -911,7 +1195,7 @@ bool MemoryScanner::ReadInstanceFieldValue(void* obj, int offset, ScanValueType 
 			*static_cast<double*>(outValue) = v;
 			return true;
 		}
-	case ScanValueType::Bool:
+	case ActualFieldType::Bool:
 		{
 			bool v;
 			if (!SafeReadBool(obj, offset, v))
@@ -988,7 +1272,7 @@ bool MemoryScanner::GetTargetValueAsBool(bool& out) const
 	}
 }
 
-bool MemoryScanner::CompareValueWithTarget(const void* value, ScanValueType actualType) const
+bool MemoryScanner::CompareValueWithTarget(const void* value, ActualFieldType actualType) const
 {
 	if (comparison != ScanComparison::Exact)
 		return true;
@@ -1000,10 +1284,20 @@ bool MemoryScanner::CompareValueWithTarget(const void* value, ScanValueType actu
 			int64_t target;
 			if (!GetTargetValueAsInt64(target))
 				return false;
-			if (actualType == ScanValueType::Int)
+			if (actualType == ActualFieldType::Byte ||
+				actualType == ActualFieldType::SByte ||
+				actualType == ActualFieldType::Short ||
+				actualType == ActualFieldType::UShort ||
+				actualType == ActualFieldType::Int ||
+				actualType == ActualFieldType::UInt ||
+				actualType == ActualFieldType::Long)
+			{
 				return *static_cast<const int64_t*>(value) == target;
-			if (actualType == ScanValueType::Long)
-				return *static_cast<const int64_t*>(value) == target;
+			}
+			if (actualType == ActualFieldType::ULong)
+			{
+				return static_cast<int64_t>(*static_cast<const uint64_t*>(value)) == target;
+			}
 			return false;
 		}
 	case ScanValueType::Long:
@@ -1011,10 +1305,20 @@ bool MemoryScanner::CompareValueWithTarget(const void* value, ScanValueType actu
 			int64_t target;
 			if (!GetTargetValueAsInt64(target))
 				return false;
-			if (actualType == ScanValueType::Int)
+			if (actualType == ActualFieldType::Byte ||
+				actualType == ActualFieldType::SByte ||
+				actualType == ActualFieldType::Short ||
+				actualType == ActualFieldType::UShort ||
+				actualType == ActualFieldType::Int ||
+				actualType == ActualFieldType::UInt ||
+				actualType == ActualFieldType::Long)
+			{
 				return *static_cast<const int64_t*>(value) == target;
-			if (actualType == ScanValueType::Long)
-				return *static_cast<const int64_t*>(value) == target;
+			}
+			if (actualType == ActualFieldType::ULong)
+			{
+				return static_cast<int64_t>(*static_cast<const uint64_t*>(value)) == target;
+			}
 			return false;
 		}
 	case ScanValueType::Float:
@@ -1022,7 +1326,7 @@ bool MemoryScanner::CompareValueWithTarget(const void* value, ScanValueType actu
 			float target;
 			if (!GetTargetValueAsFloat(target))
 				return false;
-			if (actualType == ScanValueType::Float)
+			if (actualType == ActualFieldType::Float)
 				return *static_cast<const float*>(value) == target;
 			return false;
 		}
@@ -1031,7 +1335,7 @@ bool MemoryScanner::CompareValueWithTarget(const void* value, ScanValueType actu
 			double target;
 			if (!GetTargetValueAsDouble(target))
 				return false;
-			if (actualType == ScanValueType::Double)
+			if (actualType == ActualFieldType::Double)
 				return *static_cast<const double*>(value) == target;
 			return false;
 		}
@@ -1040,7 +1344,7 @@ bool MemoryScanner::CompareValueWithTarget(const void* value, ScanValueType actu
 			bool target;
 			if (!GetTargetValueAsBool(target))
 				return false;
-			if (actualType == ScanValueType::Bool)
+			if (actualType == ActualFieldType::Bool)
 				return *static_cast<const bool*>(value) == target;
 			return false;
 		}
@@ -1050,10 +1354,15 @@ bool MemoryScanner::CompareValueWithTarget(const void* value, ScanValueType actu
 
 int MemoryScanner::CompareValueWithPrevious(const void* currentValue, const ScanField& field) const
 {
-	switch (field.valueType)
+	switch (field.actualType)
 	{
-	case ScanValueType::Int:
-	case ScanValueType::Long:
+	case ActualFieldType::Byte:
+	case ActualFieldType::SByte:
+	case ActualFieldType::Short:
+	case ActualFieldType::UShort:
+	case ActualFieldType::Int:
+	case ActualFieldType::UInt:
+	case ActualFieldType::Long:
 		{
 			int64_t cur = *static_cast<const int64_t*>(currentValue);
 			int64_t prev = field.lastValue.i64;
@@ -1061,7 +1370,15 @@ int MemoryScanner::CompareValueWithPrevious(const void* currentValue, const Scan
 			if (cur < prev) return -1;
 			return 0;
 		}
-	case ScanValueType::Float:
+	case ActualFieldType::ULong:
+		{
+			uint64_t cur = *static_cast<const uint64_t*>(currentValue);
+			uint64_t prev = field.lastValue.u64;
+			if (cur > prev) return 1;
+			if (cur < prev) return -1;
+			return 0;
+		}
+	case ActualFieldType::Float:
 		{
 			float cur = *static_cast<const float*>(currentValue);
 			float prev = field.lastValue.f32;
@@ -1069,7 +1386,7 @@ int MemoryScanner::CompareValueWithPrevious(const void* currentValue, const Scan
 			if (cur < prev) return -1;
 			return 0;
 		}
-	case ScanValueType::Double:
+	case ActualFieldType::Double:
 		{
 			double cur = *static_cast<const double*>(currentValue);
 			double prev = field.lastValue.f64;
@@ -1077,7 +1394,7 @@ int MemoryScanner::CompareValueWithPrevious(const void* currentValue, const Scan
 			if (cur < prev) return -1;
 			return 0;
 		}
-	case ScanValueType::Bool:
+	case ActualFieldType::Bool:
 		{
 			int cur = *static_cast<const bool*>(currentValue) ? 1 : 0;
 			int prev = field.lastValue.b ? 1 : 0;
@@ -1108,6 +1425,47 @@ void MemoryScanner::OpenResultInInspector(const ScanField& result) const
 	}
 }
 
+std::vector<void*> MemoryScanner::GatherUnityObjects()
+{
+	std::vector<void*> allObjects;
+	auto coreAssembly = UR::Get("UnityEngine.CoreModule.dll");
+	if (!coreAssembly)
+		return allObjects;
+
+	auto objectClass = coreAssembly->Get("Object", "UnityEngine");
+	if (!objectClass)
+		return allObjects;
+
+	try
+	{
+		allObjects = objectClass->FindObjectsByType<void*>(1, 0);
+	}
+	catch (...) {}
+
+	if (allObjects.empty())
+	{
+		try
+		{
+			allObjects = objectClass->FindObjectsByType<void*>();
+		}
+		catch (...) {}
+	}
+
+	if (allObjects.empty())
+	{
+		try
+		{
+			allObjects = objectClass->FindObjectsOfType<void*>();
+		}
+		catch (...) {}
+	}
+
+	if (allObjects.size() > MAX_OBJECTS_TO_SCAN)
+		allObjects.resize(MAX_OBJECTS_TO_SCAN);
+
+	return allObjects;
+}
+
 const char* MemoryScanner::GetValueTypeName(ScanValueType type)
 {
 	switch (type)
@@ -1117,6 +1475,25 @@ const char* MemoryScanner::GetValueTypeName(ScanValueType type)
 	case ScanValueType::Float: return "float";
 	case ScanValueType::Double: return "double";
 	case ScanValueType::Bool: return "bool";
+	}
+	return "unknown";
+}
+
+const char* MemoryScanner::GetActualFieldTypeName(ActualFieldType type)
+{
+	switch (type)
+	{
+	case ActualFieldType::Byte: return "byte";
+	case ActualFieldType::SByte: return "sbyte";
+	case ActualFieldType::Short: return "short";
+	case ActualFieldType::UShort: return "ushort";
+	case ActualFieldType::Int: return "int";
+	case ActualFieldType::UInt: return "uint";
+	case ActualFieldType::Long: return "long";
+	case ActualFieldType::ULong: return "ulong";
+	case ActualFieldType::Float: return "float";
+	case ActualFieldType::Double: return "double";
+	case ActualFieldType::Bool: return "bool";
 	}
 	return "unknown";
 }
@@ -1136,20 +1513,128 @@ const char* MemoryScanner::GetComparisonName(ScanComparison comp)
 
 std::string MemoryScanner::FormatFieldValue(const ScanField& field)
 {
+	return FormatValue(field.lastValue, field.actualType);
+}
+
+std::string MemoryScanner::FormatValue(const ScanField::ValUnion& val, ActualFieldType type)
+{
 	char buf[64];
-	switch (field.valueType)
+	switch (type)
 	{
-	case ScanValueType::Int:
-	case ScanValueType::Long:
-		return std::to_string(field.lastValue.i64);
-	case ScanValueType::Float:
-		snprintf(buf, sizeof(buf), "%.3f", field.lastValue.f32);
+	case ActualFieldType::Byte:
+	case ActualFieldType::SByte:
+	case ActualFieldType::Short:
+	case ActualFieldType::UShort:
+	case ActualFieldType::Int:
+	case ActualFieldType::UInt:
+	case ActualFieldType::Long:
+		return std::to_string(val.i64);
+	case ActualFieldType::ULong:
+		return std::to_string(val.u64);
+	case ActualFieldType::Float:
+		snprintf(buf, sizeof(buf), "%.3f", val.f32);
 		return buf;
-	case ScanValueType::Double:
-		snprintf(buf, sizeof(buf), "%.6f", field.lastValue.f64);
+	case ActualFieldType::Double:
+		snprintf(buf, sizeof(buf), "%.6f", val.f64);
 		return buf;
-	case ScanValueType::Bool:
-		return field.lastValue.b ? "true" : "false";
+	case ActualFieldType::Bool:
+		return val.b ? "true" : "false";
 	}
 	return "?";
+}
+
+bool MemoryScanner::WriteFieldValue(const ScanField& field, const void* valueBuffer)
+{
+	if (field.isStatic)
+	{
+		if (!field.fieldHandle) return false;
+		const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+		try
+		{
+			char rawBytes[8] = {};
+			switch (field.actualType)
+			{
+			case ActualFieldType::Byte:
+				*reinterpret_cast<uint8_t*>(rawBytes) = static_cast<uint8_t>(*static_cast<const int64_t*>(valueBuffer));
+				break;
+			case ActualFieldType::SByte:
+				*reinterpret_cast<int8_t*>(rawBytes) = static_cast<int8_t>(*static_cast<const int64_t*>(valueBuffer));
+				break;
+			case ActualFieldType::Short:
+				*reinterpret_cast<int16_t*>(rawBytes) = static_cast<int16_t>(*static_cast<const int64_t*>(valueBuffer));
+				break;
+			case ActualFieldType::UShort:
+				*reinterpret_cast<uint16_t*>(rawBytes) = static_cast<uint16_t>(*static_cast<const int64_t*>(valueBuffer));
+				break;
+			case ActualFieldType::Int:
+				*reinterpret_cast<int32_t*>(rawBytes) = static_cast<int32_t>(*static_cast<const int64_t*>(valueBuffer));
+				break;
+			case ActualFieldType::UInt:
+				*reinterpret_cast<uint32_t*>(rawBytes) = static_cast<uint32_t>(*static_cast<const int64_t*>(valueBuffer));
+				break;
+			case ActualFieldType::Long:
+				*reinterpret_cast<int64_t*>(rawBytes) = *static_cast<const int64_t*>(valueBuffer);
+				break;
+			case ActualFieldType::ULong:
+				*reinterpret_cast<uint64_t*>(rawBytes) = *static_cast<const uint64_t*>(valueBuffer);
+				break;
+			case ActualFieldType::Float:
+				*reinterpret_cast<float*>(rawBytes) = *static_cast<const float*>(valueBuffer);
+				break;
+			case ActualFieldType::Double:
+				*reinterpret_cast<double*>(rawBytes) = *static_cast<const double*>(valueBuffer);
+				break;
+			case ActualFieldType::Bool:
+				*reinterpret_cast<bool*>(rawBytes) = *static_cast<const bool*>(valueBuffer);
+				break;
+			}
+
+			if (mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+				                                               UR::Invoke<void*, void*>(
+					                                               "mono_field_get_parent", field.fieldHandle));
+				UR::Invoke<void, void*, void*, const void*>("mono_field_static_set_value", vTable, field.fieldHandle, rawBytes);
+			}
+			else
+			{
+				UR::Invoke<void, void*, const void*>("il2cpp_field_static_set_value", field.fieldHandle, rawBytes);
+			}
+			return true;
+		}
+		catch (...)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (!field.object || field.offset < 0) return false;
+		switch (field.actualType)
+		{
+		case ActualFieldType::Byte:
+			return SafeWrite(field.object, field.offset, static_cast<uint8_t>(*static_cast<const int64_t*>(valueBuffer)));
+		case ActualFieldType::SByte:
+			return SafeWrite(field.object, field.offset, static_cast<int8_t>(*static_cast<const int64_t*>(valueBuffer)));
+		case ActualFieldType::Short:
+			return SafeWrite(field.object, field.offset, static_cast<int16_t>(*static_cast<const int64_t*>(valueBuffer)));
+		case ActualFieldType::UShort:
+			return SafeWrite(field.object, field.offset, static_cast<uint16_t>(*static_cast<const int64_t*>(valueBuffer)));
+		case ActualFieldType::Int:
+			return SafeWrite(field.object, field.offset, static_cast<int32_t>(*static_cast<const int64_t*>(valueBuffer)));
+		case ActualFieldType::UInt:
+			return SafeWrite(field.object, field.offset, static_cast<uint32_t>(*static_cast<const int64_t*>(valueBuffer)));
+		case ActualFieldType::Long:
+			return SafeWrite(field.object, field.offset, *static_cast<const int64_t*>(valueBuffer));
+		case ActualFieldType::ULong:
+			return SafeWrite(field.object, field.offset, *static_cast<const uint64_t*>(valueBuffer));
+		case ActualFieldType::Float:
+			return SafeWrite(field.object, field.offset, *static_cast<const float*>(valueBuffer));
+		case ActualFieldType::Double:
+			return SafeWrite(field.object, field.offset, *static_cast<const double*>(valueBuffer));
+		case ActualFieldType::Bool:
+			return SafeWrite(field.object, field.offset, *static_cast<const bool*>(valueBuffer));
+		}
+	}
+	return false;
 }
