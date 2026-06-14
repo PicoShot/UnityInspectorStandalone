@@ -1,7 +1,7 @@
 #pragma once
 
 // Defines
-#define VERSION "0.6.4"
+#define VERSION "0.6.7"
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define WINDOWS_MODE 1
