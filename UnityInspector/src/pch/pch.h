@@ -1,6 +1,7 @@
 #pragma once
 
 // Defines
+#define VERSION "0.6.4"
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define WINDOWS_MODE 1
@@ -10,7 +11,11 @@
 #include <windows.h>
 #include <excpt.h>
 #include <dwmapi.h>
+#include <winhttp.h>
+#include <shellapi.h>
 #pragma comment(lib, "dwmapi")
+#pragma comment(lib, "winhttp.lib")
+#pragma comment(lib, "shell32.lib")
 
 // std
 #include <cstdio>
