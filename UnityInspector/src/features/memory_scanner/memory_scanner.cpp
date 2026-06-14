@@ -253,11 +253,11 @@ void MemoryScanner::Render()
 					selectedResultIndex = static_cast<int>(i);
 					if (readSuccess)
 					{
-						snprintf(editValueBuffer, sizeof(editValueBuffer), "%s", liveValStr.c_str());
+						memcpy(&editValue, liveValueBytes, sizeof(double));
 					}
 					else
 					{
-						editValueBuffer[0] = '\0';
+						memset(&editValue, 0, sizeof(double));
 					}
 				}
 				if (isChanged)
@@ -277,19 +277,6 @@ void MemoryScanner::Render()
 				}
 				if (ImGui::BeginPopup(popupName.c_str()))
 				{
-					if (ImGui::MenuItem("Edit Value"))
-					{
-						editingResultIndex = static_cast<int>(i);
-						if (readSuccess)
-						{
-							snprintf(editValueBuffer, sizeof(editValueBuffer), "%s", liveValStr.c_str());
-						}
-						else
-						{
-							editValueBuffer[0] = '\0';
-						}
-						openEditPopup = true;
-					}
 					if (ImGui::MenuItem("Inspect in Hierarchy"))
 					{
 						OpenResultInInspector(result);
@@ -348,122 +335,35 @@ void MemoryScanner::Render()
 				ImGui::TextDisabled("Location: Object %s (%p), Offset: 0x%X", result.objectName.c_str(), result.object, result.offset);
 
 			ImGui::SetNextItemWidth(300.0f);
-			ImGui::InputText("New Value", editValueBuffer, sizeof(editValueBuffer));
-			ImGui::SameLine();
-			if (ImGui::Button("Write Value", ImVec2(100, 0)) || ImGui::IsKeyPressed(ImGuiKey_Enter))
+			
+			bool valueChanged = false;
+			if (result.actualType == ActualFieldType::Bool)
 			{
-				ScanField::ValUnion newVal = {};
-				bool parseSuccess = false;
-				try
-				{
-					std::string inputStr(editValueBuffer);
-					if (result.actualType == ActualFieldType::Bool)
-					{
-						newVal.b = (inputStr == "true" || inputStr == "1" || inputStr == "True");
-						parseSuccess = true;
-					}
-					else if (result.actualType == ActualFieldType::Float)
-					{
-						newVal.f32 = std::stof(inputStr);
-						parseSuccess = true;
-					}
-					else if (result.actualType == ActualFieldType::Double)
-					{
-						newVal.f64 = std::stod(inputStr);
-						parseSuccess = true;
-					}
-					else if (result.actualType == ActualFieldType::ULong)
-					{
-						newVal.u64 = std::stoull(inputStr);
-						parseSuccess = true;
-					}
-					else
-					{
-						newVal.i64 = std::stoll(inputStr);
-						parseSuccess = true;
-					}
-				}
-				catch (...) {}
-
-				if (parseSuccess)
-				{
-					WriteFieldValue(result, &newVal);
-					memcpy(&currentResults[selectedResultIndex].lastValue, &newVal, sizeof(double));
-				}
+				valueChanged = ImGui::Checkbox("New Value", &editValue.b);
 			}
-		}
-
-		if (openEditPopup && editingResultIndex >= 0 && editingResultIndex < static_cast<int>(currentResults.size()))
-		{
-			ImGui::OpenPopup("Edit Value Popup");
-			openEditPopup = false;
-		}
-
-		if (ImGui::BeginPopupModal("Edit Value Popup", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
-		{
-			if (editingResultIndex >= 0 && editingResultIndex < static_cast<int>(currentResults.size()))
+			else if (result.actualType == ActualFieldType::Float)
 			{
-				auto& result = currentResults[editingResultIndex];
-				ImGui::Text("Edit value for %s::%s", result.className.c_str(), result.fieldName.c_str());
-				ImGui::TextDisabled("Type: %s | Object: %s", GetActualFieldTypeName(result.actualType), result.objectName.c_str());
-				ImGui::Separator();
-
-				ImGui::SetNextItemWidth(200.0f);
-				ImGui::InputText("New Value", editValueBuffer, sizeof(editValueBuffer));
-
-				if (ImGui::Button("Write", ImVec2(100, 0)) || ImGui::IsKeyPressed(ImGuiKey_Enter))
-				{
-					ScanField::ValUnion newVal = {};
-					bool parseSuccess = false;
-					try
-					{
-						std::string inputStr(editValueBuffer);
-						if (result.actualType == ActualFieldType::Bool)
-						{
-							newVal.b = (inputStr == "true" || inputStr == "1" || inputStr == "True");
-							parseSuccess = true;
-						}
-						else if (result.actualType == ActualFieldType::Float)
-						{
-							newVal.f32 = std::stof(inputStr);
-							parseSuccess = true;
-						}
-						else if (result.actualType == ActualFieldType::Double)
-						{
-							newVal.f64 = std::stod(inputStr);
-							parseSuccess = true;
-						}
-						else if (result.actualType == ActualFieldType::ULong)
-						{
-							newVal.u64 = std::stoull(inputStr);
-							parseSuccess = true;
-						}
-						else
-						{
-							newVal.i64 = std::stoll(inputStr);
-							parseSuccess = true;
-						}
-					}
-					catch (...) {}
-
-					if (parseSuccess)
-					{
-						WriteFieldValue(result, &newVal);
-						memcpy(&currentResults[editingResultIndex].lastValue, &newVal, sizeof(double));
-					}
-					ImGui::CloseCurrentPopup();
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Cancel", ImVec2(100, 0)))
-				{
-					ImGui::CloseCurrentPopup();
-				}
+				valueChanged = ImGui::InputFloat("New Value", &editValue.f32, 0.0f, 0.0f, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
+			}
+			else if (result.actualType == ActualFieldType::Double)
+			{
+				valueChanged = ImGui::InputDouble("New Value", &editValue.f64, 0.0, 0.0, "%.6f", ImGuiInputTextFlags_EnterReturnsTrue);
+			}
+			else if (result.actualType == ActualFieldType::ULong)
+			{
+				valueChanged = ImGui::InputScalar("New Value", ImGuiDataType_U64, &editValue.u64, nullptr, nullptr, nullptr, ImGuiInputTextFlags_EnterReturnsTrue);
 			}
 			else
 			{
-				ImGui::CloseCurrentPopup();
+				valueChanged = ImGui::InputScalar("New Value", ImGuiDataType_S64, &editValue.i64, nullptr, nullptr, nullptr, ImGuiInputTextFlags_EnterReturnsTrue);
 			}
-			ImGui::EndPopup();
+
+			ImGui::SameLine();
+			if (ImGui::Button("Write Value", ImVec2(100, 0)) || valueChanged)
+			{
+				WriteFieldValue(result, &editValue);
+				memcpy(&currentResults[selectedResultIndex].lastValue, &editValue, sizeof(double));
+			}
 		}
 	}
 	ImGui::End();

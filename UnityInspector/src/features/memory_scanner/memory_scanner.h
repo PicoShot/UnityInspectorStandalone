@@ -148,9 +148,7 @@ private:
 
 	std::vector<void*> objectsGathered;
 
-	char editValueBuffer[64] = {};
-	int editingResultIndex = -1;
-	bool openEditPopup = false;
+	ScanField::ValUnion editValue{.i64 = 0};
 
 	std::thread scanThread;
 	std::mutex resultsMutex;
