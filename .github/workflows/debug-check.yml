@@ -1,9 +1,10 @@
-name: Release Build
+name: Debug Check
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 env:
@@ -29,7 +30,7 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Configure CMake
-        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
       - name: Build project
         run: cmake --build build
@@ -40,5 +41,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: winhttp-dll
-          path: dist/winhttp.dll
+          name: winhttp-dll-debug
+          path: |
+            dist/winhttp.dll
+            dist/winhttp.pdb
