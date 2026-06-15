@@ -1,17 +1,12 @@
 ﻿#pragma once
-#ifndef HOOK_MANAGER
-#define HOOK_MANAGER
+
 #include <Windows.h>
 #include <mutex>
 #include <ranges>
 #include <unordered_map>
 #include "detours.h"
 
-#ifdef _WIN64
-#pragma comment(lib, "[x64]detours.lib")
-#else
-#pragma comment(lib, "[x86]detours.lib")
-#endif
+#pragma comment(lib, "detours.lib")
 
 class HookManager {
 public:
@@ -108,4 +103,3 @@ private:
 		return ret;
 	}
 };
-#endif

@@ -41,7 +41,7 @@ target_precompile_headers(UnityInspector PRIVATE pch/pch.h)
 target_link_libraries(UnityInspector PRIVATE
         imgui
         kiero
-        "${PROJECT_SOURCE_DIR}/UnityInspector/library/detours/[x64]detours.lib"
+        "${PROJECT_SOURCE_DIR}/UnityInspector/library/detours/detours.lib"
         "${PROJECT_SOURCE_DIR}/UnityInspector/library/luajit/lua51.lib"
 )
 
