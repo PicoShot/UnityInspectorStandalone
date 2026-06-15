@@ -62,7 +62,12 @@ if(MSVC)
             $<$<CONFIG:RELEASE>:/GS->
             $<$<CONFIG:RELEASE>:/GR->
     )
-    target_link_options(UnityInspector PRIVATE $<$<CONFIG:RELEASE>:/OPT:NOICF>)
+    target_link_options(UnityInspector PRIVATE 
+        $<$<CONFIG:RELEASE>:/OPT:NOICF>
+        $<$<CONFIG:RELEASE>:/LTCG>
+        $<$<CONFIG:DEBUG>:/NODEFAULTLIB:LIBCMT>
+        $<$<CONFIG:DEBUG>:/NODEFAULTLIB:LIBCMTD>
+    )
 endif()
 
 
