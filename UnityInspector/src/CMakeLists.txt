@@ -36,6 +36,8 @@ target_include_directories(UnityInspector PUBLIC
     "${PROJECT_SOURCE_DIR}/UnityInspector/src/pch"
 )
 
+target_precompile_headers(UnityInspector PRIVATE pch/pch.h)
+
 target_link_libraries(UnityInspector PRIVATE
         imgui
         kiero
