@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(UnityInspector)
+project(OnlineFixUnity)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,4 +16,4 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 
-add_subdirectory(UnityInspector)
+add_subdirectory(OnlineFixUnity)
