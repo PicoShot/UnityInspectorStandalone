@@ -85,6 +85,7 @@ public:
 	struct Field;
 	struct Method;
 	class UnityType;
+	using AssemblyLoadCallback = void(UNITY_CALLING_CONVENTION*)(void* assembly, void* userData);
 
 	enum class Mode : char {
 		Il2Cpp,
@@ -673,6 +674,12 @@ public:
 	static auto RefreshAssemblies() -> void {
 		ThreadAttach();
 		ForeachAssembly();
+	}
+
+	static auto RegisterAssemblyLoadCallback(const AssemblyLoadCallback callback, void* userData = nullptr) -> bool {
+		if (mode_ != Mode::Mono || callback == nullptr) return false;
+		Invoke<void>("mono_install_assembly_load_hook", callback, userData);
+		return true;
 	}
 
 private:

@@ -23,12 +23,9 @@ struct UserSettings
 	struct INISettings
 	{
 		uint32_t appid = 0;
-#ifdef _DEBUG
+
 		bool debug_console = true;
-#else
-		bool debug_console = false;
-#endif
-		bool internal_overlay = true;
+		bool internal_overlay = false;
 		bool external_overlay = false;
 		bool lua_jit_enabled = false;
 	} ini;

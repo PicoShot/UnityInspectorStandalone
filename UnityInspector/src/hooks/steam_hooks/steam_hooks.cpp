@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "steam_hooks.h"
-#include "config/config.h"
 
 REGISTER_HOOK(SteamHooks)
 
@@ -95,13 +94,17 @@ namespace
 
 void SteamHooks::Install()
 {
-	if (InstallHooks())
-		return;
+	if (InstallHooks()) return;
 
 	static std::once_flag loadHook;
 	std::call_once(loadHook, []
 	{
-		UR::Invoke<void>("mono_install_assembly_load_hook", OnAssemblyLoaded, nullptr);
+		if (!UR::RegisterAssemblyLoadCallback(OnAssemblyLoaded))
+		{
+			LOG_ERROR("Steam hooks: assembly-load callbacks are only available in Mono mode.");
+			return;
+		}
+
 		LOG_INFO("Steam hooks: waiting for Heathen.Steamworks.dll to load.");
 		UR::RefreshAssemblies();
 		InstallHooks();
