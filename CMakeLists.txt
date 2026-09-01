@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(UnityInspector)
 
-option(LUA_PLUGINS "Compile LuaJIT plugin and scripting support" OFF)
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

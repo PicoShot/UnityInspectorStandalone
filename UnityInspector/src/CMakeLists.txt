@@ -1,29 +1,9 @@
 add_library(UnityInspector SHARED
     dllmain.cpp
-    features/features.cpp
     features/debug_console/debug_console.cpp
-    features/assembly_explorer/assembly_explorer.cpp
-    features/inspector/inspector_esp.cpp
-    features/inspector/field_editor.cpp
-    features/inspector/inspector.cpp
-    features/inspector/utils.cpp
-    features/memory_scanner/memory_scanner.cpp
-    features/inspector/hierarchy_window.cpp
-    features/inspector/inspector_window.cpp
-    features/inspector/invoke_popup.cpp
-    features/tests/tests.cpp
-    helper/helper.cpp
     hooks/hooks.cpp
     hooks/console_hooks/console_hooks.cpp
     hooks/steam_hooks/steam_hooks.cpp
-    menu/menu.cpp
-    menu/misc_tab/misc_tab.cpp
-    menu/debug_tab/debug_tab.cpp
-    window/window.cpp
-    window/input.cpp
-    window/window_finder.cpp
-    window/external_overlay.cpp
-    window/input_forwarder.cpp
     loader/loader.cpp
     pch/pch.cpp
 )
@@ -31,28 +11,14 @@ add_library(UnityInspector SHARED
 target_include_directories(UnityInspector PUBLIC
     "${PROJECT_SOURCE_DIR}/UnityInspector/src"
     "${PROJECT_SOURCE_DIR}/UnityInspector/src/pch"
+	"${PROJECT_SOURCE_DIR}/UnityInspector/library"
 )
 
 target_precompile_headers(UnityInspector PRIVATE pch/pch.h)
 
 target_link_libraries(UnityInspector PRIVATE
-        imgui
-        kiero
         "${PROJECT_SOURCE_DIR}/UnityInspector/library/detours/detours.lib"
 )
-
-if(LUA_PLUGINS)
-    target_sources(UnityInspector PRIVATE
-        features/lua_system/lua_bindings.cpp
-        features/lua_system/lua_plugin.cpp
-        features/lua_system/lua_system.cpp
-        menu/lua_tab/lua_tab.cpp
-    )
-    target_link_libraries(UnityInspector PRIVATE
-        "${PROJECT_SOURCE_DIR}/UnityInspector/library/luajit/lua51.lib"
-    )
-    target_compile_definitions(UnityInspector PRIVATE LUA_PLUGINS)
-endif()
 
 target_compile_definitions(UnityInspector PRIVATE
     $<$<CONFIG:DEBUG>:_DEBUG>

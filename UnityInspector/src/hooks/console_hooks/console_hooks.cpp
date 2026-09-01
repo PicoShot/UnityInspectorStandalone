@@ -10,9 +10,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogObject(void* message)
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Log, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Log);
 	}
 	HookManager::Fcall(HDebugLogObject, message);
 }
@@ -23,9 +21,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogString(void* message)
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Log, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Log);
 	}
 	HookManager::Fcall(HDebugLogString, message);
 }
@@ -36,9 +32,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogFormat(void* message, void*
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Log, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Log);
 	}
 	HookManager::Fcall(HDebugLogFormat, message, args);
 }
@@ -49,9 +43,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogWarningObject(void* message
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Warning, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Warning);
 	}
 	HookManager::Fcall(HDebugLogWarningObject, message);
 }
@@ -62,9 +54,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogWarningString(void* message
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Warning, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Warning);
 	}
 	HookManager::Fcall(HDebugLogWarningString, message);
 }
@@ -75,9 +65,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogErrorObject(void* message)
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Error, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Error);
 	}
 	HookManager::Fcall(HDebugLogErrorObject, message);
 }
@@ -88,9 +76,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogErrorString(void* message)
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Error, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Error);
 	}
 	HookManager::Fcall(HDebugLogErrorString, message);
 }
@@ -101,9 +87,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogException(void* exception)
 	{
 		const auto* str = static_cast<UT::String*>(exception);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Exception, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Exception);
 	}
 	HookManager::Fcall(HDebugLogException, exception);
 }
@@ -114,9 +98,7 @@ void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogAssertion(void* message)
 	{
 		const auto* str = static_cast<UT::String*>(message);
 		const std::string msg = str->ToString();
-		const std::string stackTrace = DebugConsole::GetStackTrace();
-		const std::string source = DebugConsole::GetCallingSource();
-		DebugConsole::AddLog(msg, LogType::Assert, stackTrace, source);
+		DebugConsole::AddLog(msg, LogType::Assert);
 	}
 	HookManager::Fcall(HDebugLogAssertion, message);
 }

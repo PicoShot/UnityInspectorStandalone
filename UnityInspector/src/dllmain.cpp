@@ -1,8 +1,6 @@
 ﻿#include "pch.h"
 #include "loader/loader.h"
 
-#pragma comment(lib, "Advapi32.lib")
-
 void SetupEnvironmentVariables()
 {
 	_putenv_s(X("STEAMVIDEOTOKEN"), X("480"));

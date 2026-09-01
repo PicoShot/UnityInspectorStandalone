@@ -5,17 +5,10 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define WINDOWS_MODE 1
-#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
 // Windows
 #include <windows.h>
 #include <excpt.h>
-#include <dwmapi.h>
-#include <winhttp.h>
-#include <shellapi.h>
-#pragma comment(lib, "dwmapi")
-#pragma comment(lib, "winhttp.lib")
-#pragma comment(lib, "shell32.lib")
 
 // std
 #include <cstdio>
@@ -24,6 +17,7 @@
 #include <chrono>
 #include <thread>
 #include <future>
+#include <filesystem>
 #include <utility>
 #include <algorithm>
 #include <unordered_set>
@@ -40,43 +34,17 @@
 #include <cctype>
 #include <numbers>
 
-// Graphics
-#include <d3d11.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
-
 // Unity SDK
 #include "unityresolve/UnityResolve.hpp"
 
 // Hook
 #include "detours/HookManager.h"
-#include "graphics_hook/graphics_hook.hpp"
-
-// ImGui
-#include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
-#include "imgui/imgui_impl_dx11.h"
-#include "imgui/imgui_impl_dx12.h"
-#include "imgui/imgui_impl_win32.h"
 
 // Misc
 #include "ini/inicpp.h"
-#include "json/json.hpp"
 #include "xorstr/xorstr.hpp"
 #include "console/Console.hpp"
 #include "proxy.h"
-
-// Lua plugins
-#ifdef LUA_PLUGINS
-#include "imgui/TextEditor.h"
-#include "sol/sol.hpp"
-extern "C" {
-#include "luajit/luajit.h"
-}
-#endif
 
 // Macros
 #define TOKENPASTE(x, y) x ## y
@@ -85,7 +53,6 @@ extern "C" {
 #define X(str) xorstr_(str)
 
 // Usings
-using Json = nlohmann::json;
 using UR = UnityResolve;
 using UT = UR::UnityType;
 using Vec2 = UT::Vector2;
