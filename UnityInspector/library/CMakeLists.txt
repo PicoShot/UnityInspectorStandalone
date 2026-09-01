@@ -1,4 +1,4 @@
-add_library(imgui STATIC
+set(IMGUI_SOURCES
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
@@ -7,8 +7,13 @@ add_library(imgui STATIC
     imgui/imgui_impl_win32.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
-    imgui/TextEditor.cpp
 )
+
+if(LUA_PLUGINS)
+    list(APPEND IMGUI_SOURCES imgui/TextEditor.cpp)
+endif()
+
+add_library(imgui STATIC ${IMGUI_SOURCES})
 
 target_include_directories(imgui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(imgui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/imgui)

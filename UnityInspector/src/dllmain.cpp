@@ -5,56 +5,44 @@
 
 void SetupEnvironmentVariables()
 {
-    _putenv_s("STEAMVIDEOTOKEN", "480");
-    _putenv_s("SteamClientLaunch", "1");
-    _putenv_s("SteamGameId","480");
-    _putenv_s("SteamAppId", "480");
-    _putenv_s("SteamOverlayGameId", "480");
-    _putenv_s("SteamEnv", "1");
+	_putenv_s(X("STEAMVIDEOTOKEN"), X("480"));
+	_putenv_s(X("SteamClientLaunch"), X("1"));
+	_putenv_s(X("SteamGameId"), X("480"));
+	_putenv_s(X("SteamAppId"), X("480"));
+	_putenv_s(X("SteamOverlayGameId"), X("480"));
+	_putenv_s(X("SteamEnv"), X("1"));
 }
 
-namespace
+void LoadSteamOverlay()
 {
-	DWORD WINAPI LoadSteamOverlayThread(LPVOID)
+	const auto registryPath = X("SOFTWARE\\WOW6432Node\\Valve\\Steam");
+	const auto valueName = X("InstallPath");
+
+	DWORD pathSize = 0;
+	if (RegGetValueA(HKEY_LOCAL_MACHINE, registryPath, valueName,
+					 RRF_RT_REG_SZ, nullptr, nullptr, &pathSize) != ERROR_SUCCESS ||
+		pathSize == 0)
 	{
-		constexpr auto registryPath = L"SOFTWARE\\WOW6432Node\\Valve\\Steam";
-		constexpr auto valueName = L"InstallPath";
-
-		DWORD pathSize = 0;
-		if (RegGetValueW(HKEY_LOCAL_MACHINE, registryPath, valueName,
-			RRF_RT_REG_SZ, nullptr, nullptr, &pathSize) != ERROR_SUCCESS || pathSize == 0)
-		{
-			return 1;
-		}
-
-		std::wstring steamPath(pathSize / sizeof(wchar_t), L'\0');
-		if (RegGetValueW(HKEY_LOCAL_MACHINE, registryPath, valueName,
-			RRF_RT_REG_SZ, nullptr, steamPath.data(), &pathSize) != ERROR_SUCCESS)
-		{
-			return 1;
-		}
-
-		steamPath.resize(wcslen(steamPath.c_str()));
-		if (!steamPath.empty() && steamPath.back() != L'\\' && steamPath.back() != L'/')
-			steamPath += L'\\';
-
-#ifdef _WIN64
-		steamPath += L"gameoverlayrenderer64.dll";
-#else
-		steamPath += L"gameoverlayrenderer.dll";
-#endif
-
-		if (GetModuleHandleW(steamPath.c_str()))
-			return 0;
-
-		return LoadLibraryW(steamPath.c_str()) ? 0 : 1;
+		return;
 	}
 
-	void LoadSteamOverlay()
+	std::string steamPath(pathSize / sizeof(char), '\0');
+	if (RegGetValueA(HKEY_LOCAL_MACHINE, registryPath, valueName,
+					 RRF_RT_REG_SZ, nullptr, steamPath.data(), &pathSize) != ERROR_SUCCESS)
 	{
-		if (const auto thread = CreateThread(nullptr, 0, LoadSteamOverlayThread, nullptr, 0, nullptr))
-			CloseHandle(thread);
+		return;
 	}
+
+	steamPath.resize(strlen(steamPath.c_str()));
+	if (!steamPath.empty() && steamPath.back() != '\\' && steamPath.back() != '/')
+		steamPath += '\\';
+
+	steamPath += X("gameoverlayrenderer64.dll");
+
+	if (GetModuleHandleA(steamPath.c_str()))
+		return;
+
+	LoadLibraryA(steamPath.c_str()) ? 0 : 1;
 }
 
 BOOL APIENTRY DllMain(HMODULE hMod, DWORD reason, LPVOID lpReserved)

@@ -2,7 +2,9 @@
 #include "menu.h"
 #include "misc_tab/misc_tab.h"
 #include "debug_tab/debug_tab.h"
+#ifdef LUA_PLUGINS
 #include "lua_tab/lua_tab.h"
+#endif
 #include "config/config.h"
 
 namespace Menu
@@ -148,7 +150,9 @@ namespace Menu
 	{
 		if (s_Initialized) return;
 		s_Tabs.push_back(std::make_unique<DebugTab>());
+#ifdef LUA_PLUGINS
 		s_Tabs.push_back(std::make_unique<LuaConsoleTab>());
+#endif
 		s_Tabs.push_back(std::make_unique<MiscTab>());
 		s_Initialized = true;
 

@@ -61,7 +61,6 @@
 #include "imgui/imgui_impl_dx11.h"
 #include "imgui/imgui_impl_dx12.h"
 #include "imgui/imgui_impl_win32.h"
-#include "imgui/TextEditor.h"
 
 // Misc
 #include "ini/inicpp.h"
@@ -70,11 +69,14 @@
 #include "console/Console.hpp"
 #include "proxy.h"
 
-// Lua
+// Lua plugins
+#ifdef LUA_PLUGINS
+#include "imgui/TextEditor.h"
 #include "sol/sol.hpp"
 extern "C" {
 #include "luajit/luajit.h"
 }
+#endif
 
 // Macros
 #define TOKENPASTE(x, y) x ## y

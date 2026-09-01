@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "features.h"
+#ifdef LUA_PLUGINS
 #include "lua_system/lua_system.h"
+#endif
 
 void IFeature::Init()
 {
@@ -19,7 +21,9 @@ namespace Features
 		for (auto& factory : GetRegistry())
 			features.push_back(factory());
 
+#ifdef LUA_PLUGINS
 		features.push_back(std::make_unique<LuaSystem>());
+#endif
 
 		for (const auto& feature : features)
 			feature->Init();
