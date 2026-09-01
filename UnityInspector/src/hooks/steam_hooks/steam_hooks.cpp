@@ -104,8 +104,7 @@ void SteamHooks::Install()
 			LOG_ERROR("Steam hooks: assembly-load callbacks are only available in Mono mode.");
 			return;
 		}
-
-		LOG_INFO("Steam hooks: waiting for Heathen.Steamworks.dll to load.");
+		
 		UR::RefreshAssemblies();
 		InstallHooks();
 	});
