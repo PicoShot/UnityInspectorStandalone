@@ -14,6 +14,9 @@ namespace
 		"HeathenEngineering.SteamworksIntegration.SteamGameServerConfiguration";
 	std::atomic_bool clientInstalled{};
 	std::atomic_bool serverInstalled{};
+	std::atomic_bool appIdInstalled{};
+	std::atomic_bool clientIdInstalled{};
+	std::atomic_bool settingsApplicationIdInstalled{};
 
 	void UNITY_CALLING_CONVENTION HInitialize(AppData appId)
 	{
@@ -28,12 +31,27 @@ namespace
 		HookManager::Fcall(HInitializeServer, appId, serverConfiguration);
 	}
 
+	AppData UNITY_CALLING_CONVENTION HGetAppId()
+	{
+		return {SteamAppId};
+	}
+
+	AppData UNITY_CALLING_CONVENTION HGetClientId()
+	{
+		return {SteamAppId};
+	}
+
+	AppData UNITY_CALLING_CONVENTION HGetSettingsApplicationId()
+	{
+		return {SteamAppId};
+	}
+
 	bool InstallHooks(const UR::Assembly *module)
 	{
 		if (!module)
 			return false;
 
-		static const auto clientClass = module->Get("Client");
+		const auto clientClass = module->Get("Client");
 
 		if (clientClass && !clientInstalled)
 		{
@@ -43,7 +61,14 @@ namespace
 					HookManager::Install(initialize->Cast<void, AppData>(), HInitialize);
 		}
 
-		static const auto serverClass = module->Get("Server");
+		if (clientClass && !clientIdInstalled)
+		{
+			if (auto *getId = clientClass->Get<UR::Method>("get_Id"))
+				clientIdInstalled = HookManager::Install(
+					getId->Cast<AppData>(), HGetClientId);
+		}
+
+		const auto serverClass = module->Get("Server");
 
 		if (serverClass && !serverInstalled)
 		{
@@ -53,7 +78,43 @@ namespace
 					initialize->Cast<void, AppData, void *>(), HInitializeServer);
 		}
 
-		return clientInstalled || serverInstalled;
+		if (!appIdInstalled)
+		{
+			if (const auto appClass = module->Get(
+					"App", "HeathenEngineering.SteamworksIntegration.API"))
+			{
+				if (auto *getId = appClass->Get<UR::Method>("get_Id"))
+					appIdInstalled = HookManager::Install(
+						getId->Cast<AppData>(), HGetAppId);
+			}
+		}
+
+		if (!settingsApplicationIdInstalled)
+		{
+			if (const auto settingsClass = module->Get(
+					"SteamSettings", "HeathenEngineering.SteamworksIntegration"))
+			{
+				if (auto *getApplicationId =
+						settingsClass->Get<UR::Method>("get_ApplicationId"))
+				{
+					settingsApplicationIdInstalled = HookManager::Install(
+						getApplicationId->Cast<AppData>(),
+						HGetSettingsApplicationId);
+				}
+			}
+		}
+
+		LOG_INFO(
+			"Heathen hooks: client Initialize={}, server Initialize={}, App.Id={}, "
+			"Client.Id={}, SteamSettings.ApplicationId={}.",
+			clientInstalled ? "installed" : "not found",
+			serverInstalled ? "installed" : "not found",
+			appIdInstalled ? "installed" : "not found",
+			clientIdInstalled ? "installed" : "not found",
+			settingsApplicationIdInstalled ? "installed" : "not found");
+
+		return clientInstalled || serverInstalled || appIdInstalled ||
+			   clientIdInstalled || settingsApplicationIdInstalled;
 	}
 
 	void OnAssemblyLoaded(UR::Assembly *assembly)
