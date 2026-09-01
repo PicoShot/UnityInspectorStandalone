@@ -21,6 +21,7 @@ namespace
 
 	bool UNITY_CALLING_CONVENTION HRestartAppIfNecessary(AppId)
 	{
+		HookManager::Fcall(HRestartAppIfNecessary, AppId{SteamAppId});
 		return false;
 	}
 
