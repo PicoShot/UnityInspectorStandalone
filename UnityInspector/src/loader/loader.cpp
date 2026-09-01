@@ -18,7 +18,8 @@ namespace Loader
 		bool hookSuccess = false;
 
 		LOG_INFO("Initializing Overlay Hook.");
-		while (!WindowFinder::FindGameWindow()) Sleep(2000);
+		while (!WindowFinder::FindGameWindow())
+			Sleep(2000);
 
 		if (Config::settings.ini.internal_overlay)
 		{
@@ -35,7 +36,8 @@ namespace Loader
 			for (uint8_t i = 0; i < 10 && !gameHwnd; i++)
 			{
 				gameHwnd = WindowFinder::FindGameWindow();
-				if (!gameHwnd) Sleep(500);
+				if (!gameHwnd)
+					Sleep(500);
 			}
 
 			if (!gameHwnd)
@@ -64,8 +66,6 @@ namespace Loader
 
 	static DWORD WINAPI LoaderThread(LPVOID)
 	{
-		while (!WindowFinder::FindGameWindow()) Sleep(100);
-
 		do
 		{
 			if (const auto module = GetModuleHandleA("GameAssembly.dll"); module)
@@ -83,12 +83,11 @@ namespace Loader
 			}
 
 			Sleep(100);
-		}
-		while (true);
+		} while (true);
 
-		if (Config::settings.ini.debug_console) console::StartConsole("Debug Console", false);
+		if (Config::settings.ini.debug_console)
+			console::StartConsole("Debug Console", false);
 		LOG_INFO("loaded, initializing...");
-
 		UR::Init(Config::state.gameHandle, Config::state.unityMode);
 		Hooks::Init();
 		Features::Init();
