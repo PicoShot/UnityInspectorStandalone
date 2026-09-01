@@ -34,8 +34,14 @@ namespace Loader
 									  .c_str(),
 								  false);
 		LOG_INFO("loaded, initializing...");
+
+		if (Config::state.unityMode == UR::Mode::Mono)
+			Hooks::Init();
+
 		UR::Init(Config::state.gameHandle, Config::state.unityMode);
-		Hooks::Init();
+
+		if (Config::state.unityMode == UR::Mode::Il2Cpp)
+			Hooks::Init();
 
 		LOG_INFO("initialized successfully");
 		return NULL;

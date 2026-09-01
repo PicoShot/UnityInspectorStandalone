@@ -48,10 +48,13 @@
 #endif
 
 #include <fstream>
+#include <atomic>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <functional>
 #include <numbers>
@@ -85,7 +88,7 @@ public:
 	struct Field;
 	struct Method;
 	class UnityType;
-	using AssemblyLoadCallback = void(UNITY_CALLING_CONVENTION*)(void* assembly, void* userData);
+	using AssemblyLoadCallback = std::function<void(Assembly*)>;
 
 	enum class Mode : char {
 		Il2Cpp,
@@ -416,6 +419,7 @@ public:
 	static auto Init(void* hmodule, const Mode mode = Mode::Mono) -> void {
 		mode_ = mode;
 		hmodule_ = hmodule;
+		runtimeReady_ = false;
 
 		if (mode_ == Mode::Il2Cpp) {
 			do {
@@ -424,6 +428,7 @@ public:
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			} while (true);
 			Invoke<void*>("il2cpp_thread_attach", pDomain);
+			runtimeReady_ = true;
 
 			ForeachAssembly();
 		}
@@ -436,6 +441,8 @@ public:
 
 			Invoke<void*>("mono_thread_attach", pDomain);
 			Invoke<void*>("mono_jit_thread_attach", pDomain);
+			runtimeReady_ = true;
+			InstallMonoAssemblyLoadHook();
 
 			ForeachAssembly();
 		}
@@ -676,13 +683,96 @@ public:
 		ForeachAssembly();
 	}
 
-	static auto RegisterAssemblyLoadCallback(const AssemblyLoadCallback callback, void* userData = nullptr) -> bool {
-		if (mode_ != Mode::Mono || callback == nullptr) return false;
-		Invoke<void>("mono_install_assembly_load_hook", callback, userData);
+	static auto OnAssemblyLoaded(AssemblyLoadCallback callback, const bool includeAlreadyLoaded = true) -> bool {
+		if (!callback || (runtimeReady_ && mode_ != Mode::Mono)) return false;
+
+		{
+			std::scoped_lock lock(assemblyCallbackMutex_);
+			auto& entry = assemblyCallbacks_.emplace_back();
+			entry.callback = std::move(callback);
+			if (!includeAlreadyLoaded) {
+				std::scoped_lock assemblyLock(assemblyMutex_);
+				for (const auto& item : assembly) entry.delivered.insert(item->address);
+			}
+		}
+
+		if (!runtimeReady_) return true;
+
+		InstallMonoAssemblyLoadHook();
+		RefreshAssemblies();
+		if (includeAlreadyLoaded) {
+			std::vector<Assembly*> loaded;
+			{
+				std::scoped_lock lock(assemblyMutex_);
+				for (const auto& item : assembly) loaded.push_back(item.get());
+			}
+			for (auto* item : loaded) DispatchAssemblyLoaded(item);
+		}
 		return true;
 	}
 
 private:
+	struct AssemblyCallbackEntry {
+		AssemblyLoadCallback callback;
+		std::unordered_set<void*> delivered;
+	};
+
+	static auto DispatchAssemblyLoaded(Assembly* loaded) -> void {
+		if (!loaded) return;
+
+		std::vector<AssemblyLoadCallback> callbacks;
+		{
+			std::scoped_lock lock(assemblyCallbackMutex_);
+			for (auto& entry : assemblyCallbacks_) {
+				if (entry.delivered.insert(loaded->address).second) callbacks.push_back(entry.callback);
+			}
+		}
+
+		for (const auto& callback : callbacks) callback(loaded);
+	}
+
+	static auto InstallMonoAssemblyLoadHook() -> void {
+		if (!runtimeReady_ || mode_ != Mode::Mono) return;
+
+		std::call_once(monoAssemblyLoadHook_, [] {
+			Invoke<void>("mono_install_assembly_load_hook", +[](void* rawAssembly, void*) {
+				if (auto* loaded = CacheMonoAssembly(rawAssembly)) DispatchAssemblyLoaded(loaded);
+			}, nullptr);
+		});
+	}
+
+	static auto CacheMonoAssembly(void* ptr) -> Assembly* {
+		if (!ptr) return nullptr;
+
+		{
+			std::scoped_lock lock(assemblyMutex_);
+			for (const auto& item : assembly) if (item->address == ptr) return item.get();
+			if (!loadingAssemblies_.insert(ptr).second) return nullptr;
+		}
+
+		auto loaded = std::make_unique<Assembly>(Assembly{ .address = ptr });
+		try {
+			const auto image = Invoke<void*>("mono_assembly_get_image", ptr);
+			loaded->file = Invoke<const char*>("mono_image_get_filename", image);
+			loaded->name = Invoke<const char*>("mono_image_get_name", image);
+			loaded->name += ".dll";
+			ForeachClass(loaded.get(), image);
+		}
+		catch (...) {
+			std::scoped_lock lock(assemblyMutex_);
+			loadingAssemblies_.erase(ptr);
+			return nullptr;
+		}
+
+		auto* result = loaded.get();
+		{
+			std::scoped_lock lock(assemblyMutex_);
+			loadingAssemblies_.erase(ptr);
+			assembly.push_back(std::move(loaded));
+		}
+		return result;
+	}
+
 	static auto ForeachAssembly() -> void {
 		if (mode_ == Mode::Il2Cpp) {
 			size_t     nrofassemblies = 0;
@@ -700,22 +790,9 @@ private:
 			}
 		}
 		else {
-			Invoke<void*, void(*)(void* ptr, std::vector<std::unique_ptr<Assembly>>&), std::vector<std::unique_ptr<Assembly>>&>("mono_assembly_foreach",
-				[](void* ptr, std::vector<std::unique_ptr<Assembly>>& v) {
-					if (ptr == nullptr) return;
-					if (std::ranges::any_of(v, [ptr](const auto& item) { return item->address == ptr; })) return;
-
-					auto assembly = std::make_unique<Assembly>(Assembly{ .address = ptr });
-					try {
-						const auto image = Invoke<void*>("mono_assembly_get_image", ptr);
-						assembly->file = Invoke<const char*>("mono_image_get_filename", image);
-						assembly->name = Invoke<const char*>("mono_image_get_name", image);
-						assembly->name += ".dll";
-						ForeachClass(assembly.get(), image);
-						v.push_back(std::move(assembly));
-					}
-					catch (...) {}
-				}, assembly);
+			Invoke<void>("mono_assembly_foreach", +[](void* ptr, void*) {
+				if (auto* loaded = CacheMonoAssembly(ptr)) DispatchAssemblyLoaded(loaded);
+			}, nullptr);
 		}
 	}
 
@@ -3927,7 +4004,13 @@ public:
 private:
 	inline static Mode                                   mode_{};
 	inline static void* hmodule_;
+	inline static std::atomic_bool runtimeReady_{};
 	inline static std::unordered_map<std::string, void*> address_{};
+	inline static std::mutex assemblyMutex_{};
+	inline static std::unordered_set<void*> loadingAssemblies_{};
+	inline static std::mutex assemblyCallbackMutex_{};
+	inline static std::vector<AssemblyCallbackEntry> assemblyCallbacks_{};
+	inline static std::once_flag monoAssemblyLoadHook_{};
 	
 public:
 	inline static void* pDomain{};

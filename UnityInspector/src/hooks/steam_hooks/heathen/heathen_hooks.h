@@ -1,6 +1,6 @@
 #pragma once
 
-namespace  HeathenHooks
+namespace HeathenHooks
 {
 	void Install();
 }
