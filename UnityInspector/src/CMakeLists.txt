@@ -1,6 +1,5 @@
 add_library(UnityInspector SHARED
     dllmain.cpp
-    features/debug_console/debug_console.cpp
     hooks/hooks.cpp
     hooks/console_hooks/console_hooks.cpp
     hooks/steam_hooks/steam_hooks.cpp

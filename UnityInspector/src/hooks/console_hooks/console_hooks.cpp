@@ -1,18 +1,44 @@
 #include "pch.h"
 #include "console_hooks.h"
-#include "features/debug_console/debug_console.h"
 
 REGISTER_HOOK(ConsoleHooks)
 
 namespace
 {
+	enum class LogType
+	{
+		Log,
+		Warning,
+		Error,
+		Exception,
+		Assert
+	};
+
+	void AddLog(const std::string &message, const LogType type)
+	{
+		switch (type)
+		{
+		case LogType::Log:
+			LOG_INFO("[Unity] {}", message);
+			break;
+		case LogType::Warning:
+			LOG_WARNING("[Unity] {}", message);
+			break;
+		case LogType::Error:
+		case LogType::Exception:
+		case LogType::Assert:
+			LOG_ERROR("[Unity] {}", message);
+			break;
+		}
+	}
+
 	void UNITY_CALLING_CONVENTION HDebugLogObject(void *message)
 	{
 		if (message)
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Log);
+			AddLog(msg, LogType::Log);
 		}
 		HookManager::Fcall(HDebugLogObject, message);
 	}
@@ -23,7 +49,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Log);
+			AddLog(msg, LogType::Log);
 		}
 		HookManager::Fcall(HDebugLogString, message);
 	}
@@ -34,7 +60,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Log);
+			AddLog(msg, LogType::Log);
 		}
 		HookManager::Fcall(HDebugLogFormat, message, args);
 	}
@@ -45,7 +71,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Warning);
+			AddLog(msg, LogType::Warning);
 		}
 		HookManager::Fcall(HDebugLogWarningObject, message);
 	}
@@ -56,7 +82,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Warning);
+			AddLog(msg, LogType::Warning);
 		}
 		HookManager::Fcall(HDebugLogWarningString, message);
 	}
@@ -67,7 +93,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Error);
+			AddLog(msg, LogType::Error);
 		}
 		HookManager::Fcall(HDebugLogErrorObject, message);
 	}
@@ -78,7 +104,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Error);
+			AddLog(msg, LogType::Error);
 		}
 		HookManager::Fcall(HDebugLogErrorString, message);
 	}
@@ -89,7 +115,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(exception);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Exception);
+			AddLog(msg, LogType::Exception);
 		}
 		HookManager::Fcall(HDebugLogException, exception);
 	}
@@ -100,7 +126,7 @@ namespace
 		{
 			const auto *str = static_cast<UT::String *>(message);
 			const std::string msg = str->ToString();
-			DebugConsole::AddLog(msg, LogType::Assert);
+			AddLog(msg, LogType::Assert);
 		}
 		HookManager::Fcall(HDebugLogAssertion, message);
 	}
