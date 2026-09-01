@@ -670,6 +670,11 @@ public:
 		return nullptr;
 	}
 
+	static auto RefreshAssemblies() -> void {
+		ThreadAttach();
+		ForeachAssembly();
+	}
+
 private:
 	static auto ForeachAssembly() -> void {
 		if (mode_ == Mode::Il2Cpp) {
@@ -678,6 +683,7 @@ private:
 			for (auto i = 0; i < nrofassemblies; i++) {
 				const auto ptr = assemblies[i];
 				if (ptr == nullptr) continue;
+				if (std::ranges::any_of(assembly, [ptr](const auto& item) { return item->address == ptr; })) continue;
 				auto       pAssembly = std::make_unique<Assembly>(Assembly{ .address = ptr });
 				const auto image = Invoke<void*>("il2cpp_assembly_get_image", ptr);
 				pAssembly->file = Invoke<const char*>("il2cpp_image_get_filename", image);
@@ -690,6 +696,7 @@ private:
 			Invoke<void*, void(*)(void* ptr, std::vector<std::unique_ptr<Assembly>>&), std::vector<std::unique_ptr<Assembly>>&>("mono_assembly_foreach",
 				[](void* ptr, std::vector<std::unique_ptr<Assembly>>& v) {
 					if (ptr == nullptr) return;
+					if (std::ranges::any_of(v, [ptr](const auto& item) { return item->address == ptr; })) return;
 
 					auto assembly = std::make_unique<Assembly>(Assembly{ .address = ptr });
 					try {

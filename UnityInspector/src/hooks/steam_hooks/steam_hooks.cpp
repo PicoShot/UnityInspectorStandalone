@@ -14,6 +14,9 @@ namespace
 	constexpr uint32_t SteamAppId = 480;
 	constexpr auto AppDataType = "HeathenEngineering.SteamworksIntegration.AppData";
 	constexpr auto ServerConfigurationType = "HeathenEngineering.SteamworksIntegration.SteamGameServerConfiguration";
+	std::atomic_bool clientInstalled{};
+	std::atomic_bool serverInstalled{};
+	std::atomic_flag installing = ATOMIC_FLAG_INIT;
 
 	UR::Class* FindNestedClass(const UR::Assembly* assembly, const std::string& nestedName)
 	{
@@ -42,35 +45,65 @@ namespace
 		appId.id = SteamAppId;
 		HookManager::Fcall(HInitializeServer, appId, serverConfiguration);
 	}
+
+	bool InstallHooks()
+	{
+		const auto* module = UR::Get("Heathen.Steamworks.dll");
+		if (!module)
+			return false;
+
+		const auto clientClass = FindNestedClass(module, "Client");
+		const auto serverClass = FindNestedClass(module, "Server");
+
+		if (clientClass && !clientInstalled)
+		{
+			if (auto* initialize = clientClass->Get<UR::Method>("Initialize", { AppDataType }))
+				clientInstalled = HookManager::Install(initialize->Cast<void, AppData>(), HInitialize);
+		}
+
+		if (serverClass && !serverInstalled)
+		{
+			if (auto* initialize = serverClass->Get<UR::Method>("Initialize", { AppDataType, ServerConfigurationType }))
+				serverInstalled = HookManager::Install(initialize->Cast<void, AppData, void*>(), HInitializeServer);
+		}
+
+		return clientInstalled || serverInstalled;
+	}
+
+	void OnAssemblyLoaded(void* assembly, void*)
+	{
+		if (!assembly || clientInstalled)
+			return;
+
+		const auto image = UR::Invoke<void*>("mono_assembly_get_image", assembly);
+		const auto name = image ? UR::Invoke<const char*>("mono_image_get_name", image) : nullptr;
+		if (!name || (std::string_view(name) != "Heathen.Steamworks" &&
+			std::string_view(name) != "Heathen.Steamworks.dll"))
+		{
+			return;
+		}
+
+		if (installing.test_and_set())
+			return;
+
+		LOG_INFO("Steam hooks: Heathen.Steamworks assembly loaded.");
+		UR::RefreshAssemblies();
+		InstallHooks();
+		installing.clear();
+	}
 }
 
 void SteamHooks::Install()
 {
-	const auto* HeathenModule = UR::Get("Heathen.Steamworks.dll");
-	if (!HeathenModule)
-	{
-		LOG_ERROR("Steam hooks: Heathen.Steamworks.dll was not found.");
+	if (InstallHooks())
 		return;
-	}
 
-	const auto clientClass = FindNestedClass(HeathenModule, "Client");
-	const auto serverClass = FindNestedClass(HeathenModule, "Server");
-
-	LOG_INFO("Steam hooks: Found Heathen.Steamworks.dll, Client class: {}, Server class: {}", clientClass != nullptr, serverClass != nullptr);
-
-	if (clientClass)
+	static std::once_flag loadHook;
+	std::call_once(loadHook, []
 	{
-		if (auto* initialize = clientClass->Get<UR::Method>("Initialize", { AppDataType }))
-		{
-			HookManager::Install(initialize->Cast<void, AppData>(), HInitialize);
-		}
-	}
-
-	if (serverClass)
-	{
-		if (auto* initialize = serverClass->Get<UR::Method>("Initialize", { AppDataType, ServerConfigurationType }))
-		{
-			HookManager::Install(initialize->Cast<void, AppData, void*>(), HInitializeServer);
-		}
-	}
+		UR::Invoke<void>("mono_install_assembly_load_hook", OnAssemblyLoaded, nullptr);
+		LOG_INFO("Steam hooks: waiting for Heathen.Steamworks.dll to load.");
+		UR::RefreshAssemblies();
+		InstallHooks();
+	});
 }
