@@ -3,6 +3,7 @@ add_library(UnityInspector SHARED
     hooks/hooks.cpp
     hooks/console_hooks/console_hooks.cpp
     hooks/steam_hooks/heathen/heathen_hooks.cpp
+    hooks/steam_hooks/rlabrecque/rlabrecque_hooks.cpp
     loader/loader.cpp
     pch/pch.cpp
     hooks/steam_hooks/steam_hooks.cpp
