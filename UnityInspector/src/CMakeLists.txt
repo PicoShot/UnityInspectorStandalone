@@ -30,7 +30,6 @@ target_compile_definitions(UnityInspector PRIVATE
 
 
 if(MSVC)
-    target_compile_options(UnityInspector PRIVATE /bigobj /EHa)
     target_compile_options(UnityInspector PRIVATE
             $<$<CONFIG:RELEASE>:/O2>
             $<$<CONFIG:RELEASE>:/GL>

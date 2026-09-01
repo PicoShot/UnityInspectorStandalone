@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "loader/loader.h"
 
-void SetupEnvironmentVariables()
+void SetupSteamEnv()
 {
 	_putenv_s(X("STEAMVIDEOTOKEN"), X("480"));
 	_putenv_s(X("SteamClientLaunch"), X("1"));
@@ -40,7 +40,7 @@ void LoadSteamOverlay()
 	if (GetModuleHandleA(steamPath.c_str()))
 		return;
 
-	LoadLibraryA(steamPath.c_str()) ? 0 : 1;
+	LoadLibraryA(steamPath.c_str());
 }
 
 BOOL APIENTRY DllMain(HMODULE hMod, DWORD reason, LPVOID lpReserved)
@@ -49,7 +49,7 @@ BOOL APIENTRY DllMain(HMODULE hMod, DWORD reason, LPVOID lpReserved)
 	if (reason == DLL_PROCESS_ATTACH)
 	{
 		DisableThreadLibraryCalls(hMod);
-		SetupEnvironmentVariables();
+		SetupSteamEnv();
 		LoadSteamOverlay();
 		Loader::Load();
 	}

@@ -4,158 +4,163 @@
 
 REGISTER_HOOK(ConsoleHooks)
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogObject(void* message)
+namespace
 {
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogObject(void *message)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Log);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Log);
+		}
+		HookManager::Fcall(HDebugLogObject, message);
 	}
-	HookManager::Fcall(HDebugLogObject, message);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogString(void* message)
-{
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogString(void *message)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Log);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Log);
+		}
+		HookManager::Fcall(HDebugLogString, message);
 	}
-	HookManager::Fcall(HDebugLogString, message);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogFormat(void* message, void* args)
-{
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogFormat(void *message, void *args)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Log);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Log);
+		}
+		HookManager::Fcall(HDebugLogFormat, message, args);
 	}
-	HookManager::Fcall(HDebugLogFormat, message, args);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogWarningObject(void* message)
-{
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogWarningObject(void *message)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Warning);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Warning);
+		}
+		HookManager::Fcall(HDebugLogWarningObject, message);
 	}
-	HookManager::Fcall(HDebugLogWarningObject, message);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogWarningString(void* message)
-{
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogWarningString(void *message)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Warning);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Warning);
+		}
+		HookManager::Fcall(HDebugLogWarningString, message);
 	}
-	HookManager::Fcall(HDebugLogWarningString, message);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogErrorObject(void* message)
-{
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogErrorObject(void *message)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Error);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Error);
+		}
+		HookManager::Fcall(HDebugLogErrorObject, message);
 	}
-	HookManager::Fcall(HDebugLogErrorObject, message);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogErrorString(void* message)
-{
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogErrorString(void *message)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Error);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Error);
+		}
+		HookManager::Fcall(HDebugLogErrorString, message);
 	}
-	HookManager::Fcall(HDebugLogErrorString, message);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogException(void* exception)
-{
-	if (exception)
+	void UNITY_CALLING_CONVENTION HDebugLogException(void *exception)
 	{
-		const auto* str = static_cast<UT::String*>(exception);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Exception);
+		if (exception)
+		{
+			const auto *str = static_cast<UT::String *>(exception);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Exception);
+		}
+		HookManager::Fcall(HDebugLogException, exception);
 	}
-	HookManager::Fcall(HDebugLogException, exception);
-}
 
-void UNITY_CALLING_CONVENTION ConsoleHooks::HDebugLogAssertion(void* message)
-{
-	if (message)
+	void UNITY_CALLING_CONVENTION HDebugLogAssertion(void *message)
 	{
-		const auto* str = static_cast<UT::String*>(message);
-		const std::string msg = str->ToString();
-		DebugConsole::AddLog(msg, LogType::Assert);
+		if (message)
+		{
+			const auto *str = static_cast<UT::String *>(message);
+			const std::string msg = str->ToString();
+			DebugConsole::AddLog(msg, LogType::Assert);
+		}
+		HookManager::Fcall(HDebugLogAssertion, message);
 	}
-	HookManager::Fcall(HDebugLogAssertion, message);
 }
 
 void ConsoleHooks::Install()
 {
-	const auto* unityCoreModule = UR::Get("UnityEngine.CoreModule.dll");
-	if (!unityCoreModule) return;
+	const auto *unityCoreModule = UR::Get("UnityEngine.CoreModule.dll");
+	if (!unityCoreModule)
+		return;
 
-	auto* debugClass = unityCoreModule->Get("Debug", "UnityEngine");
-	if (!debugClass) return;
+	auto *debugClass = unityCoreModule->Get("Debug", "UnityEngine");
+	if (!debugClass)
+		return;
 
-	if (auto* mLog = debugClass->Get<UR::Method>("Log", {"System.Object"}))
+	if (auto *mLog = debugClass->Get<UR::Method>("Log", {"System.Object"}))
 	{
-		if (auto* casted = mLog->Cast<void, void*>())
+		if (auto *casted = mLog->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogObject);
 	}
 
-	if (auto* mLogStr = debugClass->Get<UR::Method>("Log", {"System.String"}))
+	if (auto *mLogStr = debugClass->Get<UR::Method>("Log", {"System.String"}))
 	{
-		if (auto* casted = mLogStr->Cast<void, void*>())
+		if (auto *casted = mLogStr->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogString);
 	}
 
-	if (auto* mWarn = debugClass->Get<UR::Method>("LogWarning", {"System.Object"}))
+	if (auto *mWarn = debugClass->Get<UR::Method>("LogWarning", {"System.Object"}))
 	{
-		if (auto* casted = mWarn->Cast<void, void*>())
+		if (auto *casted = mWarn->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogWarningObject);
 	}
 
-	if (auto* mWarnStr = debugClass->Get<UR::Method>("LogWarning", {"System.String"}))
+	if (auto *mWarnStr = debugClass->Get<UR::Method>("LogWarning", {"System.String"}))
 	{
-		if (auto* casted = mWarnStr->Cast<void, void*>())
+		if (auto *casted = mWarnStr->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogWarningString);
 	}
 
-	if (auto* mError = debugClass->Get<UR::Method>("LogError", {"System.Object"}))
+	if (auto *mError = debugClass->Get<UR::Method>("LogError", {"System.Object"}))
 	{
-		if (auto* casted = mError->Cast<void, void*>())
+		if (auto *casted = mError->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogErrorObject);
 	}
 
-	if (auto* mErrorStr = debugClass->Get<UR::Method>("LogError", {"System.String"}))
+	if (auto *mErrorStr = debugClass->Get<UR::Method>("LogError", {"System.String"}))
 	{
-		if (auto* casted = mErrorStr->Cast<void, void*>())
+		if (auto *casted = mErrorStr->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogErrorString);
 	}
 
-	if (auto* mExc = debugClass->Get<UR::Method>("LogException", {"System.Exception"}))
+	if (auto *mExc = debugClass->Get<UR::Method>("LogException", {"System.Exception"}))
 	{
-		if (auto* casted = mExc->Cast<void, void*>())
+		if (auto *casted = mExc->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogException);
 	}
 
-	if (auto* mAssert = debugClass->Get<UR::Method>("LogAssertion", {"System.Object"}))
+	if (auto *mAssert = debugClass->Get<UR::Method>("LogAssertion", {"System.Object"}))
 	{
-		if (auto* casted = mAssert->Cast<void, void*>())
+		if (auto *casted = mAssert->Cast<void, void *>())
 			HookManager::Install(casted, HDebugLogAssertion);
 	}
 }
