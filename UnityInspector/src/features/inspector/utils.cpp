@@ -49,18 +49,17 @@ std::vector<ComponentFieldInfo> Inspector::GetObjectFields(void* obj, void* klas
 
 			if (!info.isStatic && UR::Invoke<bool, void*>(API("class_is_valuetype"), currentClass))
 			{
-				info.offset -= 0x10; // sizeof(Object) header
+				info.offset -= 0x10;
 			}
 
 			if (void* fieldType = UR::Invoke<void*, void*>(API("field_get_type"), field))
 			{
-				const char* typeName = UR::Invoke<const char*, void*>(API("type_get_name"), fieldType);
-				info.typeName = typeName ? typeName : "unknown";
+				info.typeName = Helper::GetTypeName(fieldType);
 
 				if (mono)
 				{
 					info.typeClassHandle = UR::Invoke<void*, void*>("mono_class_from_mono_type", fieldType);
-					if (!info.typeClassHandle) // fallback
+					if (!info.typeClassHandle)
 						info.typeClassHandle = UR::Invoke<void*, void*>("mono_type_get_class", fieldType);
 				}
 				else
@@ -125,19 +124,13 @@ std::vector<ComponentPropertyInfo> Inspector::GetObjectProperties(void* obj, voi
 				if (void* sig = UR::Invoke<void*, void*>("mono_method_signature", info.getterHandle))
 				{
 					if (void* retType = UR::Invoke<void*, void*>("mono_signature_get_return_type", sig))
-					{
-						const char* typeName = UR::Invoke<const char*, void*>("mono_type_get_name", retType);
-						info.typeName = typeName ? typeName : "unknown";
-					}
+						info.typeName = Helper::GetTypeName(retType);
 				}
 			}
 			else if (info.getterHandle)
 			{
 				if (void* retType = UR::Invoke<void*, void*>("il2cpp_method_get_return_type", info.getterHandle))
-				{
-					const char* typeName = UR::Invoke<const char*, void*>("il2cpp_type_get_name", retType);
-					info.typeName = typeName ? typeName : "unknown";
-				}
+					info.typeName = Helper::GetTypeName(retType);
 			}
 
 			info.editableType = DetermineEditableType(info.typeName);
@@ -188,15 +181,8 @@ std::vector<ComponentMethodInfo> Inspector::GetObjectMethods(void* obj, void* kl
 				const auto signature = UR::Invoke<void*, void*>("mono_method_signature", method);
 				if (!signature) continue;
 
-				if (void* returnType = UR::Invoke<void*, void*>("mono_signature_get_return_type", signature))
-				{
-					const char* typeName = UR::Invoke<const char*, void*>("mono_type_get_name", returnType);
-					info.returnTypeName = typeName ? typeName : "void";
-				}
-				else
-				{
-					info.returnTypeName = "void";
-				}
+				info.returnTypeName =
+				    Helper::GetTypeName(UR::Invoke<void*, void*>("mono_signature_get_return_type", signature), "void");
 
 				if (int paramCount = UR::Invoke<int, void*>("mono_signature_get_param_count", signature);
 				    paramCount > 0)
@@ -211,12 +197,11 @@ std::vector<ComponentMethodInfo> Inspector::GetObjectMethods(void* obj, void* kl
 					    ((mType = UR::Invoke<void*, void*, void*>("mono_signature_get_params", signature, &mIter))) &&
 					    paramIndex < paramCount)
 					{
-						const char* paramTypeName = UR::Invoke<const char*, void*>("mono_type_get_name", mType);
 						std::string pName =
 						    (std::cmp_less(paramIndex, static_cast<int>(paramNames.size())) && paramNames[paramIndex])
 						        ? paramNames[paramIndex]
 						        : "arg" + std::to_string(paramIndex);
-						std::string pType = paramTypeName ? paramTypeName : "unknown";
+						std::string pType = Helper::GetTypeName(mType);
 						info.parameters.emplace_back(pName, pType);
 						info.parameterEditableTypes.push_back(DetermineEditableType(pType));
 						paramIndex++;
@@ -225,25 +210,15 @@ std::vector<ComponentMethodInfo> Inspector::GetObjectMethods(void* obj, void* kl
 			}
 			else
 			{
-				if (void* returnType = UR::Invoke<void*, void*>("il2cpp_method_get_return_type", method))
-				{
-					const char* typeName = UR::Invoke<const char*, void*>("il2cpp_type_get_name", returnType);
-					info.returnTypeName = typeName ? typeName : "void";
-				}
-				else
-				{
-					info.returnTypeName = "void";
-				}
+				info.returnTypeName =
+				    Helper::GetTypeName(UR::Invoke<void*, void*>("il2cpp_method_get_return_type", method), "void");
 
 				int paramCount = UR::Invoke<int, void*>("il2cpp_method_get_param_count", method);
 				for (int i = 0; i < paramCount; i++)
 				{
 					const char* pName = UR::Invoke<const char*, void*, int>("il2cpp_method_get_param_name", method, i);
 					void* pType = UR::Invoke<void*, void*, int>("il2cpp_method_get_param", method, i);
-					const char* pTypeName =
-					    pType ? UR::Invoke<const char*, void*>("il2cpp_type_get_name", pType) : nullptr;
-
-					std::string typeName = pTypeName ? pTypeName : "unknown";
+					std::string typeName = Helper::GetTypeName(pType);
 					info.parameters.emplace_back(pName ? pName : "arg" + std::to_string(i), typeName);
 					info.parameterEditableTypes.push_back(DetermineEditableType(typeName));
 				}
@@ -316,8 +291,7 @@ std::string Inspector::BuildObjectPath(UT::Transform* transform) const
 }
 
 void Inspector::BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform,
-	                               std::unordered_set<UT::Transform*>& visited, const size_t depth,
-	                               size_t& nodeBudget)
+                                   std::unordered_set<UT::Transform*>& visited, const size_t depth, size_t& nodeBudget)
 {
 	if (depth >= 256 || nodeBudget == 0 || !transform || !visited.insert(transform).second) return;
 	--nodeBudget;
@@ -376,7 +350,7 @@ void Inspector::RefreshHierarchy()
 
 	const auto transformClass = assembly->Get("Transform", "UnityEngine");
 	if (!transformClass) return;
-	std::vector<UT::Transform*> transforms = transformClass->FindObjectsByType<UT::Transform*>();
+	std::vector<UT::Transform*> transforms = transformClass->FindObjectsByType<UT::Transform*>(1, 0);
 	if (transforms.empty())
 	{
 		transforms = transformClass->FindObjectsOfType<UT::Transform*>();
@@ -384,7 +358,7 @@ void Inspector::RefreshHierarchy()
 	}
 
 	std::unordered_set<UT::Transform*> visited;
-	size_t nodeBudget = transforms.size();
+	size_t nodeBudget = std::max<size_t>(transforms.size() * 2, 500000);
 	for (const auto& t : transforms)
 	{
 		if (!Helper::SafeIsAlive(t)) continue;
@@ -518,7 +492,7 @@ void Inspector::OpenObjectInNewTab(UT::GameObject* obj)
 
 	RefreshTabData(newTab);
 
-	openTabs.push_back(newTab);
+	openTabs.push_back(std::move(newTab));
 	activeTabIndex = static_cast<int>(openTabs.size()) - 1;
 	pendingTabSwitch = true;
 	showDetailsWindow = true;
@@ -532,6 +506,7 @@ void Inspector::CloseTab(const int tabIndex)
 
 	openTabs.erase(openTabs.begin() + tabIndex);
 
+	if (tabIndex < activeTabIndex) --activeTabIndex;
 	if (std::cmp_greater_equal(activeTabIndex, openTabs.size()))
 	{
 		activeTabIndex = static_cast<int>(openTabs.size()) - 1;

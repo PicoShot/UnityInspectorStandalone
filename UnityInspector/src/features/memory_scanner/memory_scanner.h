@@ -106,15 +106,23 @@ private:
 	static constexpr size_t MAX_OBJECTS_TO_SCAN = 100000;
 	static constexpr int MAX_SCAN_DEPTH = 20;
 
-	void PerformFirstScan();
-	void PerformNextScan();
+	enum class ScanPhase
+	{
+		Idle,
+		Objects,
+		Next
+	};
+
+	void StartFirstScan();
+	bool StepObjectScan(std::chrono::steady_clock::time_point deadline);
+	bool StepNextScan(std::chrono::steady_clock::time_point deadline);
+	void FinishScan();
 	void ResetScan();
 
 	void RenderValueInput();
 	void SyncValueToBuffer();
 
 	void ScanStaticFields(std::vector<ScanField>& out) const;
-	void ScanUnityObjectFields(std::vector<ScanField>& out);
 
 	struct VisitedKey
 	{
@@ -172,6 +180,9 @@ private:
 	};
 	std::optional<PendingWrite> pendingWrite;
 
-	std::mutex resultsMutex;
-	std::atomic<bool> stopRequested{false};
+	ScanPhase scanPhase = ScanPhase::Idle;
+	size_t scanCursor = 0;
+	std::vector<ScanField> scanBuffer;
+	std::unordered_set<VisitedKey, VisitedKeyHash> scanVisited;
+	bool stopRequested = false;
 };

@@ -309,22 +309,25 @@ public:
 		template <typename Return, typename Obj = void, typename... Args>
 		auto RuntimeInvoke(Obj* obj, Args... args) -> Return {
 			void* argArray[sizeof...(Args) ? sizeof...(Args) : 1] = { static_cast<void*>(&args)... };
+			void* exc = nullptr;
 
 			if (mode_ == Mode::Il2Cpp) {
 				if constexpr (std::is_void_v<Return>) {
-					UnityResolve::Invoke<void*>("il2cpp_runtime_invoke", address, obj, sizeof...(Args) ? argArray : nullptr, nullptr);
+					UnityResolve::Invoke<void*>("il2cpp_runtime_invoke", address, obj, sizeof...(Args) ? argArray : nullptr, &exc);
 					return;
 				}
-				else return Unbox<Return>(Invoke<void*>("il2cpp_runtime_invoke", address, obj, sizeof...(Args) ? argArray : nullptr, nullptr));
+				else {
+					void* result = Invoke<void*>("il2cpp_runtime_invoke", address, obj, sizeof...(Args) ? argArray : nullptr, &exc);
+					return exc ? Return() : Unbox<Return>(result);
+				}
 			}
 			Compile();
 
 			if constexpr (std::is_void_v<Return>) {
-				UnityResolve::Invoke<void*>("mono_runtime_invoke", address, obj, sizeof...(Args) ? argArray : nullptr, nullptr);
+				UnityResolve::Invoke<void*>("mono_runtime_invoke", address, obj, sizeof...(Args) ? argArray : nullptr, &exc);
 				return;
 			}
 			else {
-				void* exc = nullptr;
 				void* result = UnityResolve::Invoke<void*>("mono_runtime_invoke", address, obj, sizeof...(Args) ? argArray : nullptr, &exc);
 				if (exc != nullptr) {
 					std::cout << "Mono runtime exception occurred!" << std::endl;
@@ -420,6 +423,7 @@ public:
 		mode_ = mode;
 		hmodule_ = hmodule;
 		runtimeReady_ = false;
+		assembly.reserve(8192);
 
 		if (mode_ == Mode::Il2Cpp) {
 			do {
@@ -652,17 +656,21 @@ public:
 
 	template <typename Return, typename... Args>
 	static auto Invoke(const std::string& funcName, Args... args) -> Return {
+		void* function;
+		{
+			std::scoped_lock lock(addressMutex_);
+			auto& cached = address_[funcName];
 #if WINDOWS_MODE
-		if (!address_.contains(funcName) || !address_[funcName]) address_[funcName] = static_cast<void*>(GetProcAddress(static_cast<HMODULE>(hmodule_), funcName.c_str()));
+			if (!cached) cached = static_cast<void*>(GetProcAddress(static_cast<HMODULE>(hmodule_), funcName.c_str()));
 #elif  ANDROID_MODE || LINUX_MODE || IOS_MODE || HARMONYOS_MODE
-		if (address_.find(funcName) == address_.end() || !address_[funcName]) {
-			address_[funcName] = dlsym(hmodule_, funcName.c_str());
-		}
+			if (!cached) cached = dlsym(hmodule_, funcName.c_str());
 #endif
+			function = cached;
+		}
 
-		if (address_[funcName] != nullptr) {
+		if (function != nullptr) {
 			try {
-				return reinterpret_cast<Return(UNITY_CALLING_CONVENTION*)(Args...)>(address_[funcName])(args...);
+				return reinterpret_cast<Return(UNITY_CALLING_CONVENTION*)(Args...)>(function)(args...);
 			}
 			catch (...) {
 				return Return();
@@ -4006,6 +4014,7 @@ private:
 	inline static void* hmodule_;
 	inline static std::atomic_bool runtimeReady_{};
 	inline static std::unordered_map<std::string, void*> address_{};
+	inline static std::mutex addressMutex_{};
 	inline static std::mutex assemblyMutex_{};
 	inline static std::unordered_set<void*> loadingAssemblies_{};
 	inline static std::mutex assemblyCallbackMutex_{};

@@ -14,7 +14,6 @@ add_library(UnityInspector SHARED
     features/inspector/hierarchy_window.cpp
     features/inspector/inspector_window.cpp
     features/inspector/invoke_popup.cpp
-    features/tests/tests.cpp
     helper/helper.cpp
     hooks/hooks.cpp
     hooks/console_hooks/console_hooks.cpp

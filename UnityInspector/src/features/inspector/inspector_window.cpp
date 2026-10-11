@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "features/debug_console/debug_console.h"
 #include "helper/helper.h"
 #include "inspector.h"
 
@@ -700,7 +701,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 								    GetObjectProperties(instancePtr, nullptr));
 								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, nullptr));
 
-								activeTab->navigationStack.push_back(std::move(nextTarget));
+								pendingNavigation = std::move(nextTarget);
 							}
 						}
 					}
@@ -1122,7 +1123,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 								    GetObjectProperties(nullablePtr, field.typeClassHandle));
 								nextTarget.cachedComponentMethods.push_back(
 								    GetObjectMethods(nullablePtr, field.typeClassHandle));
-								activeTab->navigationStack.push_back(std::move(nextTarget));
+								pendingNavigation = std::move(nextTarget);
 							}
 						}
 					}
@@ -1165,7 +1166,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 								    GetObjectProperties(instancePtr, targetKlass));
 								nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
 
-								activeTab->navigationStack.push_back(std::move(nextTarget));
+								pendingNavigation = std::move(nextTarget);
 							}
 						}
 					}
@@ -1571,36 +1572,28 @@ void Inspector::RenderEditableProperty(void* instance, const ComponentPropertyIn
 		}
 		case EditableType::CustomObject:
 		{
-			if (void* result = nullptr; Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result))
+			if (ImGui::SmallButton("Get & Enter"))
 			{
-				if (!result)
-					ImGui::TextDisabled("null");
+				void* result = nullptr;
+				if (!Helper::SafeInvokeGetterPointer(instance, prop.getterHandle, result) || !result)
+				{
+					DebugConsole::AddLog(std::format("Property {} returned null or threw", prop.name),
+					                     LogType::Warning);
+				}
 				else
 				{
-					ImGui::TextDisabled("(Object) %p", result);
-					ImGui::SameLine();
-					if (ImGui::SmallButton("Enter"))
-					{
-						if (auto activeTab = GetActiveTab())
-						{
-							void* klass = Helper::SafeGetObjectClass(result);
-							InspectionTarget nextTarget;
-							nextTarget.instance = result;
-							nextTarget.name = prop.name;
-							nextTarget.classHandle = klass;
-							nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(result));
-							nextTarget.cachedComponentNames.push_back(prop.typeName);
-							nextTarget.cachedComponentFields.push_back(GetObjectFields(result, klass));
-							nextTarget.cachedComponentProperties.push_back(GetObjectProperties(result, klass));
-							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(result, klass));
-							activeTab->navigationStack.push_back(std::move(nextTarget));
-						}
-					}
+					void* klass = Helper::SafeGetObjectClass(result);
+					InspectionTarget nextTarget;
+					nextTarget.instance = result;
+					nextTarget.name = prop.name;
+					nextTarget.classHandle = klass;
+					nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(result));
+					nextTarget.cachedComponentNames.push_back(prop.typeName);
+					nextTarget.cachedComponentFields.push_back(GetObjectFields(result, klass));
+					nextTarget.cachedComponentProperties.push_back(GetObjectProperties(result, klass));
+					nextTarget.cachedComponentMethods.push_back(GetObjectMethods(result, klass));
+					pendingNavigation = std::move(nextTarget);
 				}
-			}
-			else
-			{
-				ImGui::TextDisabled("ERROR");
 			}
 			break;
 		}
@@ -1934,7 +1927,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 							nextTarget.cachedComponentProperties.push_back(
 							    GetObjectProperties(instancePtr, targetKlass));
 							nextTarget.cachedComponentMethods.push_back(GetObjectMethods(instancePtr, targetKlass));
-							activeTab->navigationStack.push_back(std::move(nextTarget));
+							pendingNavigation = std::move(nextTarget);
 						}
 					}
 				}
@@ -2068,7 +2061,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 										nextTarget.cachedComponentMethods.push_back(
 										    GetObjectMethods(valuePtr, nullptr));
 
-										activeTab->navigationStack.push_back(std::move(nextTarget));
+										pendingNavigation = std::move(nextTarget);
 									}
 								}
 								ImGui::PopID();
@@ -2155,8 +2148,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						Helper::SafeReadInt(collectionPtr, 0x24, lastIndex);
 						uint64_t slotCapacity = 0;
 						if (!Helper::SafeReadUInt64(arrayDataStart, 0x18, slotCapacity)) slotCapacity = 0;
-						lastIndex = std::clamp(lastIndex, 0,
-						                           static_cast<int>(std::min<uint64_t>(slotCapacity, 10000)));
+						lastIndex = std::clamp(lastIndex, 0, static_cast<int>(std::min<uint64_t>(slotCapacity, 10000)));
 
 						int displayIndex = 0;
 						for (int i = 0; i < lastIndex && displayIndex < collectionCount; ++i)
@@ -2648,6 +2640,12 @@ void Inspector::RenderDetailsWindow()
 	RenderMethodInvokePopup();
 
 	if (fieldEditor && fieldEditor->IsOpen()) fieldEditor->Render();
+
+	if (pendingNavigation)
+	{
+		if (auto* activeTab = GetActiveTab()) activeTab->navigationStack.push_back(std::move(*pendingNavigation));
+		pendingNavigation.reset();
+	}
 }
 
 void Inspector::RenderTabBar()
@@ -2655,11 +2653,14 @@ void Inspector::RenderTabBar()
 	if (ImGui::BeginTabBar("InspectorTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs |
 	                                            ImGuiTabBarFlags_TabListPopupButton))
 	{
+		for (int i = static_cast<int>(openTabs.size()) - 1; i >= 0; --i)
+		{
+			if (openTabs[i].gameObject && !Helper::SafeIsAlive(openTabs[i].gameObject)) CloseTab(i);
+		}
+
 		for (size_t i = 0; i < openTabs.size(); ++i)
 		{
 			auto& tab = openTabs[i];
-
-			if (tab.gameObject && !Helper::SafeIsAlive(tab.gameObject)) continue;
 
 			bool tabOpen = true;
 			ImGuiTabItemFlags flags = 0;
@@ -2694,17 +2695,6 @@ void Inspector::RenderTabBar()
 
 void Inspector::RenderTabContent(InspectedObjectTab& tab)
 {
-	if (tab.gameObject && !Helper::SafeIsAlive(tab.gameObject))
-	{
-		ImGui::TextDisabled("Object has been destroyed");
-		ImGui::Spacing();
-		if (ImGui::Button("Close Tab"))
-		{
-			if (const int tabIndex = FindTabForObject(tab.gameObject); tabIndex >= 0) CloseTab(tabIndex);
-		}
-		return;
-	}
-
 	if (tab.navigationStack.empty()) return;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));

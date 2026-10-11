@@ -22,7 +22,7 @@ namespace Loader
 
 		if (Config::settings.ini.internal_overlay)
 		{
-			if (graphics_hook::GH::Build(Window::OnPresent))
+			if (graphics_hook::GH::Build(Window::OnPresent, Window::OnResize))
 			{
 				LOG_INFO("Successfully initialized DirectX Hook.");
 				hookSuccess = true;
@@ -41,13 +41,15 @@ namespace Loader
 			if (!gameHwnd)
 			{
 				LOG_ERROR("Failed to find game window for external overlay!");
+				return NULL;
 			}
 
 			LOG_INFO("Found game window: {}", reinterpret_cast<uint64_t>(gameHwnd));
 
-			if (const auto externalOverlay = ExternalOverlay::Create(gameHwnd); !externalOverlay)
+			if (!ExternalOverlay::Create(gameHwnd))
 			{
 				LOG_ERROR("Failed to create external overlay!");
+				return NULL;
 			}
 
 			ExternalOverlay::SetInputCapture(Config::state.showMenu);
@@ -64,6 +66,8 @@ namespace Loader
 
 	static DWORD WINAPI LoaderThread(LPVOID)
 	{
+		Config::settings.Load();
+
 		while (!WindowFinder::FindGameWindow())
 			Sleep(100);
 
@@ -101,7 +105,6 @@ namespace Loader
 
 	void Load()
 	{
-		Config::settings.Load();
 		CloseHandle(CreateThread(nullptr, 0, LoaderThread, nullptr, 0, nullptr));
 	}
 }

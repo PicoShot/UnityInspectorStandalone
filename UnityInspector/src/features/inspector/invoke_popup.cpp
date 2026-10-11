@@ -275,7 +275,7 @@ void Inspector::RenderMethodInvokePopup()
 						    GetObjectProperties(invokeState.resultPointer, klass));
 						nextTarget.cachedComponentMethods.push_back(GetObjectMethods(invokeState.resultPointer, klass));
 
-						activeTab->navigationStack.push_back(std::move(nextTarget));
+						pendingNavigation = std::move(nextTarget);
 					}
 				}
 			}

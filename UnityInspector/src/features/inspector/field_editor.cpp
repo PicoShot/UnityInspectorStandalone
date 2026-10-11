@@ -4,44 +4,49 @@
 
 #define API(fn) (Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_" fn : "il2cpp_" fn)
 
-bool IsEnumClass(std::string_view typeName)
+static std::unordered_map<std::string, std::vector<UR::Class*>> s_ClassesByName;
+static std::unordered_map<std::string, std::vector<std::pair<std::string, int>>> s_EnumValuesCache;
+static size_t s_IndexedAssemblies = 0;
+
+static const std::vector<UR::Class*>* FindClassesByName(std::string_view name)
 {
-	for (const auto& assembly : UR::assembly)
+	if (s_IndexedAssemblies != UR::assembly.size())
 	{
-		if (!assembly) continue;
-		for (const auto& klass : assembly->classes)
+		s_ClassesByName.clear();
+		s_EnumValuesCache.clear();
+		for (const auto& assembly : UR::assembly)
 		{
-			if (!klass) continue;
-			if (klass->m_name == typeName)
+			if (!assembly) continue;
+			for (const auto& klass : assembly->classes)
 			{
-				if (void* klassPtr = klass->address; UR::Invoke<bool, void*>(API("class_is_enum"), klassPtr))
-					return true;
+				if (klass) s_ClassesByName[klass->m_name].push_back(klass.get());
 			}
 		}
+		s_IndexedAssemblies = UR::assembly.size();
 	}
-	return false;
+
+	const auto it = s_ClassesByName.find(std::string(name));
+	return it != s_ClassesByName.end() ? &it->second : nullptr;
+}
+
+bool IsEnumClass(std::string_view typeName)
+{
+	const auto* classes = FindClassesByName(typeName);
+	if (!classes) return false;
+	return std::ranges::any_of(*classes, [](const UR::Class* klass)
+	                           { return UR::Invoke<bool, void*>(API("class_is_enum"), klass->address); });
 }
 
 std::vector<std::pair<std::string, int>> GetEnumValues(std::string_view enumTypeName)
 {
-	std::vector<std::pair<std::string, int>> result;
+	const auto* classes = FindClassesByName(enumTypeName);
+	if (!classes || classes->empty()) return {};
 
-	void* enumClass = nullptr;
-	for (const auto& assembly : UR::assembly)
-	{
-		if (!assembly) continue;
-		for (const auto& klass : assembly->classes)
-		{
-			if (!klass) continue;
-			if (klass->m_name == enumTypeName)
-			{
-				enumClass = klass->address;
-				break;
-			}
-		}
-		if (enumClass) break;
-	}
+	auto [cached, inserted] = s_EnumValuesCache.try_emplace(std::string(enumTypeName));
+	if (!inserted) return cached->second;
 
+	auto& result = cached->second;
+	void* enumClass = classes->front()->address;
 	if (!enumClass) return result;
 
 	void* iter = nullptr;
@@ -384,28 +389,12 @@ bool FieldEditor::IsPointerType(std::string_view typeName)
 
 UR::Class* FieldEditor::GetPointerClass(std::string_view typeName)
 {
-	for (const auto& assembly : UR::assembly)
-	{
-		if (!assembly) continue;
-		for (const auto& klass : assembly->classes)
-		{
-			if (!klass) continue;
-			if (klass->m_name == typeName) return klass.get();
-		}
-	}
+	if (const auto* classes = FindClassesByName(typeName); classes && !classes->empty()) return classes->front();
 
 	if (const size_t lastDot = typeName.rfind('.'); lastDot != std::string::npos)
 	{
-		const std::string_view shortName = typeName.substr(lastDot + 1);
-		for (const auto& assembly : UR::assembly)
-		{
-			if (!assembly) continue;
-			for (const auto& klass : assembly->classes)
-			{
-				if (!klass) continue;
-				if (klass->m_name == shortName) return klass.get();
-			}
-		}
+		if (const auto* classes = FindClassesByName(typeName.substr(lastDot + 1)); classes && !classes->empty())
+			return classes->front();
 	}
 
 	return nullptr;

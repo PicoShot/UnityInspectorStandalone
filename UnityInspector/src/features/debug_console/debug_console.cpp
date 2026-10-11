@@ -6,7 +6,7 @@ REGISTER_FEATURE(DebugConsole)
 
 std::deque<LogEntry> DebugConsole::logBuffer;
 std::mutex DebugConsole::logMutex;
-float DebugConsole::currentTime = 0.0f;
+size_t DebugConsole::droppedLogs = 0;
 
 void DebugConsole::Update(float)
 {
@@ -14,79 +14,34 @@ void DebugConsole::Update(float)
 
 std::string DebugConsole::GetStackTrace()
 {
-	static auto* unityCore = UR::Get("UnityEngine.CoreModule.dll");
-	if (!unityCore) return "";
-
-	static auto* stackTraceClass = unityCore->Get("StackTraceUtility", "UnityEngine");
-	if (!stackTraceClass) return "";
-
-	static auto* mExtract = stackTraceClass->Get<UR::Method>("ExtractStackTrace");
+	static UR::Method* mExtract = []() -> UR::Method*
+	{
+		const auto* unityCore = UR::Get("UnityEngine.CoreModule.dll");
+		auto* stackTraceClass = unityCore ? unityCore->Get("StackTraceUtility", "UnityEngine") : nullptr;
+		return stackTraceClass ? stackTraceClass->Get<UR::Method>("ExtractStackTrace") : nullptr;
+	}();
 	if (!mExtract) return "";
 
 	const auto* result = mExtract->Invoke<UT::String*>();
-	if (!result) return "";
-
-	return result->ToString();
+	return result ? result->ToString() : "";
 }
 
-std::string DebugConsole::GetCallingSource()
+void DebugConsole::CaptureManagedLog(void* message, const LogType type)
 {
-	static auto* unityCore = UR::Get("UnityEngine.CoreModule.dll");
-	if (!unityCore) return "";
+	thread_local bool capturing = false;
+	if (capturing) return;
+	capturing = true;
 
-	static auto* stackTraceClass = unityCore->Get("StackTrace", "System.Diagnostics");
-	if (!stackTraceClass) return "";
-
-	static auto* mGetFrame = stackTraceClass->Get<UR::Method>("GetFrame", {"System.Int32"});
-	if (!mGetFrame) return "";
-
-	auto* frame = mGetFrame->Invoke<void*, int>(0);
-	if (!frame) return "";
-
-	static auto* frameClass = unityCore->Get("StackFrame", "System.Diagnostics");
-	if (!frameClass) return "";
-
-	static auto* mGetMethod = frameClass->Get<UR::Method>("GetMethod");
-	if (!mGetMethod) return "";
-
-	auto* methodInfo = mGetMethod->Invoke<void*, void*>(frame);
-	if (!methodInfo) return "";
-
-	static auto* systemCore = UR::Get("System.dll");
-	if (!systemCore) return "";
-
-	static auto* methodBaseClass = systemCore->Get("MethodBase", "System.Reflection");
-	if (!methodBaseClass) return "";
-
-	static auto* mGetName = methodBaseClass->Get<UR::Method>("get_Name");
-	static auto* mGetDeclaringType = methodBaseClass->Get<UR::Method>("get_DeclaringType");
-
-	static auto* typeClass = systemCore->Get("Type", "System");
-	static auto* mGetFullName = typeClass ? typeClass->Get<UR::Method>("get_FullName") : nullptr;
-
-	std::string methodName;
-	std::string className;
-
-	if (mGetName)
+	try
 	{
-		if (const auto* nameStr = mGetName->Invoke<UT::String*, void*>(methodInfo)) methodName = nameStr->ToString();
+		std::string stackTrace = GetStackTrace();
+		std::string source = stackTrace.substr(0, stackTrace.find_first_of(" (\r\n"));
+		AddLog(Helper::SafeObjectToString(message), type, stackTrace, source);
 	}
-
-	if (mGetDeclaringType)
+	catch (...)
 	{
-		if (auto* type = mGetDeclaringType->Invoke<void*, void*>(methodInfo))
-		{
-			if (mGetFullName)
-			{
-				if (const auto* fullNameStr = mGetFullName->Invoke<UT::String*, void*>(type)) className =
-					fullNameStr->ToString();
-			}
-		}
 	}
-
-	if (!className.empty() && !methodName.empty())
-		return className + "." + methodName;
-	return "";
+	capturing = false;
 }
 
 void DebugConsole::Render()
@@ -99,19 +54,23 @@ void DebugConsole::Render()
 void DebugConsole::AddLog(const std::string& message, LogType type, const std::string& stackTrace,
                           const std::string& source)
 {
-	std::scoped_lock lock(logMutex);
+	static const auto start = std::chrono::steady_clock::now();
+	const float timestamp = std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
 
-	logBuffer.emplace_back(message, stackTrace, type, currentTime, source);
+	std::scoped_lock lock(logMutex);
+	logBuffer.emplace_back(message, stackTrace, type, timestamp, source);
 
 	while (logBuffer.size() > MAX_LOGS)
 	{
 		logBuffer.pop_front();
+		++droppedLogs;
 	}
 }
 
 void DebugConsole::ClearLogs()
 {
 	std::scoped_lock lock(logMutex);
+	droppedLogs += logBuffer.size();
 	logBuffer.clear();
 }
 
@@ -119,12 +78,12 @@ ImU32 DebugConsole::GetLogColor(LogType type) const
 {
 	switch (type)
 	{
-	case LogType::Log: return IM_COL32(200, 200, 200, 255);
-	case LogType::Warning: return IM_COL32(255, 200, 0, 255);
-	case LogType::Error: return IM_COL32(255, 50, 50, 255);
-	case LogType::Exception: return IM_COL32(255, 0, 0, 255);
-	case LogType::Assert: return IM_COL32(255, 100, 100, 255);
-	default: return IM_COL32(200, 200, 200, 255);
+		case LogType::Log: return IM_COL32(200, 200, 200, 255);
+		case LogType::Warning: return IM_COL32(255, 200, 0, 255);
+		case LogType::Error: return IM_COL32(255, 50, 50, 255);
+		case LogType::Exception: return IM_COL32(255, 0, 0, 255);
+		case LogType::Assert: return IM_COL32(255, 100, 100, 255);
+		default: return IM_COL32(200, 200, 200, 255);
 	}
 }
 
@@ -132,12 +91,12 @@ const char* DebugConsole::GetLogTypeString(LogType type) const
 {
 	switch (type)
 	{
-	case LogType::Log: return "LOG";
-	case LogType::Warning: return "WARN";
-	case LogType::Error: return "ERROR";
-	case LogType::Exception: return "EXCEPTION";
-	case LogType::Assert: return "ASSERT";
-	default: return "?";
+		case LogType::Log: return "LOG";
+		case LogType::Warning: return "WARN";
+		case LogType::Error: return "ERROR";
+		case LogType::Exception: return "EXCEPTION";
+		case LogType::Assert: return "ASSERT";
+		default: return "?";
 	}
 }
 
@@ -145,12 +104,12 @@ bool DebugConsole::ShouldShowLogType(LogType type) const
 {
 	switch (type)
 	{
-	case LogType::Log: return showLog;
-	case LogType::Warning: return showWarning;
-	case LogType::Error: return showError;
-	case LogType::Exception: return showException;
-	case LogType::Assert: return showAssert;
-	default: return true;
+		case LogType::Log: return showLog;
+		case LogType::Warning: return showWarning;
+		case LogType::Error: return showError;
+		case LogType::Exception: return showException;
+		case LogType::Assert: return showAssert;
+		default: return true;
 	}
 }
 
@@ -162,38 +121,19 @@ bool DebugConsole::PassesFilter(const LogEntry& entry, std::string_view lowerFil
 	return Helper::CaseInsensitiveFind(entry.source, lowerFilter);
 }
 
-void DebugConsole::RenderLogEntry(const LogEntry& entry, int index)
+void DebugConsole::RenderLogEntry(const LogEntry& entry, const size_t id)
 {
-	const ImU32 color = GetLogColor(entry.type);
-	const char* typeStr = GetLogTypeString(entry.type);
+	const std::string_view firstLine = std::string_view(entry.message).substr(0, entry.message.find('\n'));
 
-	std::string display;
-	if (!entry.source.empty())
-		display = std::format("[{}] [{:.2f}] [{}] {}", typeStr, entry.timestamp, entry.source, entry.message);
-	else
-		display = std::format("[{}] [{:.2f}] {}", typeStr, entry.timestamp, entry.message);
+	std::string display = std::format("[{}] ", GetLogTypeString(entry.type));
+	if (showTimestamps) display += std::format("[{:.2f}] ", entry.timestamp);
+	if (showSource && !entry.source.empty()) display += std::format("[{}] ", entry.source);
+	display += firstLine;
 
-	ImGui::PushStyleColor(ImGuiCol_Text, color);
-
-	if (!entry.stackTrace.empty())
-	{
-		ImGui::PushID(index);
-		if (ImGui::Selectable(display.c_str(), selectedLogIndex == index))
-		{
-			selectedLogIndex = (selectedLogIndex == index) ? -1 : index;
-		}
-		ImGui::PopID();
-
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::SetTooltip("Click to view stack trace");
-		}
-	}
-	else
-	{
-		ImGui::TextUnformatted(display.c_str());
-	}
-
+	ImGui::PushStyleColor(ImGuiCol_Text, GetLogColor(entry.type));
+	ImGui::PushID(static_cast<int>(id));
+	if (ImGui::Selectable(display.c_str(), selectedLogId == id)) selectedLogId = selectedLogId == id ? SIZE_MAX : id;
+	ImGui::PopID();
 	ImGui::PopStyleColor();
 }
 
@@ -202,8 +142,8 @@ void DebugConsole::RenderConsoleWindow()
 	ImGui::SetNextWindowSize(ImVec2(900, 500), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
 
-	if (constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar; !ImGui::Begin(
-		"Debug Console", &Config::settings.inspector.showDebugConsole, windowFlags))
+	if (constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar;
+	    !ImGui::Begin("Debug Console", &Config::settings.inspector.showDebugConsole, windowFlags))
 	{
 		ImGui::End();
 		return;
@@ -226,7 +166,7 @@ void DebugConsole::RenderConsoleWindow()
 	if (ImGui::Button("Clear"))
 	{
 		ClearLogs();
-		selectedLogIndex = -1;
+		selectedLogId = SIZE_MAX;
 	}
 	ImGui::SameLine();
 
@@ -259,23 +199,30 @@ void DebugConsole::RenderConsoleWindow()
 
 	ImGui::Separator();
 
+	std::scoped_lock lock(logMutex);
+	const bool hasSelection = selectedLogId >= droppedLogs && selectedLogId - droppedLogs < logBuffer.size();
+
 	const ImVec2 available = ImGui::GetContentRegionAvail();
-	const float logListWidth = selectedLogIndex >= 0 ? available.x * 0.6f : available.x;
+	const float logListWidth = hasSelection ? available.x * 0.6f : available.x;
 
 	ImGui::BeginChild("LogScroll", ImVec2(logListWidth, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
-
-	std::scoped_lock lock(logMutex);
 
 	std::string lowerFilter = filterBuffer;
 	std::ranges::transform(lowerFilter, lowerFilter.begin(), tolower);
 
-	int index = 0;
-	for (const auto& entry : logBuffer)
+	std::vector<size_t> visible;
+	visible.reserve(logBuffer.size());
+	for (size_t i = 0; i < logBuffer.size(); ++i)
 	{
-		if (!ShouldShowLogType(entry.type)) continue;
-		if (!PassesFilter(entry, lowerFilter)) continue;
+		if (ShouldShowLogType(logBuffer[i].type) && PassesFilter(logBuffer[i], lowerFilter)) visible.push_back(i);
+	}
 
-		RenderLogEntry(entry, index++);
+	ImGuiListClipper clipper;
+	clipper.Begin(static_cast<int>(visible.size()));
+	while (clipper.Step())
+	{
+		for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
+			RenderLogEntry(logBuffer[visible[row]], droppedLogs + visible[row]);
 	}
 
 	if (autoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
@@ -285,13 +232,17 @@ void DebugConsole::RenderConsoleWindow()
 
 	ImGui::EndChild();
 
-	if (selectedLogIndex >= 0 && std::cmp_less(selectedLogIndex, logBuffer.size()))
+	if (hasSelection)
 	{
 		ImGui::SameLine();
 		ImGui::BeginChild("StackTracePanel", ImVec2(0, 0), true);
 
-		auto it = logBuffer.begin();
-		std::advance(it, selectedLogIndex);
+		const auto it = logBuffer.begin() + static_cast<std::ptrdiff_t>(selectedLogId - droppedLogs);
+
+		ImGui::TextWrapped("%s", it->message.c_str());
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
 
 		ImGui::Text("Source:");
 		ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "%s", it->source.empty() ? "Unknown" : it->source.c_str());

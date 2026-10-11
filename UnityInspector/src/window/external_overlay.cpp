@@ -47,8 +47,8 @@ namespace ExternalOverlay
 
 		m_overlayHwnd =
 		    CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE, className,
-		                    L"UnityInspector", WS_POPUP, gameRect.left, gameRect.top, gameRect.right - gameRect.left,
-		                    gameRect.bottom - gameRect.top, nullptr, nullptr, m_instance, nullptr);
+			                L"UnityInspector", WS_POPUP, gameRect.left, gameRect.top, gameRect.right - gameRect.left,
+			                gameRect.bottom - gameRect.top, nullptr, nullptr, m_instance, nullptr);
 
 		if (!m_overlayHwnd) return false;
 
@@ -84,7 +84,7 @@ namespace ExternalOverlay
 
 		const HRESULT hr =
 		    D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, &featureLevel, 1,
-		                                  D3D11_SDK_VERSION, &sd, &m_swapChain, &m_device, nullptr, &m_context);
+			                              D3D11_SDK_VERSION, &sd, &m_swapChain, &m_device, nullptr, &m_context);
 
 		if (FAILED(hr)) return false;
 
@@ -167,8 +167,11 @@ namespace ExternalOverlay
 
 			if (m_swapChain && (clientWidth != overlayWidth || clientHeight != overlayHeight))
 			{
-				m_targetView->Release();
-				m_targetView = nullptr;
+				if (m_targetView)
+				{
+					m_targetView->Release();
+					m_targetView = nullptr;
+				}
 
 				if (SUCCEEDED(m_swapChain->ResizeBuffers(0, clientWidth, clientHeight, DXGI_FORMAT_UNKNOWN, 0)))
 				{
@@ -188,6 +191,7 @@ namespace ExternalOverlay
 	{
 		if (!m_device || !m_context || !m_targetView) return;
 
+		std::scoped_lock lock(Window::FrameMutex());
 		if (m_capturingInput && Window::g_ImGuiInitialized)
 		{
 			ImGuiIO& io = ImGui::GetIO();
@@ -222,11 +226,14 @@ namespace ExternalOverlay
 				break;
 			}
 
-			MSG msg;
-			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
+				std::scoped_lock lock(Window::FrameMutex());
+				MSG msg;
+				while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+				{
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
 			}
 
 			UpdatePosition();

@@ -7,9 +7,7 @@ REGISTER_FEATURE(AssemblyExplorer)
 
 void AssemblyExplorer::Update(const float deltaTime)
 {
-	if (const auto& [Enabled, AutoUpdateObject, AutoRefresh, ShowAssemblyExplorer, ShowDebugConsole,
-		ObjectPickerEnabled] = Config::settings.inspector; !Enabled)
-		return;
+	if (!Config::settings.inspector.showAssemblyExplorer || !Config::state.showMenu) return;
 
 	if (!dataLoaded && !UR::assembly.empty())
 	{
@@ -82,28 +80,23 @@ void AssemblyExplorer::LoadAssemblyData()
 			nsGroup.name = nsName;
 			nsGroup.classes = std::move(classes);
 
-			std::ranges::sort(nsGroup.classes, [](const auto& a, const auto& b)
-			{
-				return a.name < b.name;
-			});
+			std::ranges::sort(nsGroup.classes, [](const auto& a, const auto& b) { return a.name < b.name; });
 
 			info.namespaces.push_back(std::move(nsGroup));
 		}
 
-		std::ranges::sort(info.namespaces, [](const auto& a, const auto& b)
-		{
-			if (a.name == "<Global Namespace>") return false;
-			if (b.name == "<Global Namespace>") return true;
-			return a.name < b.name;
-		});
+		std::ranges::sort(info.namespaces,
+		                  [](const auto& a, const auto& b)
+		                  {
+			                  if (a.name == "<Global Namespace>") return false;
+			                  if (b.name == "<Global Namespace>") return true;
+			                  return a.name < b.name;
+		                  });
 
 		assemblies.push_back(std::move(info));
 	}
 
-	std::ranges::sort(assemblies, [](const auto& a, const auto& b)
-	{
-		return a.name < b.name;
-	});
+	std::ranges::sort(assemblies, [](const auto& a, const auto& b) { return a.name < b.name; });
 }
 
 void AssemblyExplorer::RefreshAssemblyData()
@@ -179,8 +172,7 @@ void AssemblyExplorer::RenderAssemblyExplorerWindow()
 
 void AssemblyExplorer::RenderDivider(const char* id, float& widthToAdjust, float height) const
 {
-	if (height <= 0.0f)
-		return;
+	if (height <= 0.0f) return;
 
 	ImGui::PushID(id);
 
@@ -199,14 +191,10 @@ void AssemblyExplorer::RenderDivider(const char* id, float& widthToAdjust, float
 		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 	}
 
-	const ImU32 color = isActive
-		                    ? IM_COL32(100, 150, 255, 255)
-		                    : (isHovered ? IM_COL32(150, 150, 150, 255) : IM_COL32(100, 100, 100, 100));
+	const ImU32 color = isActive ? IM_COL32(100, 150, 255, 255)
+	                             : (isHovered ? IM_COL32(150, 150, 150, 255) : IM_COL32(100, 100, 100, 100));
 
-	drawList->AddLine(
-		ImVec2(pos.x + 3.5f, pos.y),
-		ImVec2(pos.x + 3.5f, pos.y + height),
-		color, 2.0f);
+	drawList->AddLine(ImVec2(pos.x + 3.5f, pos.y), ImVec2(pos.x + 3.5f, pos.y + height), color, 2.0f);
 
 	if (isActive)
 	{
@@ -230,8 +218,7 @@ void AssemblyExplorer::RenderAssemblyListPanel()
 	int visibleCount = 0;
 	for (const auto& assembly : assemblies)
 	{
-		if (assemblySearchBuffer[0] == '\0' ||
-			assembly.name.find(assemblySearchBuffer) != std::string::npos)
+		if (assemblySearchBuffer[0] == '\0' || assembly.name.find(assemblySearchBuffer) != std::string::npos)
 		{
 			visibleCount++;
 		}
@@ -244,8 +231,7 @@ void AssemblyExplorer::RenderAssemblyListPanel()
 
 	for (auto& assembly : assemblies)
 	{
-		if (assemblySearchBuffer[0] != '\0' &&
-			assembly.name.find(assemblySearchBuffer) == std::string::npos)
+		if (assemblySearchBuffer[0] != '\0' && assembly.name.find(assemblySearchBuffer) == std::string::npos)
 		{
 			continue;
 		}
@@ -264,9 +250,8 @@ void AssemblyExplorer::RenderAssemblyNode(AssemblyInfo& assembly)
 
 	const bool isSelected = (selectedAssembly == &assembly);
 
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth |
-		ImGuiTreeNodeFlags_Leaf |
-		ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	ImGuiTreeNodeFlags flags =
+	    ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
 	if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -328,7 +313,7 @@ void AssemblyExplorer::RenderClassListPanel()
 			for (const auto& klass : ns.classes)
 			{
 				if (klass.name.find(classSearchBuffer) != std::string::npos ||
-					klass.fullName.find(classSearchBuffer) != std::string::npos)
+				    klass.fullName.find(classSearchBuffer) != std::string::npos)
 				{
 					totalVisibleClasses++;
 				}
@@ -355,7 +340,7 @@ void AssemblyExplorer::RenderClassListPanel()
 				for (const auto& klass : ns.classes)
 				{
 					if (klass.name.find(classSearchBuffer) != std::string::npos ||
-						klass.fullName.find(classSearchBuffer) != std::string::npos)
+					    klass.fullName.find(classSearchBuffer) != std::string::npos)
 					{
 						hasMatch = true;
 						break;
@@ -371,9 +356,8 @@ void AssemblyExplorer::RenderClassListPanel()
 		{
 			for (auto& klass : ns.classes)
 			{
-				if (classSearchBuffer[0] != '\0' &&
-					klass.name.find(classSearchBuffer) == std::string::npos &&
-					klass.fullName.find(classSearchBuffer) == std::string::npos)
+				if (classSearchBuffer[0] != '\0' && klass.name.find(classSearchBuffer) == std::string::npos &&
+				    klass.fullName.find(classSearchBuffer) == std::string::npos)
 				{
 					continue;
 				}
@@ -394,8 +378,7 @@ void AssemblyExplorer::RenderNamespaceNode(NamespaceGroup& ns)
 
 	const bool isSelected = (selectedNamespace == &ns);
 
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth |
-		ImGuiTreeNodeFlags_OpenOnArrow;
+	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow;
 
 	if (ns.isExpanded) flags |= ImGuiTreeNodeFlags_DefaultOpen;
 	if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
@@ -416,9 +399,8 @@ void AssemblyExplorer::RenderNamespaceNode(NamespaceGroup& ns)
 	{
 		for (auto& klass : ns.classes)
 		{
-			if (classSearchBuffer[0] != '\0' &&
-				klass.name.find(classSearchBuffer) == std::string::npos &&
-				klass.fullName.find(classSearchBuffer) == std::string::npos)
+			if (classSearchBuffer[0] != '\0' && klass.name.find(classSearchBuffer) == std::string::npos &&
+			    klass.fullName.find(classSearchBuffer) == std::string::npos)
 			{
 				continue;
 			}
@@ -438,9 +420,8 @@ void AssemblyExplorer::RenderClassNode(AssemblyClassInfo& classInfo)
 
 	const bool isSelected = (selectedClass == &classInfo);
 
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth |
-		ImGuiTreeNodeFlags_Leaf |
-		ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	ImGuiTreeNodeFlags flags =
+	    ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
 	if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -461,8 +442,7 @@ void AssemblyExplorer::RenderClassNode(AssemblyClassInfo& classInfo)
 	{
 		ImGui::BeginTooltip();
 		ImGui::Text("Full Name: %s", classInfo.fullName.c_str());
-		if (!classInfo.parent.empty())
-			ImGui::Text("Parent: %s", classInfo.parent.c_str());
+		if (!classInfo.parent.empty()) ImGui::Text("Parent: %s", classInfo.parent.c_str());
 		ImGui::Text("Fields: %d | Methods: %d", classInfo.fieldCount, classInfo.methodCount);
 		ImGui::EndTooltip();
 	}
@@ -482,8 +462,7 @@ void AssemblyExplorer::RenderClassNode(AssemblyClassInfo& classInfo)
 			const auto addr = reinterpret_cast<std::uintptr_t>(classInfo.classHandle->address);
 
 			const std::string addrStr = std::format("0x{:X}", addr);
-			if (ImGui::MenuItem("Copy Class Address"))
-				ImGui::SetClipboardText(addrStr.c_str());
+			if (ImGui::MenuItem("Copy Class Address")) ImGui::SetClipboardText(addrStr.c_str());
 		}
 		ImGui::EndPopup();
 	}
@@ -546,8 +525,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 			{
 				selectedInstance = nullptr;
 			}
-			if (isSelected)
-				ImGui::SetItemDefaultFocus();
+			if (isSelected) ImGui::SetItemDefaultFocus();
 
 			for (size_t i = 0; i < selectedClass->instances.size(); i++)
 			{
@@ -559,8 +537,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 				{
 					selectedInstance = &instance;
 				}
-				if (lIsSelected)
-					ImGui::SetItemDefaultFocus();
+				if (lIsSelected) ImGui::SetItemDefaultFocus();
 			}
 
 			ImGui::EndCombo();
@@ -630,7 +607,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 
 			if (ImGui::BeginTable("FieldsTable", 5,
 			                      ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
-			                      ImGuiTableFlags_SizingFixedFit))
+			                          ImGuiTableFlags_SizingFixedFit))
 			{
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 130.0f);
 				ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 130.0f);
@@ -668,8 +645,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						std::string addrStr = std::format("0x{:X}", static_cast<unsigned long long>(addr));
 						ImGui::TextDisabled("%s", addrStr.c_str());
 						ImGui::Separator();
-						if (addr && ImGui::MenuItem("Copy Address"))
-							ImGui::SetClipboardText(addrStr.c_str());
+						if (addr && ImGui::MenuItem("Copy Address")) ImGui::SetClipboardText(addrStr.c_str());
 						ImGui::EndPopup();
 					}
 
@@ -685,7 +661,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						ImGui::TextDisabled("0x%X", field->offset);
 					else if (field->address && s_moduleBase)
 						ImGui::TextDisabled(
-							"0x%X", static_cast<uint32_t>(reinterpret_cast<uintptr_t>(field->address) - s_moduleBase));
+						    "0x%X", static_cast<uint32_t>(reinterpret_cast<uintptr_t>(field->address) - s_moduleBase));
 					else
 						ImGui::TextDisabled("[S]");
 
@@ -713,8 +689,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						}
 						std::string title = "Edit Field: " + field->name;
 
-						if (!fieldEditor)
-							fieldEditor = std::make_unique<FieldEditor>();
+						if (!fieldEditor) fieldEditor = std::make_unique<FieldEditor>();
 
 						fieldEditor->OpenFieldEditor(field.get(), target, title);
 					}
@@ -762,7 +737,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 
 			if (ImGui::BeginTable("MethodsTable", 6,
 			                      ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
-			                      ImGuiTableFlags_SizingFixedFit))
+			                          ImGuiTableFlags_SizingFixedFit))
 			{
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.0f);
 				ImGui::TableSetupColumn("Return Type", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -795,16 +770,14 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 
 						ImGui::TextDisabled("%s", addrStr.c_str());
 						ImGui::Separator();
-						if (ImGui::MenuItem("Copy Address"))
-							ImGui::SetClipboardText(addrStr.c_str());
+						if (ImGui::MenuItem("Copy Address")) ImGui::SetClipboardText(addrStr.c_str());
 						if (s_moduleBase && method->address)
 						{
-							const auto rva = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(method->
-								address) - s_moduleBase);
+							const auto rva = static_cast<std::uint32_t>(
+							    reinterpret_cast<std::uintptr_t>(method->address) - s_moduleBase);
 							std::string rvaStr = std::format("0x{:X}", rva);
 
-							if (ImGui::MenuItem("Copy RVA"))
-								ImGui::SetClipboardText(rvaStr.c_str());
+							if (ImGui::MenuItem("Copy RVA")) ImGui::SetClipboardText(rvaStr.c_str());
 						}
 						ImGui::EndPopup();
 					}
@@ -840,9 +813,8 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 						uintptr_t rva = reinterpret_cast<uintptr_t>(method->address) - s_moduleBase;
 						ImGui::TextDisabled("0x%X", static_cast<uint32_t>(rva));
 						if (ImGui::IsItemHovered())
-							ImGui::SetTooltip("Abs: 0x%llX",
-							                  static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(method->
-								                  address)));
+							ImGui::SetTooltip("Abs: 0x%llX", static_cast<unsigned long long>(
+							                                     reinterpret_cast<uintptr_t>(method->address)));
 					}
 					else
 					{
@@ -852,8 +824,7 @@ void AssemblyExplorer::RenderClassDetailsPanel()
 					ImGui::TableSetColumnIndex(4);
 					std::string flags;
 					if (isStatic) flags += "S";
-					if (!flags.empty())
-						ImGui::TextDisabled("[%s]", flags.c_str());
+					if (!flags.empty()) ImGui::TextDisabled("[%s]", flags.c_str());
 
 					ImGui::TableSetColumnIndex(5);
 
@@ -941,15 +912,15 @@ void AssemblyExplorer::SelectInstance(ClassInstanceInfo* instance)
 
 static void* GetIl2cppGetParent()
 {
-	static auto ptr = reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"),
-	                                                          "il2cpp_class_get_parent"));
+	static auto ptr =
+	    reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"), "il2cpp_class_get_parent"));
 	return ptr;
 }
 
 static void* GetMonoGetParent()
 {
-	static auto ptr = reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"),
-	                                                         "mono_class_get_parent"));
+	static auto ptr =
+	    reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"), "mono_class_get_parent"));
 	if (!ptr) ptr = reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("mono.dll"), "mono_class_get_parent"));
 	return ptr;
 }
@@ -959,32 +930,32 @@ typedef const char* (*GetNamespaceFn)(void*);
 
 static GetNameFn GetIl2cppGetNameFn()
 {
-	static auto fn = reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"),
-	                                                            "il2cpp_class_get_name"));
+	static auto fn =
+	    reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"), "il2cpp_class_get_name"));
 	return fn;
 }
 
 static GetNameFn GetMonoGetNameFn()
 {
-	static auto fn = reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"),
-	                                                            "mono_class_get_name"));
+	static auto fn =
+	    reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"), "mono_class_get_name"));
 	if (!fn) fn = reinterpret_cast<GetNameFn>(GetProcAddress(GetModuleHandleA("mono.dll"), "mono_class_get_name"));
 	return fn;
 }
 
 static GetNamespaceFn GetIl2cppGetNamespaceFn()
 {
-	static auto fn = reinterpret_cast<GetNamespaceFn>(GetProcAddress(GetModuleHandleA("GameAssembly.dll"),
-	                                                                 "il2cpp_class_get_namespace"));
+	static auto fn = reinterpret_cast<GetNamespaceFn>(
+	    GetProcAddress(GetModuleHandleA("GameAssembly.dll"), "il2cpp_class_get_namespace"));
 	return fn;
 }
 
 static GetNamespaceFn GetMonoGetNamespaceFn()
 {
-	static auto fn = reinterpret_cast<GetNamespaceFn>(GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"),
-	                                                                 "mono_class_get_namespace"));
-	if (!fn) fn = reinterpret_cast<GetNamespaceFn>(GetProcAddress(GetModuleHandleA("mono.dll"),
-	                                                              "mono_class_get_namespace"));
+	static auto fn = reinterpret_cast<GetNamespaceFn>(
+	    GetProcAddress(GetModuleHandleA("mono-2.0-bdwgc.dll"), "mono_class_get_namespace"));
+	if (!fn)
+		fn = reinterpret_cast<GetNamespaceFn>(GetProcAddress(GetModuleHandleA("mono.dll"), "mono_class_get_namespace"));
 	return fn;
 }
 
@@ -1166,13 +1137,7 @@ static void ScanObject(void* obj, int depth, std::unordered_set<void*>& visited,
 
 	if (!objURClass) return;
 
-	if (IsSubclassOf(objKlass, targetClassAddress, classMap, nameToClassMap))
-	{
-		if (std::ranges::find(foundInstances, obj) == foundInstances.end())
-		{
-			foundInstances.push_back(obj);
-		}
-	}
+	if (IsSubclassOf(objKlass, targetClassAddress, classMap, nameToClassMap)) foundInstances.push_back(obj);
 
 	void* currentKlass = objKlass;
 
@@ -1224,8 +1189,8 @@ static void ScanObject(void* obj, int depth, std::unordered_set<void*>& visited,
 								for (unsigned int i = 0; i < len; ++i)
 								{
 									void* element = nullptr;
-									if (uintptr_t dummyLen = 0; SafeGetArrayLengthAndElement(
-										fieldPtr, i, element, dummyLen) && element)
+									if (uintptr_t dummyLen = 0;
+									    SafeGetArrayLengthAndElement(fieldPtr, i, element, dummyLen) && element)
 									{
 										ScanObject(element, depth + 1, visited, foundInstances, targetClassAddress,
 										           classMap, nameToClassMap);
@@ -1302,24 +1267,22 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo) const
 
 		if (isUnityObject)
 		{
+			std::unordered_set<void*> seen;
 			for (const auto& assembly : assemblies)
 			{
 				for (const auto& ns : assembly.namespaces)
 				{
 					for (const auto& cls : ns.classes)
 					{
-						if (cls.classHandle && IsSubclassOf(cls.classHandle->address, targetClassAddress, classMap,
-						                                    nameToClassMap))
+						if (cls.classHandle &&
+						    IsSubclassOf(cls.classHandle->address, targetClassAddress, classMap, nameToClassMap))
 						{
 							try
 							{
-								for (const auto objects = cls.classHandle->FindObjectsOfType<void*>(); auto* obj :
-								     objects)
+								for (const auto objects = cls.classHandle->FindObjectsOfType<void*>();
+								     auto* obj : objects)
 								{
-									if (obj && std::ranges::find(foundRawInstances, obj) == foundRawInstances.end())
-									{
-										foundRawInstances.push_back(obj);
-									}
+									if (obj && seen.insert(obj).second) foundRawInstances.push_back(obj);
 								}
 							}
 							catch (...)
@@ -1387,8 +1350,8 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo) const
 							{
 								if (field && field->static_field && field->type && field->type->size == sizeof(void*))
 								{
-									if (void* staticVal = nullptr; SafeGetStaticFieldValue(field.get(), staticVal) &&
-										staticVal)
+									if (void* staticVal = nullptr;
+									    SafeGetStaticFieldValue(field.get(), staticVal) && staticVal)
 									{
 										roots.push_back(staticVal);
 									}
@@ -1420,20 +1383,8 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo) const
 
 		if (void* objKlass = Helper::SafeGetObjectClass(obj); objKlass && objKlass != classInfo->classHandle->address)
 		{
-			for (const auto& assembly : assemblies)
-			{
-				for (const auto& ns : assembly.namespaces)
-				{
-					for (const auto& cls : ns.classes)
-					{
-						if (cls.classHandle && cls.classHandle->address == objKlass)
-						{
-							info.displayName += " (" + cls.name + ")";
-							break;
-						}
-					}
-				}
-			}
+			if (const auto it = classMap.find(objKlass); it != classMap.end())
+				info.displayName += " (" + it->second->m_name + ")";
 		}
 		classInfo->instances.push_back(std::move(info));
 	}
@@ -1446,31 +1397,23 @@ std::string AssemblyExplorer::FormatClassName(const std::string& name) const
 
 std::string AssemblyExplorer::FormatNamespaceName(const std::string& name) const
 {
-	if (name == "<Global Namespace>")
-		return "Global";
+	if (name == "<Global Namespace>") return "Global";
 
-	if (name.length() > 40)
-		return name.substr(0, 37) + "...";
+	if (name.length() > 40) return name.substr(0, 37) + "...";
 
 	return name;
 }
 
 ImVec4 AssemblyExplorer::GetClassColor(const AssemblyClassInfo& classInfo) const
 {
-	if (classInfo.parent == "MonoBehaviour")
-		return {0.4f, 0.8f, 0.4f, 1.0f}; // Green for MonoBehaviour
-	if (classInfo.parent == "ScriptableObject")
-		return {0.8f, 0.6f, 0.4f, 1.0f}; // Orange for ScriptableObject
-	if (classInfo.parent == "Component")
-		return {0.4f, 0.6f, 0.8f, 1.0f}; // Blue for Component
-	if (classInfo.parent == "Object")
-		return {0.8f, 0.8f, 0.4f, 1.0f}; // Yellow for Object
-	if (!classInfo.parent.empty())
-		return {0.7f, 0.7f, 0.7f, 1.0f}; // Gray for others with parent
+	if (classInfo.parent == "MonoBehaviour") return {0.4f, 0.8f, 0.4f, 1.0f};
+	if (classInfo.parent == "ScriptableObject") return {0.8f, 0.6f, 0.4f, 1.0f};
+	if (classInfo.parent == "Component") return {0.4f, 0.6f, 0.8f, 1.0f};
+	if (classInfo.parent == "Object") return {0.8f, 0.8f, 0.4f, 1.0f};
+	if (!classInfo.parent.empty()) return {0.7f, 0.7f, 0.7f, 1.0f};
 
-	return {0.9f, 0.9f, 0.9f, 1.0f}; // White for base classes
+	return {0.9f, 0.9f, 0.9f, 1.0f};
 }
-
 
 void AssemblyExplorer::RenderFieldRow(const UR::Field* field, void* instance) const
 {
@@ -1719,23 +1662,21 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 
 			switch (paramType)
 			{
-			case EditableType::Int:
-			case EditableType::Float:
-			case EditableType::Double:
-				if (ImGui::InputText("##param", buf, sizeof(buf), ImGuiInputTextFlags_CharsDecimal))
-					invokeState.parameterValues[i] = buf;
-				break;
-			case EditableType::Bool:
+				case EditableType::Int:
+				case EditableType::Float:
+				case EditableType::Double:
+					if (ImGui::InputText("##param", buf, sizeof(buf), ImGuiInputTextFlags_CharsDecimal))
+						invokeState.parameterValues[i] = buf;
+					break;
+				case EditableType::Bool:
 				{
 					bool val = (invokeState.parameterValues[i] == "true" || invokeState.parameterValues[i] == "1");
-					if (ImGui::Checkbox("##param", &val))
-						invokeState.parameterValues[i] = val ? "true" : "false";
+					if (ImGui::Checkbox("##param", &val)) invokeState.parameterValues[i] = val ? "true" : "false";
 					break;
 				}
-			default:
-				if (ImGui::InputText("##param", buf, sizeof(buf)))
-					invokeState.parameterValues[i] = buf;
-				break;
+				default:
+					if (ImGui::InputText("##param", buf, sizeof(buf))) invokeState.parameterValues[i] = buf;
+					break;
 			}
 
 			ImGui::PopID();
@@ -1770,9 +1711,8 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 			invokeState.hasResult = true;
 			if (success && result)
 			{
-				const std::string retTypeName = invokeState.targetMethod->return_type
-					                                ? invokeState.targetMethod->return_type->name
-					                                : "void";
+				const std::string retTypeName =
+				    invokeState.targetMethod->return_type ? invokeState.targetMethod->return_type->name : "void";
 
 				if (retTypeName == "System.Void" || retTypeName == "void")
 				{
@@ -1781,31 +1721,31 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 				else
 				{
 					const EditableType retType = DetermineEditableType(retTypeName);
-					void* unboxed = UR::Invoke<void*, void*>(
-						Config::state.unityMode == UnityResolve::Mode::Mono
-							? "mono_object_unbox"
-							: "il2cpp_object_unbox", result);
+					void* unboxed = UR::Invoke<void*, void*>(Config::state.unityMode == UnityResolve::Mode::Mono
+					                                             ? "mono_object_unbox"
+					                                             : "il2cpp_object_unbox",
+					                                         result);
 
 					if (unboxed)
 					{
 						switch (retType)
 						{
-						case EditableType::Int:
-							invokeState.resultText = std::to_string(*static_cast<int*>(unboxed));
-							break;
-						case EditableType::Float:
-							invokeState.resultText = std::to_string(*static_cast<float*>(unboxed));
-							break;
-						case EditableType::Double:
-							invokeState.resultText = std::to_string(*static_cast<double*>(unboxed));
-							break;
-						case EditableType::Bool:
-							invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
-							break;
-						default:
-							invokeState.resultText = std::format("(object: 0x{:X})",
-							                                     reinterpret_cast<uintptr_t>(result));
-							break;
+							case EditableType::Int:
+								invokeState.resultText = std::to_string(*static_cast<int*>(unboxed));
+								break;
+							case EditableType::Float:
+								invokeState.resultText = std::to_string(*static_cast<float*>(unboxed));
+								break;
+							case EditableType::Double:
+								invokeState.resultText = std::to_string(*static_cast<double*>(unboxed));
+								break;
+							case EditableType::Bool:
+								invokeState.resultText = *static_cast<bool*>(unboxed) ? "true" : "false";
+								break;
+							default:
+								invokeState.resultText =
+								    std::format("(object: 0x{:X})", reinterpret_cast<uintptr_t>(result));
+								break;
 						}
 					}
 					else
@@ -1816,12 +1756,10 @@ void AssemblyExplorer::RenderMethodInvokePopup()
 			}
 			else if (success)
 			{
-				const std::string retTypeName = invokeState.targetMethod->return_type
-					                                ? invokeState.targetMethod->return_type->name
-					                                : "void";
-				invokeState.resultText = (retTypeName == "System.Void" || retTypeName == "void")
-					                         ? "(completed)"
-					                         : "(null)";
+				const std::string retTypeName =
+				    invokeState.targetMethod->return_type ? invokeState.targetMethod->return_type->name : "void";
+				invokeState.resultText =
+				    (retTypeName == "System.Void" || retTypeName == "void") ? "(completed)" : "(null)";
 			}
 			else
 			{

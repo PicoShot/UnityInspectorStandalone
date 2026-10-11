@@ -122,6 +122,7 @@ private:
 
 	MethodInvokeState invokeState;
 	std::unique_ptr<FieldEditor> fieldEditor;
+	mutable std::optional<InspectionTarget> pendingNavigation;
 
 	void RefreshHierarchy();
 	void BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform,

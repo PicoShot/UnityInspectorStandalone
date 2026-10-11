@@ -98,6 +98,9 @@ namespace Helper
 
 	void* SafeInvokeMethod(void* obj, void* methodHandle, void** params, bool& success);
 
+	std::string GetTypeName(void* type, const char* fallback = "unknown");
+	std::string SafeObjectToString(void* obj);
+
 	struct InvokeParamBuffers
 	{
 		std::vector<void*> params;

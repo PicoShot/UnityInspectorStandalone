@@ -4,6 +4,20 @@
 
 REGISTER_FEATURE(Inspector)
 
+static bool ComponentsChanged(const InspectedObjectTab& tab)
+{
+	if (!tab.gameObject || tab.navigationStack.empty()) return false;
+
+	const auto* coreModule = UR::Get("UnityEngine.CoreModule.dll");
+	auto* componentClass = coreModule ? coreModule->Get("Component", "UnityEngine") : nullptr;
+	if (!componentClass) return false;
+
+	std::vector<UT::Component*> components;
+	if (!Helper::SafeGetComponents(tab.gameObject, componentClass, components)) return false;
+	std::erase_if(components, [](UT::Component* comp) { return !comp || !Helper::SafeIsAlive(comp); });
+	return components != tab.navigationStack.front().cachedComponents;
+}
+
 void Inspector::Update(const float deltaTime)
 {
 	s_Instance = this;
@@ -23,7 +37,8 @@ void Inspector::Update(const float deltaTime)
 
 		if (AutoRefresh) RefreshHierarchy();
 
-		if (AutoUpdateObject && activeTabIndex >= 0 && std::cmp_less(activeTabIndex, openTabs.size()))
+		if (AutoUpdateObject && activeTabIndex >= 0 && std::cmp_less(activeTabIndex, openTabs.size()) &&
+		    ComponentsChanged(openTabs[activeTabIndex]))
 		{
 			RefreshTabData(openTabs[activeTabIndex]);
 		}
@@ -113,19 +128,6 @@ void Inspector::Render()
 				if (ImGui::Button("Refresh")) ScanStaticClasses();
 
 				ImGui::SameLine();
-				ImGui::Checkbox("Auto", &Config::settings.inspector.autoRefresh);
-
-				ImGui::SameLine();
-				if (ImGui::SmallButton("Collapse"))
-				{
-				}
-
-				ImGui::SameLine();
-				if (ImGui::SmallButton("Expand"))
-				{
-				}
-
-				ImGui::SameLine();
 				ImGui::TextDisabled("| %zu", staticInstances.size());
 
 				ImGui::SameLine();
@@ -184,16 +186,16 @@ void Inspector::Render()
 void Inspector::ScanStaticClasses()
 {
 	staticInstances.clear();
-	printf("[ScanStaticClasses] Started\n");
 
 	for (const auto& assembly : UR::assembly)
 	{
 		if (!assembly) continue;
-		printf("[ScanStaticClasses] Assembly: %s\n", assembly->name.c_str());
 
 		for (const auto& klass : assembly->classes)
 		{
 			if (!klass) continue;
+
+			if (klass->m_name.find_first_of("`<$") != std::string::npos) continue;
 
 			for (const auto& field : klass->fields)
 			{
@@ -202,13 +204,6 @@ void Inspector::ScanStaticClasses()
 					if (field && field->static_field)
 					{
 						if (!field->type) continue;
-
-						// Mono JIT will abort() if mono_class_vtable is called on an uninflated generic type.
-						// Skip generic types (backtick) and compiler-generated types (<, $).
-						if (klass->m_name.find('`') != std::string::npos ||
-						    klass->m_name.find('<') != std::string::npos ||
-						    klass->m_name.find('$') != std::string::npos)
-							continue;
 
 						std::string typeName = field->type->name;
 						if (typeName.starts_with("System.") || typeName.starts_with("UnityEngine.") ||
@@ -223,12 +218,10 @@ void Inspector::ScanStaticClasses()
 
 						if (Config::state.unityMode == UnityResolve::Mode::Il2Cpp)
 						{
-							if (void* static_fields_ptr =
-							        *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(klass->address) + 0xB8))
-							{
-								instance = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(static_fields_ptr) +
-								                                     field->offset);
-							}
+							if (void* staticFields = nullptr;
+							    field->offset >= 0 && Helper::SafeReadPointer(klass->address, 0xB8, staticFields) &&
+							    staticFields)
+								Helper::SafeReadPointer(staticFields, field->offset, instance);
 						}
 						else
 						{
@@ -265,7 +258,6 @@ void Inspector::ScanStaticClasses()
 	std::ranges::sort(staticInstances, [](const auto& a, const auto& b) { return a.fullName < b.fullName; });
 
 	hasScannedStatic = true;
-	printf("[ScanStaticClasses] Finished. Found %zu instances.\n", staticInstances.size());
 }
 
 void Inspector::OpenStaticInstanceInNewTab(const StaticInstanceNode& node)

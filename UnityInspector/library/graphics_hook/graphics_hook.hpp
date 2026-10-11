@@ -27,12 +27,13 @@ namespace graphics_hook
 
 	using PresentFn = HRESULT(__stdcall*)(IDXGISwapChain*, UINT, UINT);
 	using Present1Fn = HRESULT(__stdcall*)(IDXGISwapChain1*, UINT, UINT, const DXGI_PRESENT_PARAMETERS*);
+	using ResizeBuffersFn = HRESULT(__stdcall*)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
 	using ExecuteCommandListsFn = void(__stdcall*)(ID3D12CommandQueue*, UINT, ID3D12CommandList* const*);
 
 	class GH
 	{
 	public:
-		static auto Build(const std::function<void()>& fn) -> bool
+		static auto Build(const std::function<void()>& fn, const std::function<void()>& onResize = {}) -> bool
 		{
 			if (!fn)
 			{
@@ -40,6 +41,7 @@ namespace graphics_hook
 				return false;
 			}
 			present = fn;
+			resize = onResize;
 
 			bool ok = false;
 
@@ -54,6 +56,8 @@ namespace graphics_hook
 					{
 						ok = true;
 					}
+					HookManager::Install(reinterpret_cast<ResizeBuffersFn>(d3d11Out.swapchain_methods[13]),
+					                     MyResizeBuffers);
 				}
 				if (d3d11Out.swapchain_methods.size() > 22)
 				{
@@ -77,6 +81,8 @@ namespace graphics_hook
 						{
 							ok = true;
 						}
+						HookManager::Install(reinterpret_cast<ResizeBuffersFn>(d3d12Out.swapchain_methods[13]),
+						                     MyResizeBuffers);
 						if (d3d12Out.swapchain_methods.size() > 22)
 						{
 							auto oPresent1 = d3d12Out.swapchain_methods[22];
@@ -144,6 +150,7 @@ namespace graphics_hook
 		inline static HWND hWnd{};
 		inline static WNDPROC oldWndProc{};
 		inline static std::function<void()> present;
+		inline static std::function<void()> resize;
 		inline static LRESULT (*wndProc)(HWND, UINT, WPARAM, LPARAM);
 
 		// D3D11
@@ -157,48 +164,55 @@ namespace graphics_hook
 		inline static ID3D12CommandQueue* gCommandQueue{};
 
 	private:
-		static HRESULT __stdcall MyPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
+		static auto CreateTargetView(IDXGISwapChain* pSwapChain) -> void
+		{
+			ID3D11Texture2D* pBackBuffer = nullptr;
+			if (SUCCEEDED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<LPVOID*>(&pBackBuffer))))
+			{
+				gDevice->CreateRenderTargetView(pBackBuffer, nullptr, &gTargetView);
+				pBackBuffer->Release();
+			}
+		}
+
+		static auto IsGameDevice(IDXGISwapChain* pSwapChain) -> bool
+		{
+			IUnknown* device = nullptr;
+			const bool d3d11 = g_Api == RenderAPI::D3D11;
+			if (FAILED(pSwapChain->GetDevice(d3d11 ? __uuidof(ID3D11Device) : __uuidof(ID3D12Device),
+			                                 reinterpret_cast<void**>(&device))))
+				return false;
+			const bool same = d3d11 ? device == gDevice : device == gDevice12;
+			device->Release();
+			return same;
+		}
+
+		static auto OnPresent(IDXGISwapChain* pSwapChain) -> void
 		{
 			if (!init)
 			{
 				gSwapChain = pSwapChain;
 
-				// Detect API: Try D3D11 Device
+				DXGI_SWAP_CHAIN_DESC sd{};
+				pSwapChain->GetDesc(&sd);
+
 				ID3D11Device* d3d11Device = nullptr;
+				ID3D12Device* d3d12Device = nullptr;
 				if (SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D11Device), reinterpret_cast<void**>(&d3d11Device))))
 				{
 					g_Api = RenderAPI::D3D11;
 					gDevice = d3d11Device;
 					gDevice->GetImmediateContext(&gContext);
-
-					DXGI_SWAP_CHAIN_DESC sd;
-					SUCCEEDED(pSwapChain->GetDesc(&sd));
 					hWnd = sd.OutputWindow;
-
-					ID3D11Texture2D* pBackBuffer = nullptr;
-					if (SUCCEEDED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
-					                                    reinterpret_cast<LPVOID*>(&pBackBuffer))))
-					{
-						SUCCEEDED(gDevice->CreateRenderTargetView(pBackBuffer, nullptr, &gTargetView));
-						pBackBuffer->Release();
-						init = true;
-					}
+					CreateTargetView(pSwapChain);
+					init = gTargetView != nullptr;
 				}
-				else
+				else if (SUCCEEDED(
+				             pSwapChain->GetDevice(__uuidof(ID3D12Device), reinterpret_cast<void**>(&d3d12Device))))
 				{
-					// Try D3D12 Device
-					ID3D12Device* d3d12Device = nullptr;
-					if (SUCCEEDED(
-					        pSwapChain->GetDevice(__uuidof(ID3D12Device), reinterpret_cast<void**>(&d3d12Device))))
-					{
-						g_Api = RenderAPI::D3D12;
-						gDevice12 = d3d12Device;
-
-						DXGI_SWAP_CHAIN_DESC sd;
-						SUCCEEDED(pSwapChain->GetDesc(&sd));
-						hWnd = sd.OutputWindow;
-						init = true;
-					}
+					g_Api = RenderAPI::D3D12;
+					gDevice12 = d3d12Device;
+					hWnd = sd.OutputWindow;
+					init = true;
 				}
 
 				if (init && pendingWndProc && wndProc && hWnd)
@@ -209,73 +223,52 @@ namespace graphics_hook
 				}
 			}
 
-			if (present && init)
+			if (!init) return;
+
+			if (pSwapChain != gSwapChain)
 			{
-				present();
+				if (!IsGameDevice(pSwapChain)) return;
+				if (resize) resize();
+				if (gTargetView)
+				{
+					gTargetView->Release();
+					gTargetView = nullptr;
+				}
+				gSwapChain = pSwapChain;
 			}
 
+			if (g_Api == RenderAPI::D3D11 && !gTargetView) CreateTargetView(pSwapChain);
+
+			if (present) present();
+		}
+
+		static HRESULT __stdcall MyPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
+		{
+			OnPresent(pSwapChain);
 			return HookManager::Scall(MyPresent, pSwapChain, SyncInterval, Flags);
 		}
 
 		static HRESULT __stdcall MyPresent1(IDXGISwapChain1* pSwapChain, UINT SyncInterval, UINT PresentFlags,
 		                                    const DXGI_PRESENT_PARAMETERS* pPresentParameters)
 		{
-			if (!init)
-			{
-				gSwapChain = pSwapChain;
-
-				// Detect API: Try D3D11 Device
-				ID3D11Device* d3d11Device = nullptr;
-				if (SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D11Device), reinterpret_cast<void**>(&d3d11Device))))
-				{
-					g_Api = RenderAPI::D3D11;
-					gDevice = d3d11Device;
-					gDevice->GetImmediateContext(&gContext);
-
-					DXGI_SWAP_CHAIN_DESC sd;
-					SUCCEEDED(pSwapChain->GetDesc(&sd));
-					hWnd = sd.OutputWindow;
-
-					ID3D11Texture2D* pBackBuffer = nullptr;
-					if (SUCCEEDED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
-					                                    reinterpret_cast<LPVOID*>(&pBackBuffer))))
-					{
-						SUCCEEDED(gDevice->CreateRenderTargetView(pBackBuffer, nullptr, &gTargetView));
-						pBackBuffer->Release();
-						init = true;
-					}
-				}
-				else
-				{
-					// Try D3D12 Device
-					ID3D12Device* d3d12Device = nullptr;
-					if (SUCCEEDED(
-					        pSwapChain->GetDevice(__uuidof(ID3D12Device), reinterpret_cast<void**>(&d3d12Device))))
-					{
-						g_Api = RenderAPI::D3D12;
-						gDevice12 = d3d12Device;
-
-						DXGI_SWAP_CHAIN_DESC sd;
-						SUCCEEDED(pSwapChain->GetDesc(&sd));
-						hWnd = sd.OutputWindow;
-						init = true;
-					}
-				}
-
-				if (init && pendingWndProc && wndProc && hWnd)
-				{
-					oldWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(hWnd, GWLP_WNDPROC));
-					SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewWndProc));
-					pendingWndProc = false;
-				}
-			}
-
-			if (present && init)
-			{
-				present();
-			}
-
+			OnPresent(pSwapChain);
 			return HookManager::Scall(MyPresent1, pSwapChain, SyncInterval, PresentFlags, pPresentParameters);
+		}
+
+		static HRESULT __stdcall MyResizeBuffers(IDXGISwapChain* pSwapChain, UINT BufferCount, UINT Width, UINT Height,
+		                                         DXGI_FORMAT NewFormat, UINT SwapChainFlags)
+		{
+			if (init && pSwapChain == gSwapChain)
+			{
+				if (resize) resize();
+				if (gTargetView)
+				{
+					gTargetView->Release();
+					gTargetView = nullptr;
+				}
+			}
+			return HookManager::Scall(MyResizeBuffers, pSwapChain, BufferCount, Width, Height, NewFormat,
+			                          SwapChainFlags);
 		}
 
 		static void __stdcall MyExecuteCommandLists(ID3D12CommandQueue* pQueue, UINT NumCommandLists,

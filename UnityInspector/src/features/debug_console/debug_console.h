@@ -30,15 +30,15 @@ public:
 	void Render() override;
 
 	static void AddLog(const std::string& message, LogType type, const std::string& stackTrace = "", const std::string& source = "");
+	static void CaptureManagedLog(void* message, LogType type);
 	static void ClearLogs();
 	static std::string GetStackTrace();
-	static std::string GetCallingSource();
 
 private:
 	static constexpr size_t MAX_LOGS = 1000;
 	static std::deque<LogEntry> logBuffer;
 	static std::mutex logMutex;
-	static float currentTime;
+	static size_t droppedLogs;
 
 	bool showLog = true;
 	bool showWarning = true;
@@ -49,12 +49,12 @@ private:
 	bool showTimestamps = true;
 	bool showSource = true;
 	bool wordWrap = true;
-	int selectedLogIndex = -1;
+	size_t selectedLogId = SIZE_MAX;
 
 	char filterBuffer[256] = {};
 
 	void RenderConsoleWindow();
-	void RenderLogEntry(const LogEntry& entry, int index);
+	void RenderLogEntry(const LogEntry& entry, size_t id);
 	[[nodiscard]] ImU32 GetLogColor(LogType type) const;
 	[[nodiscard]] const char* GetLogTypeString(LogType type) const;
 	[[nodiscard]] bool ShouldShowLogType(LogType type) const;

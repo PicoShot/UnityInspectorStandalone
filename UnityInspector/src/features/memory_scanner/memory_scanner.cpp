@@ -21,18 +21,43 @@ namespace
 		}
 	}
 
-	bool SafeReadBool(void* ptr, int offset, bool& outValue)
+	bool FieldKindMatches(const int kind, const ScanValueType searchType, ActualFieldType& out)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
+		switch (searchType)
 		{
-			outValue = *reinterpret_cast<bool*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
+			case ScanValueType::Int:
+				switch (kind)
+				{
+					case 0x04: out = ActualFieldType::SByte; return true;
+					case 0x05: out = ActualFieldType::Byte; return true;
+					case 0x06: out = ActualFieldType::Short; return true;
+					case 0x07: out = ActualFieldType::UShort; return true;
+					case 0x08: out = ActualFieldType::Int; return true;
+					case 0x09: out = ActualFieldType::UInt; return true;
+					default: return false;
+				}
+			case ScanValueType::Long:
+				if (kind == 0x0a)
+					out = ActualFieldType::Long;
+				else if (kind == 0x0b)
+					out = ActualFieldType::ULong;
+				else
+					return false;
+				return true;
+			case ScanValueType::Float: out = ActualFieldType::Float; return kind == 0x0c;
+			case ScanValueType::Double: out = ActualFieldType::Double; return kind == 0x0d;
+			case ScanValueType::Bool: out = ActualFieldType::Bool; return kind == 0x02;
 		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
+		return false;
+	}
+
+	bool IsEngineNamespace(const std::string_view ns)
+	{
+		for (const std::string_view root : {"System", "UnityEngine", "Unity"})
 		{
-			return false;
+			if (ns == root || (ns.starts_with(root) && ns.size() > root.size() && ns[root.size()] == '.')) return true;
 		}
+		return false;
 	}
 
 	template <typename T> bool SafeWrite(void* ptr, int offset, const T& value)
@@ -59,44 +84,38 @@ void MemoryScanner::Update(float deltaTime)
 		pendingWrite.reset();
 	}
 
-	if (pendingOperation != ScanOperation::None && !scanInProgress)
+	const ScanOperation op = std::exchange(pendingOperation, ScanOperation::None);
+	if (op == ScanOperation::Reset)
 	{
-		if (pendingOperation == ScanOperation::Reset)
-		{
-			ResetScan();
-			pendingOperation = ScanOperation::None;
-		}
+		scanPhase = ScanPhase::Idle;
+		ResetScan();
+	}
+	else if (op != ScanOperation::None && scanPhase == ScanPhase::Idle)
+	{
+		scanInProgress = true;
+		stopRequested = false;
+		scanCursor = 0;
+		scanBuffer.clear();
+		scanVisited.clear();
+		if (op == ScanOperation::FirstScan)
+			StartFirstScan();
 		else
-		{
-			scanInProgress = true;
-			stopRequested = false;
-			const ScanOperation op = pendingOperation;
-			pendingOperation = ScanOperation::None;
+			scanPhase = ScanPhase::Next;
+	}
 
-			if (op == ScanOperation::FirstScan)
-			{
-				statusText = "Gathering Unity objects...";
-				objectsGathered = GatherUnityObjects();
-			}
+	if (scanPhase == ScanPhase::Idle) return;
 
-			try
-			{
-				if (op == ScanOperation::FirstScan)
-					PerformFirstScan();
-				else if (op == ScanOperation::NextScan)
-					PerformNextScan();
-			}
-			catch (const std::exception& e)
-			{
-				statusText = std::string("Scan error: ") + e.what();
-				scanInProgress = false;
-			}
-			catch (...)
-			{
-				statusText = "Scan error: unknown exception";
-				scanInProgress = false;
-			}
-		}
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(8);
+	try
+	{
+		const bool done = scanPhase == ScanPhase::Objects ? StepObjectScan(deadline) : StepNextScan(deadline);
+		if (done || stopRequested) FinishScan();
+	}
+	catch (...)
+	{
+		statusText = "Scan error: unknown exception";
+		scanPhase = ScanPhase::Idle;
+		scanInProgress = false;
 	}
 }
 
@@ -169,7 +188,8 @@ void MemoryScanner::Render()
 
 			if (scanInProgress)
 			{
-				ImGui::TextColored(statusColor, "Scanning... %s", statusText.c_str());
+				ImGui::TextColored(statusColor, "%s", statusText.c_str());
+				if (ImGui::Button("Stop", ImVec2(120, 30))) stopRequested = true;
 			}
 			else
 			{
@@ -200,9 +220,7 @@ void MemoryScanner::Render()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		std::unique_lock resultsLock(resultsMutex);
 		ImGui::TextDisabled("Matches Found: %zu / %zu", currentResults.size(), MAX_RESULTS);
-		resultsLock.unlock();
 
 		if (!statusText.empty() && !scanInProgress)
 		{
@@ -470,10 +488,8 @@ void MemoryScanner::SyncValueToBuffer()
 	}
 }
 
-void MemoryScanner::PerformFirstScan()
+void MemoryScanner::StartFirstScan()
 {
-	std::vector<ScanField> tempResults;
-
 	if (comparison == ScanComparison::Exact)
 	{
 		bool valid = false;
@@ -510,48 +526,48 @@ void MemoryScanner::PerformFirstScan()
 
 	if (debugLogging) printf("[MemoryScanner] First scan: %s = %s\n", GetValueTypeName(selectedType), m_valueBuffer);
 
-	statusText = "Scanning static fields...";
-	ScanStaticFields(tempResults);
-	if (debugLogging) printf("[MemoryScanner] Static matches: %zu\n", tempResults.size());
+	ScanStaticFields(scanBuffer);
+	if (debugLogging) printf("[MemoryScanner] Static matches: %zu\n", scanBuffer.size());
 
-	if (!stopRequested && tempResults.size() < MAX_RESULTS)
-	{
-		statusText = "Scanning objects...";
-		ScanUnityObjectFields(tempResults);
-	}
-
-	if (!stopRequested)
-	{
-		std::scoped_lock lock(resultsMutex);
-		currentResults = std::move(tempResults);
-		statusText = "Scan complete. " + std::to_string(currentResults.size()) + " matches.";
-		if (debugLogging) printf("[MemoryScanner] Total matches: %zu\n", currentResults.size());
-		hasDoneFirstScan = true;
-	}
-	scanInProgress = false;
-	selectedResultIndex = -1;
+	objectsGathered = GatherUnityObjects();
+	scanPhase = ScanPhase::Objects;
 }
 
-void MemoryScanner::PerformNextScan()
+bool MemoryScanner::StepObjectScan(const std::chrono::steady_clock::time_point deadline)
 {
-	std::vector<ScanField> localResults;
+	while (scanCursor < objectsGathered.size())
 	{
-		std::scoped_lock lock(resultsMutex);
-		localResults = currentResults;
+		if (scanBuffer.size() >= MAX_RESULTS) return true;
+		if (std::chrono::steady_clock::now() >= deadline) break;
+
+		void* obj = objectsGathered[scanCursor++];
+		if (!obj || !Helper::SafeIsAlive(static_cast<UnityObject*>(obj))) continue;
+
+		void* klass = Helper::SafeGetObjectClass(obj);
+		if (!klass) continue;
+
+		std::string objName = "(unknown)";
+		if (UT::String* nameStr = nullptr; Helper::SafeGetName(static_cast<UnityObject*>(obj), nameStr) && nameStr)
+			objName = nameStr->ToString();
+
+		ScanObjectInstance(obj, klass, scanBuffer, scanVisited, 0, objName);
 	}
 
-	std::vector<ScanField> newResults;
-	newResults.reserve(localResults.size());
+	statusText = "Scanning objects... " + std::to_string(scanCursor) + "/" + std::to_string(objectsGathered.size());
+	return scanCursor >= objectsGathered.size();
+}
 
-	for (auto& field : localResults)
+bool MemoryScanner::StepNextScan(const std::chrono::steady_clock::time_point deadline)
+{
+	while (scanCursor < currentResults.size())
 	{
-		if (stopRequested) break;
+		if (std::chrono::steady_clock::now() >= deadline) break;
 
+		const ScanField& field = currentResults[scanCursor++];
 		char currentValue[sizeof(double)] = {};
 		if (!ReadFieldValue(field, currentValue)) continue;
 
 		bool match = false;
-
 		switch (comparison)
 		{
 			case ScanComparison::Exact: match = CompareValueWithTarget(currentValue, field.actualType); break;
@@ -567,23 +583,41 @@ void MemoryScanner::PerformNextScan()
 			updated.prevValue = field.lastValue;
 			updated.hasPrevValue = true;
 			memcpy(&updated.lastValue, currentValue, sizeof(double));
-			newResults.push_back(updated);
+			scanBuffer.push_back(std::move(updated));
 		}
 	}
 
-	if (!stopRequested)
+	statusText = "Next scan... " + std::to_string(scanCursor) + "/" + std::to_string(currentResults.size());
+	return scanCursor >= currentResults.size();
+}
+
+void MemoryScanner::FinishScan()
+{
+	const bool firstScan = scanPhase == ScanPhase::Objects;
+	if (stopRequested)
 	{
-		std::scoped_lock lock(resultsMutex);
-		currentResults = std::move(newResults);
-		statusText = "Next scan complete. " + std::to_string(currentResults.size()) + " matches.";
+		statusText = "Scan stopped.";
 	}
+	else
+	{
+		currentResults = std::move(scanBuffer);
+		statusText = std::string(firstScan ? "Scan complete. " : "Next scan complete. ") +
+		             std::to_string(currentResults.size()) + " matches.";
+		if (firstScan) hasDoneFirstScan = true;
+		if (debugLogging) printf("[MemoryScanner] Total matches: %zu\n", currentResults.size());
+	}
+
+	scanBuffer.clear();
+	scanVisited.clear();
+	objectsGathered.clear();
+	objectsGathered.shrink_to_fit();
+	scanPhase = ScanPhase::Idle;
 	scanInProgress = false;
 	selectedResultIndex = -1;
 }
 
 void MemoryScanner::ResetScan()
 {
-	std::scoped_lock lock(resultsMutex);
 	currentResults.clear();
 	hasDoneFirstScan = false;
 	statusText.clear();
@@ -609,10 +643,7 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 			    klass->m_name.find('$') != std::string::npos)
 				continue;
 
-			if (!includeSystemNamespaces &&
-			    (klass->namespaze.starts_with("System.") || klass->namespaze.starts_with("UnityEngine.") ||
-			     klass->namespaze.starts_with("Unity.")))
-				continue;
+			if (!includeSystemNamespaces && IsEngineNamespace(klass->namespaze)) continue;
 
 			for (const auto& field : klass->fields)
 			{
@@ -691,51 +722,6 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 	}
 }
 
-void MemoryScanner::ScanUnityObjectFields(std::vector<ScanField>& out)
-{
-	if (out.size() >= MAX_RESULTS) return;
-
-	if (objectsGathered.empty())
-	{
-		if (debugLogging) printf("[MemoryScanner] No Unity objects found to scan\n");
-		return;
-	}
-
-	if (debugLogging) printf("[MemoryScanner] Scanning %zu Unity objects...\n", objectsGathered.size());
-
-	std::unordered_set<VisitedKey, VisitedKeyHash> visited;
-	int processed = 0;
-
-	for (void* obj : objectsGathered)
-	{
-		if (stopRequested) break;
-		if (!obj) continue;
-		if (out.size() >= MAX_RESULTS) break;
-
-		void* klass = Helper::SafeGetObjectClass(obj);
-		if (!klass) continue;
-
-		std::string objName = "(unknown)";
-		if (UT::String* nameStr = nullptr; Helper::SafeGetName(static_cast<UnityObject*>(obj), nameStr) && nameStr)
-		{
-			objName = nameStr->ToString();
-		}
-
-		ScanObjectInstance(obj, klass, out, visited, 0, objName);
-
-		processed++;
-		if (processed % 500 == 0)
-		{
-			statusText =
-			    "Scanning objects... " + std::to_string(processed) + "/" + std::to_string(objectsGathered.size());
-		}
-	}
-
-	objectsGathered.clear();
-
-	if (debugLogging) printf("[MemoryScanner] Scanned %d objects, found %zu matches\n", processed, out.size());
-}
-
 void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanField>& out,
                                        std::unordered_set<VisitedKey, VisitedKeyHash>& visited, int depth,
                                        const std::string& objName)
@@ -743,128 +729,81 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
 	if (stopRequested) return;
 	if (!obj || !klass) return;
 	if (depth > MAX_SCAN_DEPTH) return;
-
-	VisitedKey key{obj, klass};
-	if (visited.contains(key)) return;
-	visited.insert(key);
-
+	if (!visited.insert(VisitedKey{obj, klass}).second) return;
 	if (out.size() >= MAX_RESULTS) return;
 
 	const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
 
-	void* currentClass = klass;
-	while (currentClass)
+	for (void* currentClass = klass; currentClass;
+	     currentClass =
+	         UR::Invoke<void*, void*>(mono ? "mono_class_get_parent" : "il2cpp_class_get_parent", currentClass))
 	{
-		if (stopRequested) return;
-
-		if (!includeSystemNamespaces)
-		{
-			const char* ns = UR::Invoke<const char*, void*>(
-			    mono ? "mono_class_get_namespace" : "il2cpp_class_get_namespace", currentClass);
-			if (ns && (std::string_view(ns).starts_with("System.") ||
-			           std::string_view(ns).starts_with("UnityEngine.") || std::string_view(ns).starts_with("Unity.")))
-			{
-				currentClass =
-				    UR::Invoke<void*, void*>(mono ? "mono_class_get_parent" : "il2cpp_class_get_parent", currentClass);
-				continue;
-			}
-		}
+		const char* ns = UR::Invoke<const char*, void*>(
+		    mono ? "mono_class_get_namespace" : "il2cpp_class_get_namespace", currentClass);
+		if (!includeSystemNamespaces && ns && IsEngineNamespace(ns)) continue;
 
 		void* iter = nullptr;
-		void* field;
-
-		while ((field = UR::Invoke<void*, void*, void*>(mono ? "mono_class_get_fields" : "il2cpp_class_get_fields",
-		                                                currentClass, &iter)))
+		while (void* field = UR::Invoke<void*, void*, void*>(mono ? "mono_class_get_fields" : "il2cpp_class_get_fields",
+		                                                     currentClass, &iter))
 		{
-			if (stopRequested) return;
-			if (out.size() >= MAX_RESULTS) break;
+			if (out.size() >= MAX_RESULTS) return;
 
-			const char* fieldName =
-			    UR::Invoke<const char*, void*>(mono ? "mono_field_get_name" : "il2cpp_field_get_name", field);
-			int offset = UR::Invoke<int, void*>(mono ? "mono_field_get_offset" : "il2cpp_field_get_offset", field);
-			int flags = UR::Invoke<int, void*>(mono ? "mono_field_get_flags" : "il2cpp_field_get_flags", field);
-
-			if ((flags & 0x10) != 0) continue;
+			const int flags = UR::Invoke<int, void*>(mono ? "mono_field_get_flags" : "il2cpp_field_get_flags", field);
+			if ((flags & 0x10) != 0) continue; // static
 
 			void* fieldType = UR::Invoke<void*, void*>(mono ? "mono_field_get_type" : "il2cpp_field_get_type", field);
 			if (!fieldType) continue;
 
-			const char* typeName =
-			    UR::Invoke<const char*, void*>(mono ? "mono_type_get_name" : "il2cpp_type_get_name", fieldType);
+			const int offset =
+			    UR::Invoke<int, void*>(mono ? "mono_field_get_offset" : "il2cpp_field_get_offset", field);
+			const int kind = UR::Invoke<int, void*>(mono ? "mono_type_get_type" : "il2cpp_type_get_type", fieldType);
+			const char* fieldName =
+			    UR::Invoke<const char*, void*>(mono ? "mono_field_get_name" : "il2cpp_field_get_name", field);
+			if (!fieldName) fieldName = "unknown";
 
-			if (std::string typeNameStr = typeName ? typeName : "unknown"; TypeNameMatchesSearchType(typeNameStr))
+			if (ActualFieldType actualType; FieldKindMatches(kind, selectedType, actualType))
 			{
-				ActualFieldType actualType = DetermineActualFieldType(typeNameStr);
 				char value[sizeof(double)] = {};
-				if (ReadInstanceFieldValue(obj, offset, actualType, value))
-				{
-					if (CompareValueWithTarget(value, actualType))
-					{
-						ScanField scanField;
-						scanField.fieldHandle = field;
-						scanField.classHandle = currentClass;
-						scanField.object = obj;
-						scanField.isStatic = false;
-						scanField.offset = offset;
-						scanField.valueType = selectedType;
-						scanField.actualType = actualType;
-						scanField.fieldName = fieldName ? fieldName : "unknown";
-						scanField.className = UR::Invoke<const char*, void*>(
-						    mono ? "mono_class_get_name" : "il2cpp_class_get_name", currentClass);
-						if (scanField.className.empty()) scanField.className = "Unknown";
-						const char* ns = UR::Invoke<const char*, void*>(
-						    mono ? "mono_class_get_namespace" : "il2cpp_class_get_namespace", currentClass);
-						scanField.namespaze = ns ? ns : "";
-						scanField.objectName = objName;
-						memcpy(&scanField.lastValue, value, sizeof(double));
-						out.push_back(scanField);
-					}
-				}
+				if (!ReadInstanceFieldValue(obj, offset, actualType, value) ||
+				    !CompareValueWithTarget(value, actualType))
+					continue;
+
+				ScanField scanField;
+				scanField.fieldHandle = field;
+				scanField.classHandle = currentClass;
+				scanField.object = obj;
+				scanField.isStatic = false;
+				scanField.offset = offset;
+				scanField.valueType = selectedType;
+				scanField.actualType = actualType;
+				scanField.fieldName = fieldName;
+				const char* className = UR::Invoke<const char*, void*>(
+				    mono ? "mono_class_get_name" : "il2cpp_class_get_name", currentClass);
+				scanField.className = className && className[0] ? className : "Unknown";
+				scanField.namespaze = ns ? ns : "";
+				scanField.objectName = objName;
+				memcpy(&scanField.lastValue, value, sizeof(double));
+				out.push_back(std::move(scanField));
+				continue;
 			}
-			else if (depth < MAX_SCAN_DEPTH)
+
+			if (depth >= MAX_SCAN_DEPTH || (kind != 0x11 && kind != 0x12)) continue;
+
+			void* fieldClass =
+			    UR::Invoke<void*, void*>(mono ? "mono_class_from_mono_type" : "il2cpp_class_from_type", fieldType);
+			if (!fieldClass) continue;
+
+			if (kind == 0x11)
 			{
-				bool isPrimitive = TypeNameMatchesSearchType(typeNameStr);
-				bool isString = typeNameStr == "string" || typeNameStr == "System.String";
-				bool isArray = typeNameStr.ends_with("[]") || typeNameStr.find("<") != std::string::npos;
-
-				bool isDelegate =
-				    typeNameStr.starts_with("System.") &&
-				    (typeNameStr.find("Action") != std::string::npos || typeNameStr.find("Func") != std::string::npos ||
-				     typeNameStr.find("Predicate") != std::string::npos ||
-				     typeNameStr.find("EventHandler") != std::string::npos ||
-				     typeNameStr.find("Delegate") != std::string::npos ||
-				     typeNameStr.find("MulticastDelegate") != std::string::npos);
-
-				if (!isPrimitive && !isString && !isArray && !isDelegate)
-				{
-					void* fieldClass = UR::Invoke<void*, void*>(
-					    mono ? "mono_class_from_mono_type" : "il2cpp_class_from_type", fieldType);
-					if (fieldClass)
-					{
-						bool isValueType = UR::Invoke<bool, void*>(
-						    mono ? "mono_class_is_valuetype" : "il2cpp_class_is_valuetype", fieldClass);
-
-						if (isValueType)
-						{
-							std::string childName = objName + "." + (fieldName ? fieldName : "unknown") + "(S)";
-							ScanObjectInstance(static_cast<char*>(obj) + offset, fieldClass, out, visited, depth + 1,
-							                   childName);
-						}
-						else
-						{
-							if (void* refObj = nullptr; Helper::SafeReadPointer(obj, offset, refObj) && refObj)
-							{
-								std::string childName = objName + "." + (fieldName ? fieldName : "unknown");
-								ScanObjectInstance(refObj, fieldClass, out, visited, depth + 1, childName);
-							}
-						}
-					}
-				}
+				constexpr int boxHeader = 2 * sizeof(void*);
+				ScanObjectInstance(static_cast<char*>(obj) + offset - boxHeader, fieldClass, out, visited, depth + 1,
+				                   objName + "." + fieldName + "(S)");
+			}
+			else if (void* refObj = nullptr; Helper::SafeReadPointer(obj, offset, refObj) && refObj)
+			{
+				ScanObjectInstance(refObj, fieldClass, out, visited, depth + 1, objName + "." + fieldName);
 			}
 		}
-
-		currentClass =
-		    UR::Invoke<void*, void*>(mono ? "mono_class_get_parent" : "il2cpp_class_get_parent", currentClass);
 	}
 }
 
@@ -1054,7 +993,7 @@ bool MemoryScanner::ReadInstanceFieldValue(void* obj, int offset, ActualFieldTyp
 		case ActualFieldType::Bool:
 		{
 			bool v;
-			if (!SafeReadBool(obj, offset, v)) return false;
+			if (!SafeRead(obj, offset, v)) return false;
 			*static_cast<bool*>(outValue) = v;
 			return true;
 		}

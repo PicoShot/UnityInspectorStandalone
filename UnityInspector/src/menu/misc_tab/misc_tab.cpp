@@ -11,7 +11,7 @@ void MiscTab::Render()
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	auto io = ImGui::GetIO();
+	const auto& io = ImGui::GetIO();
 
 	ImGui::Text("FPS: %.1f", io.Framerate);
 	ImGui::Spacing();

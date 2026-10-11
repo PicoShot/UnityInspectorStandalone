@@ -26,11 +26,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <deque>
+#include <filesystem>
 #include <format>
 #include <future>
 #include <memory>
 #include <mutex>
 #include <numbers>
+#include <optional>
 #include <ranges>
 #include <string>
 #include <thread>

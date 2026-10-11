@@ -4,6 +4,69 @@
 
 namespace Helper
 {
+	template <typename T> bool SafeRead(void* ptr, const int offset, T& outValue)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			outValue = *reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(ptr) + offset);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return false;
+		}
+	}
+
+	template <typename T> bool SafeWrite(void* ptr, const int offset, const T& value)
+	{
+		if (!ptr || offset < 0) return false;
+		__try
+		{
+			*reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return false;
+		}
+	}
+
+	template <typename T> bool StaticFieldAccess(void* fieldHandle, T* value, const bool set)
+	{
+		if (!fieldHandle) return false;
+		try
+		{
+			if (Config::state.unityMode == UnityResolve::Mode::Mono)
+			{
+				void* vTable = UR::Invoke<void*, void*, void*>(
+				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				UR::Invoke<void, void*, void*, T*>(set ? "mono_field_static_set_value" : "mono_field_static_get_value",
+				                                   vTable, fieldHandle, value);
+			}
+			else
+			{
+				UR::Invoke<void, void*, T*>(set ? "il2cpp_field_static_set_value" : "il2cpp_field_static_get_value",
+				                            fieldHandle, value);
+			}
+			return true;
+		}
+		catch (...)
+		{
+			return false;
+		}
+	}
+
+	template <typename T> bool StaticFieldGet(void* fieldHandle, T& outValue)
+	{
+		return StaticFieldAccess(fieldHandle, &outValue, false);
+	}
+
+	template <typename T> bool StaticFieldSet(void* fieldHandle, T value)
+	{
+		return StaticFieldAccess(fieldHandle, &value, true);
+	}
+
 	bool IsValidUserPointer(void* ptr)
 	{
 		if (!ptr) return false;
@@ -92,1222 +155,332 @@ namespace Helper
 
 	bool SafeReadInt(void* ptr, const int offset, int& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<int*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteInt(void* ptr, const int offset, const int value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<int*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<int>(ptr, offset, value);
 	}
 
 	bool SafeReadInt64(void* ptr, const int offset, int64_t& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<int64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteInt64(void* ptr, const int offset, const int64_t value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<int64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<int64_t>(ptr, offset, value);
 	}
 
 	bool SafeReadUInt64(void* ptr, const int offset, uint64_t& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteUInt64(void* ptr, const int offset, const uint64_t value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<uint64_t>(ptr, offset, value);
 	}
 
 	bool SafeReadByte(void* ptr, const int offset, uint8_t& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteByte(void* ptr, const int offset, const uint8_t value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<uint8_t>(ptr, offset, value);
 	}
 
 	bool SafeReadSByte(void* ptr, const int offset, int8_t& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<int8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteSByte(void* ptr, const int offset, const int8_t value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<int8_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<int8_t>(ptr, offset, value);
 	}
 
 	bool SafeReadInt16(void* ptr, const int offset, int16_t& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<int16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteInt16(void* ptr, const int offset, const int16_t value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<int16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<int16_t>(ptr, offset, value);
 	}
 
 	bool SafeReadUInt16(void* ptr, const int offset, uint16_t& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<uint16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteUInt16(void* ptr, const int offset, const uint16_t value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<uint16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<uint16_t>(ptr, offset, value);
 	}
 
 	bool SafeReadChar(void* ptr, const int offset, char16_t& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<char16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteChar(void* ptr, const int offset, const char16_t value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<char16_t*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<char16_t>(ptr, offset, value);
 	}
 
 	bool SafeReadFloat(void* ptr, const int offset, float& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteFloat(void* ptr, const int offset, const float value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<float>(ptr, offset, value);
 	}
 
 	bool SafeReadDouble(void* ptr, const int offset, double& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<double*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteDouble(void* ptr, const int offset, double value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<double*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<double>(ptr, offset, value);
 	}
 
 	bool SafeReadBool(void* ptr, const int offset, bool& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<bool*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteBool(void* ptr, const int offset, const bool value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<bool*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<bool>(ptr, offset, value);
 	}
 
 	bool SafeReadVector2(void* ptr, const int offset, Vec2& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<Vec2*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteVector2(void* ptr, const int offset, const Vec2& value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<Vec2*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<Vec2>(ptr, offset, value);
 	}
 
 	bool SafeReadVector3(void* ptr, const int offset, Vec3& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<Vec3*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteVector3(void* ptr, const int offset, const Vec3& value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<Vec3*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<Vec3>(ptr, offset, value);
 	}
 
 	bool SafeReadVector4(void* ptr, const int offset, Vec4& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<Vec4*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteVector4(void* ptr, const int offset, const Vec4& value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<Vec4*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<Vec4>(ptr, offset, value);
 	}
 
 	bool SafeReadQuaternion(void* ptr, const int offset, Quat& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<Quat*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteQuaternion(void* ptr, const int offset, const Quat& value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<Quat*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<Quat>(ptr, offset, value);
 	}
 
 	bool SafeReadColor(void* ptr, const int offset, Color& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<Color*>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeWriteColor(void* ptr, const int offset, const Color& value)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			*reinterpret_cast<Color*>(reinterpret_cast<uintptr_t>(ptr) + offset) = value;
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeWrite<Color>(ptr, offset, value);
 	}
 
 	bool SafeReadStringPtr(void* ptr, const int offset, UT::String*& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<UT::String**>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeReadPointer(void* ptr, const int offset, void*& outValue)
 	{
-		if (!ptr || offset < 0) return false;
-		__try
-		{
-			outValue = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(ptr) + offset);
-			return true;
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			return false;
-		}
+		return SafeRead(ptr, offset, outValue);
 	}
 
 	bool SafeGetStaticFieldInt(void* fieldHandle, int& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldInt(void* fieldHandle, int value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldInt64(void* fieldHandle, int64_t& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int64_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int64_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldInt64(void* fieldHandle, int64_t value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int64_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int64_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldUInt64(void* fieldHandle, uint64_t& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, uint64_t*>("mono_field_static_get_value", vTable, fieldHandle,
-				                                          &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, uint64_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldUInt64(void* fieldHandle, uint64_t value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, uint64_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, uint64_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldByte(void* fieldHandle, uint8_t& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, uint8_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, uint8_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldByte(void* fieldHandle, uint8_t value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, uint8_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, uint8_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldSByte(void* fieldHandle, int8_t& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int8_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int8_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldSByte(void* fieldHandle, int8_t value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int8_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int8_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldInt16(void* fieldHandle, int16_t& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int16_t*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int16_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldInt16(void* fieldHandle, int16_t value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, int16_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, int16_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldUInt16(void* fieldHandle, uint16_t& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, uint16_t*>("mono_field_static_get_value", vTable, fieldHandle,
-				                                          &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, uint16_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldUInt16(void* fieldHandle, uint16_t value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, uint16_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, uint16_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldChar(void* fieldHandle, char16_t& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, char16_t*>("mono_field_static_get_value", vTable, fieldHandle,
-				                                          &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, char16_t*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldChar(void* fieldHandle, char16_t value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, char16_t*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, char16_t*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldFloat(void* fieldHandle, float& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, float*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, float*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldFloat(void* fieldHandle, float value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, float*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, float*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldBool(void* fieldHandle, bool& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, bool*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, bool*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldBool(void* fieldHandle, bool value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, bool*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, bool*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldDouble(void* fieldHandle, double& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, double*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, double*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldDouble(void* fieldHandle, double value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, double*>("mono_field_static_set_value", vTable, fieldHandle, &value);
-			}
-			else
-			{
-				UR::Invoke<void, void*, double*>("il2cpp_field_static_set_value", fieldHandle, &value);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldVector3(void* fieldHandle, Vec3& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Vec3*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Vec3*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldVector3(void* fieldHandle, const Vec3& value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			Vec3 v = value;
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Vec3*>("mono_field_static_set_value", vTable, fieldHandle, &v);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Vec3*>("il2cpp_field_static_set_value", fieldHandle, &v);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldVector2(void* fieldHandle, Vec2& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Vec2*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Vec2*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldVector2(void* fieldHandle, const Vec2& value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			Vec2 v = value;
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Vec2*>("mono_field_static_set_value", vTable, fieldHandle, &v);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Vec2*>("il2cpp_field_static_set_value", fieldHandle, &v);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldVector4(void* fieldHandle, Vec4& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Vec4*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Vec4*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldVector4(void* fieldHandle, const Vec4& value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			Vec4 v = value;
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Vec4*>("mono_field_static_set_value", vTable, fieldHandle, &v);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Vec4*>("il2cpp_field_static_set_value", fieldHandle, &v);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldQuaternion(void* fieldHandle, Quat& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Quat*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Quat*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldQuaternion(void* fieldHandle, const Quat& value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			Quat v = value;
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Quat*>("mono_field_static_set_value", vTable, fieldHandle, &v);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Quat*>("il2cpp_field_static_set_value", fieldHandle, &v);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool SafeGetStaticFieldColor(void* fieldHandle, Color& outValue)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Color*>("mono_field_static_get_value", vTable, fieldHandle, &outValue);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Color*>("il2cpp_field_static_get_value", fieldHandle, &outValue);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldGet(fieldHandle, outValue);
 	}
 
 	bool SafeSetStaticFieldColor(void* fieldHandle, const Color& value)
 	{
-		if (!fieldHandle) return false;
-		try
-		{
-			Color v = value;
-			if (Config::state.unityMode == UnityResolve::Mode::Mono)
-			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
-				UR::Invoke<void, void*, void*, Color*>("mono_field_static_set_value", vTable, fieldHandle, &v);
-			}
-			else
-			{
-				UR::Invoke<void, void*, Color*>("il2cpp_field_static_set_value", fieldHandle, &v);
-			}
-			return true;
-		}
-		catch (...)
-		{
-			return false;
-		}
+		return StaticFieldSet(fieldHandle, value);
 	}
 
 	bool IsValidReadPtr(const void* ptr)
@@ -1322,9 +495,6 @@ namespace Helper
 
 	__declspec(noinline) void DoSafeGetStaticFieldPointer(void* fieldHandle, void*& outValue)
 	{
-		// Allocate a large buffer on the stack to prevent buffer overflows if the static field is a large struct (Value
-		// Type). il2cpp_field_static_get_value writes the entire struct into the provided pointer. If it's an object
-		// (Reference Type), it writes 8 bytes.
 		alignas(16) char safeBuffer[8192] = {};
 
 		if (Config::state.unityMode == UnityResolve::Mode::Mono)
@@ -1377,15 +547,14 @@ namespace Helper
 		}
 	}
 
-	__declspec(noinline) void* DoSafeInvokeGetter(void* obj, void* methodHandle)
+	__declspec(noinline) void* DoRuntimeInvoke(void* obj, void* methodHandle, void** params, bool& threw)
 	{
-		if (Config::state.unityMode == UnityResolve::Mode::Mono)
-		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, nullptr,
-			                                                      nullptr);
-		}
-		return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, nullptr,
-		                                                      nullptr);
+		void* exc = nullptr;
+		void* result = UR::Invoke<void*, void*, void*, void**, void**>(
+		    Config::state.unityMode == UnityResolve::Mode::Mono ? "mono_runtime_invoke" : "il2cpp_runtime_invoke",
+		    methodHandle, obj, params, &exc);
+		threw = exc != nullptr;
+		return threw ? nullptr : result;
 	}
 
 	__declspec(noinline) void* DoSafeUnbox(void* result)
@@ -1399,12 +568,12 @@ namespace Helper
 		if (!methodHandle) return false;
 		__try
 		{
-			if (void* result = DoSafeInvokeGetter(obj, methodHandle); result && outValue)
+			bool threw = false;
+			void* result = DoRuntimeInvoke(obj, methodHandle, nullptr, threw);
+			if (threw) return false;
+			if (result && outValue)
 			{
-				if (void* unboxed = DoSafeUnbox(result))
-				{
-					memcpy(outValue, unboxed, valueSize);
-				}
+				if (void* unboxed = DoSafeUnbox(result)) memcpy(outValue, unboxed, valueSize);
 			}
 			return true;
 		}
@@ -1419,25 +588,13 @@ namespace Helper
 		if (!methodHandle) return false;
 		__try
 		{
-			outPointer = DoSafeInvokeGetter(obj, methodHandle);
-			return true;
+			bool threw = false;
+			outPointer = DoRuntimeInvoke(obj, methodHandle, nullptr, threw);
+			return !threw;
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
 			return false;
-		}
-	}
-
-	__declspec(noinline) void DoSafeInvokeSetter(void* obj, void* methodHandle, void* value)
-	{
-		void* params[1] = {value};
-		if (Config::state.unityMode == UnityResolve::Mode::Mono)
-		{
-			UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params, nullptr);
-		}
-		else
-		{
-			UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params, nullptr);
 		}
 	}
 
@@ -1446,24 +603,15 @@ namespace Helper
 		if (!methodHandle || !value) return false;
 		__try
 		{
-			DoSafeInvokeSetter(obj, methodHandle, value);
-			return true;
+			void* params[1] = {value};
+			bool threw = false;
+			DoRuntimeInvoke(obj, methodHandle, params, threw);
+			return !threw;
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
 			return false;
 		}
-	}
-
-	__declspec(noinline) void* DoSafeInvokeMethod(void* obj, void* methodHandle, void** params)
-	{
-		if (Config::state.unityMode == UnityResolve::Mode::Mono)
-		{
-			return UR::Invoke<void*, void*, void*, void**, void*>("mono_runtime_invoke", methodHandle, obj, params,
-			                                                      nullptr);
-		}
-		return UR::Invoke<void*, void*, void*, void**, void*>("il2cpp_runtime_invoke", methodHandle, obj, params,
-		                                                      nullptr);
 	}
 
 	void* SafeInvokeMethod(void* obj, void* methodHandle, void** params, bool& success)
@@ -1472,8 +620,9 @@ namespace Helper
 		if (!methodHandle) return nullptr;
 		__try
 		{
-			void* result = DoSafeInvokeMethod(obj, methodHandle, params);
-			success = true;
+			bool threw = false;
+			void* result = DoRuntimeInvoke(obj, methodHandle, params, threw);
+			success = !threw;
 			return result;
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
@@ -1481,6 +630,48 @@ namespace Helper
 			success = false;
 			return nullptr;
 		}
+	}
+
+	std::string GetTypeName(void* type, const char* fallback)
+	{
+		if (!type) return fallback;
+		const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+		char* name = UR::Invoke<char*, void*>(mono ? "mono_type_get_name" : "il2cpp_type_get_name", type);
+		if (!name) return fallback;
+		std::string result = name;
+		UR::Invoke<void, void*>(mono ? "mono_free" : "il2cpp_free", name);
+		return result;
+	}
+
+	std::string SafeObjectToString(void* obj)
+	{
+		void* klass = SafeGetObjectClass(obj);
+		if (!klass) return "";
+
+		const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+		const char* className =
+		    UR::Invoke<const char*, void*>(mono ? "mono_class_get_name" : "il2cpp_class_get_name", klass);
+		const char* classNamespace =
+		    UR::Invoke<const char*, void*>(mono ? "mono_class_get_namespace" : "il2cpp_class_get_namespace", klass);
+		if (className && classNamespace && strcmp(className, "String") == 0 && strcmp(classNamespace, "System") == 0)
+			return static_cast<UT::String*>(obj)->ToString();
+
+		static void* baseToString = []() -> void*
+		{
+			const auto* corlib = UR::Get("mscorlib.dll");
+			auto* objectClass = corlib ? corlib->Get("Object", "System") : nullptr;
+			auto* method = objectClass ? objectClass->Get<UR::Method>("ToString") : nullptr;
+			return method ? method->address : nullptr;
+		}();
+
+		if (baseToString)
+		{
+			void* method = UR::Invoke<void*, void*, void*>(
+			    mono ? "mono_object_get_virtual_method" : "il2cpp_object_get_virtual_method", obj, baseToString);
+			if (void* str = nullptr; method && SafeInvokeGetterPointer(obj, method, str) && str)
+				return static_cast<UT::String*>(str)->ToString();
+		}
+		return className ? className : "";
 	}
 
 	InvokeParamBuffers BuildInvokeParams(const std::vector<std::string>& paramValues,
@@ -1705,7 +896,7 @@ namespace Helper
 		__try
 		{
 			outParent = transform->GetParent();
-			return true; // Parent can be null for root objects
+			return true;
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
@@ -1827,7 +1018,6 @@ namespace Helper
 			screenPos = Vec2(pos.x, screen_size.y - pos.y);
 
 			return true;
-			//(screenPos.x >= 0 && screenPos.x <= screen_size.x && screenPos.y >= 0 && screenPos.y <= screen_size.y);
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
