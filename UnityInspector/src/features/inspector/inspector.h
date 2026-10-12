@@ -1,6 +1,7 @@
 #pragma once
 #include "features/features.h"
 #include "features/inspector/field_editor.h"
+#include "helper/helper.h"
 
 struct ComponentPropertyInfo final
 {
@@ -34,6 +35,7 @@ struct MethodInvokeState
 	std::string resultText;
 	bool hasResult = false;
 	void* resultPointer = nullptr;
+	Helper::GcPin resultPin;
 	EditableType resultEditableType = EditableType::None;
 };
 
@@ -41,6 +43,7 @@ struct HierarchyNode final
 {
 	UT::GameObject* gameObject = nullptr;
 	UT::Transform* transform = nullptr;
+	Helper::GcPin gameObjectPin, transformPin;
 	std::string name;
 	std::vector<HierarchyNode> children;
 	bool pendingExpand = false;
@@ -50,6 +53,7 @@ struct HierarchyNode final
 struct StaticInstanceNode
 {
 	void* instance = nullptr;
+	Helper::GcPin instancePin;
 	void* typeClassHandle = nullptr;
 	std::string fullName;
 	std::string name;
@@ -61,6 +65,8 @@ struct InspectionTarget
 	void* instance = nullptr;
 	void* classHandle = nullptr;
 	std::string name;
+	bool interior = false;
+	std::vector<Helper::GcPin> pins;
 
 	std::vector<UT::Component*> cachedComponents;
 	std::vector<std::string> cachedComponentNames;
@@ -74,9 +80,20 @@ struct InspectionTarget
 	std::vector<std::array<char, 256>> methodSearchBuffers;
 };
 
+inline void PinTarget(InspectionTarget& target)
+{
+	if (target.gameObject) target.pins.emplace_back(target.gameObject);
+	if (target.interior) return;
+	for (auto* component : target.cachedComponents)
+	{
+		if (component) target.pins.emplace_back(component);
+	}
+}
+
 struct InspectedObjectTab final
 {
 	UT::GameObject* gameObject = nullptr;
+	Helper::GcPin gameObjectPin;
 	std::string tabName;
 	std::string objectPath;
 	bool isActive = false;
@@ -115,7 +132,6 @@ private:
 	bool pendingTabSwitch = false;
 	static constexpr int maxTabs = 10;
 
-	std::deque<UT::GameObject*> recentSelections;
 	std::vector<UT::GameObject*> pinnedObjects;
 
 	bool objectPickerActive = false;
@@ -125,8 +141,8 @@ private:
 	mutable std::optional<InspectionTarget> pendingNavigation;
 
 	void RefreshHierarchy();
-	void BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform,
-	                        std::unordered_set<UT::Transform*>& visited, size_t depth, size_t& nodeBudget);
+	void BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform, std::unordered_set<UT::Transform*>& visited,
+	                        size_t depth, size_t& nodeBudget);
 	void RenderHierarchyNode(HierarchyNode& node, std::string_view lowerSearch = "", int depth = 0);
 	bool NodeMatchesSearch(const HierarchyNode& node, std::string_view lowerSearch) const;
 	void SetAllNodesExpanded(std::vector<HierarchyNode>& nodes, bool expanded);
@@ -138,7 +154,6 @@ private:
 	void SwitchToTab(int tabIndex);
 	InspectedObjectTab* GetActiveTab() const;
 	int FindTabForObject(const UT::GameObject* obj) const;
-	void AddToRecentSelections(UT::GameObject* obj);
 	void PinObject(UT::GameObject* obj);
 	void UnpinObject(UT::GameObject* obj);
 	bool IsObjectPinned(UT::GameObject* obj);

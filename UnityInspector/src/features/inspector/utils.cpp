@@ -298,6 +298,7 @@ void Inspector::BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform
 	if (!Helper::SafeIsAlive(transform)) return;
 
 	node.transform = transform;
+	node.transformPin = Helper::GcPin(transform);
 
 	UT::GameObject* go = nullptr;
 	if (!Helper::SafeGetGameObject(transform, go) || !go)
@@ -313,6 +314,7 @@ void Inspector::BuildHierarchyNode(HierarchyNode& node, UT::Transform* transform
 	}
 
 	node.gameObject = go;
+	node.gameObjectPin = Helper::GcPin(go);
 
 	if (UT::String* nameStr = nullptr; Helper::SafeGetName(go, nameStr) && nameStr)
 	{
@@ -420,6 +422,7 @@ void Inspector::RefreshTabData(InspectedObjectTab& tab) const
 			}
 		}
 
+		PinTarget(rootTarget);
 		tab.navigationStack.push_back(std::move(rootTarget));
 	}
 }
@@ -480,6 +483,7 @@ void Inspector::OpenObjectInNewTab(UT::GameObject* obj)
 
 	InspectedObjectTab newTab;
 	newTab.gameObject = obj;
+	newTab.gameObjectPin = Helper::GcPin(obj);
 
 	if (UT::String* name = nullptr; Helper::SafeGetName(obj, name) && name)
 	{
@@ -497,13 +501,13 @@ void Inspector::OpenObjectInNewTab(UT::GameObject* obj)
 	pendingTabSwitch = true;
 	showDetailsWindow = true;
 	ImGui::SetWindowFocus("Inspector");
-	AddToRecentSelections(obj);
 }
 
 void Inspector::CloseTab(const int tabIndex)
 {
 	if (tabIndex < 0 || std::cmp_greater_equal(tabIndex, static_cast<int>(openTabs.size()))) return;
 
+	UnpinObject(openTabs[tabIndex].gameObject);
 	openTabs.erase(openTabs.begin() + tabIndex);
 
 	if (tabIndex < activeTabIndex) --activeTabIndex;
@@ -543,23 +547,6 @@ int Inspector::FindTabForObject(const UT::GameObject* obj) const
 		if (openTabs[i].gameObject == obj) return static_cast<int>(i);
 	}
 	return -1;
-}
-
-void Inspector::AddToRecentSelections(UT::GameObject* obj)
-{
-	if (!obj) return;
-
-	if (const auto it = std::ranges::find(recentSelections, obj); it != recentSelections.end())
-	{
-		recentSelections.erase(it);
-	}
-
-	recentSelections.push_front(obj);
-
-	while (recentSelections.size() > 10)
-	{
-		recentSelections.pop_back();
-	}
 }
 
 void Inspector::PinObject(UT::GameObject* obj)

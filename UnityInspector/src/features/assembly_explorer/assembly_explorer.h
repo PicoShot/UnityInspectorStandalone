@@ -1,6 +1,7 @@
 #pragma once
 #include "features/features.h"
 #include "features/inspector/field_editor.h"
+#include "helper/helper.h"
 
 class AssemblyExplorer final : public IFeature
 {
@@ -12,6 +13,7 @@ private:
 	struct ClassInstanceInfo
 	{
 		void* instance = nullptr;
+		Helper::GcPin pin;
 		std::string displayName;
 		bool isActive = true;
 	};

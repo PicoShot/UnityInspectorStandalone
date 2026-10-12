@@ -1376,6 +1376,7 @@ void AssemblyExplorer::RefreshInstances(AssemblyClassInfo* classInfo) const
 	{
 		ClassInstanceInfo info;
 		info.instance = obj;
+		info.pin = Helper::GcPin(obj);
 
 		std::stringstream ss;
 		ss << std::hex << obj;

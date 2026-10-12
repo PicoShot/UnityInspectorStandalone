@@ -60,8 +60,7 @@ std::vector<std::pair<std::string, int>> GetEnumValues(std::string_view enumType
 				int value = 0;
 				if (Config::state.unityMode == UnityResolve::Mode::Mono)
 				{
-					void* vTable = UR::Invoke<void*, void*, void*>(
-					    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", field));
+					void* vTable = Helper::GetMonoStaticVTable(field);
 					UR::Invoke<void, void*, void*, int*>("mono_field_static_get_value", vTable, field, &value);
 				}
 				else
@@ -142,6 +141,7 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, std::string_
 
 	state.nestedClass = nullptr;
 	state.nestedInstance = nullptr;
+	state.nestedPin = {};
 	state.isValueType = false;
 	state.ownedField.reset();
 
@@ -174,6 +174,7 @@ void FieldEditor::OpenFieldEditor(UR::Field* field, void* instance, std::string_
 						ptrValue = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(instance) + field->offset);
 					}
 					state.nestedInstance = ptrValue;
+					state.nestedPin = Helper::GcPin(ptrValue);
 				}
 			}
 		}
@@ -191,6 +192,7 @@ void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* ins
 	state.targetInstance = instance;
 	state.nestedClass = nullptr;
 	state.nestedInstance = nullptr;
+	state.nestedPin = {};
 	state.isValueType = false;
 	state.ownedField.reset();
 
@@ -232,6 +234,7 @@ void FieldEditor::OpenFieldEditor(const ComponentFieldInfo& fieldInfo, void* ins
 		{
 			state.nestedInstance = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(instance) + fieldInfo.offset);
 		}
+		state.nestedPin = Helper::GcPin(state.nestedInstance);
 	}
 }
 
@@ -242,6 +245,7 @@ void FieldEditor::Close()
 	state.targetInstance = nullptr;
 	state.nestedClass = nullptr;
 	state.nestedInstance = nullptr;
+	state.nestedPin = {};
 	state.isValueType = false;
 	state.ownedField.reset();
 	nestedEditors.clear();

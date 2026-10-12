@@ -4,6 +4,31 @@
 
 namespace Helper
 {
+	inline std::atomic_bool g_ShuttingDown = false;
+
+	class GcPin
+	{
+	public:
+		GcPin() = default;
+		explicit GcPin(void* obj);
+		GcPin(const GcPin& other) : GcPin(other.target) {}
+		GcPin(GcPin&& other) noexcept
+		    : target(std::exchange(other.target, nullptr)), handle(std::exchange(other.handle, 0))
+		{
+		}
+		GcPin& operator=(GcPin other) noexcept
+		{
+			std::swap(target, other.target);
+			std::swap(handle, other.handle);
+			return *this;
+		}
+		~GcPin();
+
+	private:
+		void* target = nullptr;
+		uintptr_t handle = 0;
+	};
+
 	struct BoundingBox2D
 	{
 		float minX = FLT_MAX, minY = FLT_MAX;
@@ -12,6 +37,7 @@ namespace Helper
 	};
 
 	bool IsValidUserPointer(void* ptr);
+	void* GetMonoStaticVTable(void* fieldHandle);
 	bool SafeIsAlive(UnityObject* obj);
 	bool SafeGetTag(GameObject* obj, UT::String*& outTag);
 	bool SafeGetActiveSelf(GameObject* obj, bool& outActive);

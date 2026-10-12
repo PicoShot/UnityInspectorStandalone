@@ -1,6 +1,7 @@
 #pragma once
 #include "features/features.h"
 #include "features/inspector/editable_type.h"
+#include "helper/helper.h"
 
 EditableType DetermineEditableType(std::string_view typeName, std::string* enumTypeNameOut = nullptr);
 
@@ -34,6 +35,7 @@ struct FieldEditorState
 
 	UR::Class* nestedClass = nullptr;
 	void* nestedInstance = nullptr;
+	Helper::GcPin nestedPin;
 
 	std::unique_ptr<UR::Field> ownedField;
 

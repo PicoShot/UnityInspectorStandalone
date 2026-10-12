@@ -39,8 +39,7 @@ namespace Helper
 		{
 			if (Config::state.unityMode == UnityResolve::Mode::Mono)
 			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+				void* vTable = Helper::GetMonoStaticVTable(fieldHandle);
 				UR::Invoke<void, void*, void*, T*>(set ? "mono_field_static_set_value" : "mono_field_static_get_value",
 				                                   vTable, fieldHandle, value);
 			}
@@ -486,11 +485,39 @@ namespace Helper
 	bool IsValidReadPtr(const void* ptr)
 	{
 		if (!ptr) return false;
+
+		struct Region
+		{
+			uintptr_t begin = 0, end = 0;
+		};
+		thread_local std::array<Region, 8> recent{};
+		thread_local size_t nextSlot = 0;
+
+		const auto addr = reinterpret_cast<uintptr_t>(ptr);
+		for (const auto& [begin, end] : recent)
+		{
+			if (addr >= begin && addr < end) return true;
+		}
+
 		MEMORY_BASIC_INFORMATION mbi;
 		if (VirtualQuery(ptr, &mbi, sizeof(mbi)) == 0) return false;
 		if (mbi.State != MEM_COMMIT) return false;
 		if (mbi.Protect == PAGE_NOACCESS || (mbi.Protect & PAGE_GUARD)) return false;
+
+		const auto begin = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+		recent[nextSlot++ % recent.size()] = {begin, begin + mbi.RegionSize};
 		return true;
+	}
+
+	void* GetMonoStaticVTable(void* fieldHandle)
+	{
+		thread_local std::unordered_map<void*, void*> cache;
+		if (const auto it = cache.find(fieldHandle); it != cache.end()) return it->second;
+
+		void* vTable = UR::Invoke<void*, void*, void*>("mono_class_vtable", UR::pDomain,
+		                                               UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+		if (vTable) cache.emplace(fieldHandle, vTable);
+		return vTable;
 	}
 
 	__declspec(noinline) void DoSafeGetStaticFieldPointer(void* fieldHandle, void*& outValue)
@@ -499,8 +526,7 @@ namespace Helper
 
 		if (Config::state.unityMode == UnityResolve::Mode::Mono)
 		{
-			void* vTable = UR::Invoke<void*, void*, void*>(
-			    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+			void* vTable = Helper::GetMonoStaticVTable(fieldHandle);
 			UR::Invoke<void, void*, void*, void*>("mono_field_static_get_value", vTable, fieldHandle, safeBuffer);
 		}
 		else
@@ -1167,4 +1193,19 @@ namespace Helper
 		}
 		return false;
 	}
+}
+
+Helper::GcPin::GcPin(void* obj)
+{
+	if (!SafeGetObjectClass(obj)) return;
+	const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+	handle = UR::Invoke<uintptr_t, void*, int>(mono ? "mono_gchandle_new" : "il2cpp_gchandle_new", obj, 0);
+	if (handle) target = obj;
+}
+
+Helper::GcPin::~GcPin()
+{
+	if (!handle || g_ShuttingDown) return;
+	const bool mono = Config::state.unityMode == UnityResolve::Mode::Mono;
+	UR::Invoke<void, uintptr_t>(mono ? "mono_gchandle_free" : "il2cpp_gchandle_free", handle);
 }

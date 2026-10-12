@@ -479,9 +479,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 				int32_t parts[4] = {};
 				if (Config::state.unityMode == UnityResolve::Mode::Mono)
 				{
-					void* vTable = UR::Invoke<void*, void*, void*>(
-					    "mono_class_vtable", UR::pDomain,
-					    UR::Invoke<void*, void*>("mono_field_get_parent", field.fieldHandle));
+					void* vTable = Helper::GetMonoStaticVTable(field.fieldHandle);
 					UR::Invoke<void, void*, void*, void*>("mono_field_static_get_value", vTable, field.fieldHandle,
 					                                      &parts);
 				}
@@ -690,6 +688,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 							{
 								InspectionTarget nextTarget;
 								nextTarget.instance = instancePtr;
+								nextTarget.interior = field.isValueType;
 								nextTarget.name = field.name;
 								nextTarget.classHandle = field.classHandle;
 
@@ -1113,6 +1112,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 							{
 								InspectionTarget nextTarget;
 								nextTarget.instance = nullablePtr;
+								nextTarget.interior = true;
 								nextTarget.name = field.name;
 								nextTarget.classHandle = field.classHandle;
 								nextTarget.cachedComponents.push_back(static_cast<UT::Component*>(nullablePtr));
@@ -1154,6 +1154,7 @@ void Inspector::RenderEditableField(void* instance, const ComponentFieldInfo& fi
 							{
 								InspectionTarget nextTarget;
 								nextTarget.instance = instancePtr;
+								nextTarget.interior = field.isValueType;
 								nextTarget.name = field.name;
 								nextTarget.classHandle = field.classHandle;
 
@@ -1910,6 +1911,7 @@ void Inspector::RenderFieldsSection(void* instance, const std::vector<ComponentF
 						{
 							InspectionTarget nextTarget;
 							nextTarget.instance = instancePtr;
+							nextTarget.interior = field->isValueType;
 							nextTarget.name = field->name;
 							nextTarget.classHandle = field->classHandle;
 							if (instancePtr)
@@ -2643,7 +2645,11 @@ void Inspector::RenderDetailsWindow()
 
 	if (pendingNavigation)
 	{
-		if (auto* activeTab = GetActiveTab()) activeTab->navigationStack.push_back(std::move(*pendingNavigation));
+		if (auto* activeTab = GetActiveTab())
+		{
+			PinTarget(*pendingNavigation);
+			activeTab->navigationStack.push_back(std::move(*pendingNavigation));
+		}
 		pendingNavigation.reset();
 	}
 }

@@ -238,6 +238,7 @@ void Inspector::ScanStaticClasses()
 
 							StaticInstanceNode node;
 							node.instance = instance;
+							node.instancePin = Helper::GcPin(instance);
 							node.typeClassHandle = typeClassHandle;
 
 							std::string kName =
@@ -281,6 +282,7 @@ void Inspector::OpenStaticInstanceInNewTab(const StaticInstanceNode& node)
 	rootTarget.cachedComponentProperties.push_back(GetObjectProperties(node.instance, node.typeClassHandle));
 	rootTarget.cachedComponentMethods.push_back(GetObjectMethods(node.instance, node.typeClassHandle));
 
+	PinTarget(rootTarget);
 	newTab.navigationStack.push_back(std::move(rootTarget));
 
 	openTabs.push_back(std::move(newTab));
@@ -329,6 +331,7 @@ void Inspector::InspectInstance(void* instance, void* classHandle, const std::st
 		rootTarget.cachedComponentMethods.push_back(GetObjectMethods(nullptr, classHandle));
 	}
 
+	PinTarget(rootTarget);
 	newTab.navigationStack.push_back(std::move(rootTarget));
 	openTabs.push_back(std::move(newTab));
 	activeTabIndex = static_cast<int>(openTabs.size()) - 1;

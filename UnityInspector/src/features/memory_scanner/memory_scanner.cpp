@@ -530,6 +530,9 @@ void MemoryScanner::StartFirstScan()
 	if (debugLogging) printf("[MemoryScanner] Static matches: %zu\n", scanBuffer.size());
 
 	objectsGathered = GatherUnityObjects();
+	gatheredPins.reserve(objectsGathered.size());
+	for (void* obj : objectsGathered)
+		gatheredPins.emplace_back(obj);
 	scanPhase = ScanPhase::Objects;
 }
 
@@ -550,7 +553,7 @@ bool MemoryScanner::StepObjectScan(const std::chrono::steady_clock::time_point d
 		if (UT::String* nameStr = nullptr; Helper::SafeGetName(static_cast<UnityObject*>(obj), nameStr) && nameStr)
 			objName = nameStr->ToString();
 
-		ScanObjectInstance(obj, klass, scanBuffer, scanVisited, 0, objName);
+		ScanObjectInstance(obj, klass, scanBuffer, scanVisited, 0, objName, obj);
 	}
 
 	statusText = "Scanning objects... " + std::to_string(scanCursor) + "/" + std::to_string(objectsGathered.size());
@@ -601,6 +604,12 @@ void MemoryScanner::FinishScan()
 	else
 	{
 		currentResults = std::move(scanBuffer);
+		std::unordered_map<void*, Helper::GcPin> pins;
+		for (const auto& result : currentResults)
+		{
+			if (result.owner) pins.try_emplace(result.owner, result.owner);
+		}
+		resultPins = std::move(pins);
 		statusText = std::string(firstScan ? "Scan complete. " : "Next scan complete. ") +
 		             std::to_string(currentResults.size()) + " matches.";
 		if (firstScan) hasDoneFirstScan = true;
@@ -611,6 +620,8 @@ void MemoryScanner::FinishScan()
 	scanVisited.clear();
 	objectsGathered.clear();
 	objectsGathered.shrink_to_fit();
+	gatheredPins.clear();
+	gatheredPins.shrink_to_fit();
 	scanPhase = ScanPhase::Idle;
 	scanInProgress = false;
 	selectedResultIndex = -1;
@@ -618,6 +629,7 @@ void MemoryScanner::FinishScan()
 
 void MemoryScanner::ResetScan()
 {
+	resultPins.clear();
 	currentResults.clear();
 	hasDoneFirstScan = false;
 	statusText.clear();
@@ -724,7 +736,7 @@ void MemoryScanner::ScanStaticFields(std::vector<ScanField>& out) const
 
 void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanField>& out,
                                        std::unordered_set<VisitedKey, VisitedKeyHash>& visited, int depth,
-                                       const std::string& objName)
+                                       const std::string& objName, void* owner)
 {
 	if (stopRequested) return;
 	if (!obj || !klass) return;
@@ -772,6 +784,7 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
 				scanField.fieldHandle = field;
 				scanField.classHandle = currentClass;
 				scanField.object = obj;
+				scanField.owner = owner;
 				scanField.isStatic = false;
 				scanField.offset = offset;
 				scanField.valueType = selectedType;
@@ -797,11 +810,11 @@ void MemoryScanner::ScanObjectInstance(void* obj, void* klass, std::vector<ScanF
 			{
 				constexpr int boxHeader = 2 * sizeof(void*);
 				ScanObjectInstance(static_cast<char*>(obj) + offset - boxHeader, fieldClass, out, visited, depth + 1,
-				                   objName + "." + fieldName + "(S)");
+				                   objName + "." + fieldName + "(S)", owner);
 			}
 			else if (void* refObj = nullptr; Helper::SafeReadPointer(obj, offset, refObj) && refObj)
 			{
-				ScanObjectInstance(refObj, fieldClass, out, visited, depth + 1, objName + "." + fieldName);
+				ScanObjectInstance(refObj, fieldClass, out, visited, depth + 1, objName + "." + fieldName, refObj);
 			}
 		}
 	}
@@ -898,8 +911,7 @@ bool MemoryScanner::ReadStaticFieldValue(void* fieldHandle, void* outValue) cons
 	{
 		if (mono)
 		{
-			void* vTable = UR::Invoke<void*, void*, void*>(
-			    "mono_class_vtable", UR::pDomain, UR::Invoke<void*, void*>("mono_field_get_parent", fieldHandle));
+			void* vTable = Helper::GetMonoStaticVTable(fieldHandle);
 			UR::Invoke<void, void*, void*, void*>("mono_field_static_get_value", vTable, fieldHandle, outValue);
 		}
 		else
@@ -1370,9 +1382,7 @@ bool MemoryScanner::WriteFieldValue(const ScanField& field, const void* valueBuf
 
 			if (mono)
 			{
-				void* vTable = UR::Invoke<void*, void*, void*>(
-				    "mono_class_vtable", UR::pDomain,
-				    UR::Invoke<void*, void*>("mono_field_get_parent", field.fieldHandle));
+				void* vTable = Helper::GetMonoStaticVTable(field.fieldHandle);
 				UR::Invoke<void, void*, void*, const void*>("mono_field_static_set_value", vTable, field.fieldHandle,
 				                                            rawBytes);
 			}

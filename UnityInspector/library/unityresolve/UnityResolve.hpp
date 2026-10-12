@@ -404,6 +404,8 @@ public:
 	};
 
 	static auto ThreadAttach() -> void {
+		if (threadAttached_) return;
+		threadAttached_ = true;
 		if (mode_ == Mode::Il2Cpp) Invoke<void*>("il2cpp_thread_attach", pDomain);
 		else {
 			Invoke<void*>("mono_thread_attach", pDomain);
@@ -412,6 +414,7 @@ public:
 	}
 
 	static auto ThreadDetach() -> void {
+		threadAttached_ = false;
 		if (mode_ == Mode::Il2Cpp) Invoke<void*>("il2cpp_thread_detach", pDomain);
 		else {
 			Invoke<void*>("mono_thread_detach", pDomain);
@@ -654,21 +657,21 @@ public:
 	}
 #endif
 
-	template <typename Return, typename... Args>
-	static auto Invoke(const std::string& funcName, Args... args) -> Return {
-		void* function;
-		{
-			std::scoped_lock lock(addressMutex_);
-			auto& cached = address_[funcName];
+	static auto ResolveExport(const char* funcName) -> void* {
+		thread_local std::unordered_map<const char*, void*> cache;
+		if (const auto it = cache.find(funcName); it != cache.end()) return it->second;
 #if WINDOWS_MODE
-			if (!cached) cached = static_cast<void*>(GetProcAddress(static_cast<HMODULE>(hmodule_), funcName.c_str()));
+		void* function = static_cast<void*>(GetProcAddress(static_cast<HMODULE>(hmodule_), funcName));
 #elif  ANDROID_MODE || LINUX_MODE || IOS_MODE || HARMONYOS_MODE
-			if (!cached) cached = dlsym(hmodule_, funcName.c_str());
+		void* function = dlsym(hmodule_, funcName);
 #endif
-			function = cached;
-		}
+		if (function) cache.emplace(funcName, function);
+		return function;
+	}
 
-		if (function != nullptr) {
+	template <typename Return, typename... Args>
+	static auto Invoke(const char* funcName, Args... args) -> Return {
+		if (void* function = ResolveExport(funcName); function != nullptr) {
 			try {
 				return reinterpret_cast<Return(UNITY_CALLING_CONVENTION*)(Args...)>(function)(args...);
 			}
@@ -4013,8 +4016,7 @@ private:
 	inline static Mode                                   mode_{};
 	inline static void* hmodule_;
 	inline static std::atomic_bool runtimeReady_{};
-	inline static std::unordered_map<std::string, void*> address_{};
-	inline static std::mutex addressMutex_{};
+	inline static thread_local bool threadAttached_{};
 	inline static std::mutex assemblyMutex_{};
 	inline static std::unordered_set<void*> loadingAssemblies_{};
 	inline static std::mutex assemblyCallbackMutex_{};

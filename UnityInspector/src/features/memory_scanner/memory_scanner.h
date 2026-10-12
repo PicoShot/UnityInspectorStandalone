@@ -1,5 +1,6 @@
 #pragma once
 #include "features/features.h"
+#include "helper/helper.h"
 
 enum class ScanValueType
 {
@@ -39,6 +40,7 @@ struct ScanField
 	void* fieldHandle = nullptr;
 	void* classHandle = nullptr;
 	void* object = nullptr;
+	void* owner = nullptr;
 	std::string className;
 	std::string namespaze;
 	std::string fieldName;
@@ -142,7 +144,7 @@ private:
 
 	void ScanObjectInstance(void* obj, void* klass, std::vector<ScanField>& out,
 	                        std::unordered_set<VisitedKey, VisitedKeyHash>& visited, int depth,
-	                        const std::string& objName);
+	                        const std::string& objName, void* owner);
 
 	bool TypeNameMatchesSearchType(const std::string& typeName) const;
 	ActualFieldType DetermineActualFieldType(const std::string& typeName) const;
@@ -171,6 +173,8 @@ private:
 	static std::string FormatValue(const ScanField::ValUnion& val, ActualFieldType type);
 
 	std::vector<void*> objectsGathered;
+	std::vector<Helper::GcPin> gatheredPins;
+	std::unordered_map<void*, Helper::GcPin> resultPins;
 
 	ScanField::ValUnion editValue{.i64 = 0};
 	struct PendingWrite

@@ -140,6 +140,7 @@ void Inspector::RenderMethodInvokePopup()
 			void* result = InvokeMethod(invokeState.targetInstance, invokeState.method, invokeState.parameterValues);
 
 			invokeState.hasResult = true;
+			invokeState.resultPin = Helper::GcPin(result);
 			invokeState.resultPointer = nullptr;
 			invokeState.resultEditableType = EditableType::None;
 			if (result)
@@ -264,6 +265,8 @@ void Inspector::RenderMethodInvokePopup()
 						InspectionTarget nextTarget;
 						nextTarget.gameObject = nullptr;
 						nextTarget.instance = invokeState.resultPointer;
+						nextTarget.interior = true;
+						nextTarget.pins.push_back(invokeState.resultPin);
 						nextTarget.classHandle = klass;
 						nextTarget.name = invokeState.method.returnTypeName;
 
